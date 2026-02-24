@@ -1,0 +1,6 @@
+code,name,description,is_active
+GD-UTAMA,Gudang Utama,,1
+GD-VAKSIN,Gudang Vaksin (Cold Chain),,1
+GD-ALKES,Gudang Alat Kesehatan,,1
+GD-NARKOTIK,Gudang Narkotika/Psikotropika,,1
+GD-TRANSIT,Gudang Transit,,1
