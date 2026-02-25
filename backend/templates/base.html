@@ -1,6 +1,7 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="id" data-bs-theme="light">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
     <link href="{% static 'css/style.css' %}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
 </head>
+
 <body>
     {% if user.is_authenticated %}
     <div class="d-flex" id="wrapper">
@@ -27,33 +29,40 @@
 
             <div class="sidebar-nav">
                 <div class="sidebar-section-title">Menu Utama</div>
-                <a href="{% url 'dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <a href="{% url 'dashboard' %}"
+                    class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
                     <i class="bi bi-house-door"></i><span>Dashboard</span>
                 </a>
 
                 <div class="sidebar-section-title">Master Data</div>
-                <a href="{% url 'items:item_list' %}" class="sidebar-link {% if request.resolver_match.app_name == 'items' %}active{% endif %}">
+                <a href="{% url 'items:item_list' %}"
+                    class="sidebar-link {% if request.resolver_match.app_name == 'items' %}active{% endif %}">
                     <i class="bi bi-box-seam"></i><span>Barang</span>
                 </a>
-                <a href="{% url 'stock:stock_list' %}" class="sidebar-link {% if request.resolver_match.app_name == 'stock' and 'stock' in request.resolver_match.url_name %}active{% endif %}">
+                <a href="{% url 'stock:stock_list' %}"
+                    class="sidebar-link {% if request.resolver_match.app_name == 'stock' and 'stock' in request.resolver_match.url_name %}active{% endif %}">
                     <i class="bi bi-boxes"></i><span>Stok</span>
                 </a>
 
                 <div class="sidebar-section-title">Transaksi</div>
-                <a href="{% url 'receiving:receiving_list' %}" class="sidebar-link {% if request.resolver_match.app_name == 'receiving' %}active{% endif %}">
+                <a href="{% url 'receiving:receiving_list' %}"
+                    class="sidebar-link {% if request.resolver_match.app_name == 'receiving' %}active{% endif %}">
                     <i class="bi bi-inbox-fill"></i><span>Penerimaan</span>
                 </a>
-                <a href="{% url 'distribution:distribution_list' %}" class="sidebar-link {% if request.resolver_match.app_name == 'distribution' %}active{% endif %}">
+                <a href="{% url 'distribution:distribution_list' %}"
+                    class="sidebar-link {% if request.resolver_match.app_name == 'distribution' %}active{% endif %}">
                     <i class="bi bi-send"></i><span>Distribusi</span>
                 </a>
 
                 <div class="sidebar-section-title">Transaksi Stok</div>
-                <a href="{% url 'stock:transaction_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'transaction_list' %}active{% endif %}">
+                <a href="{% url 'stock:transaction_list' %}"
+                    class="sidebar-link {% if request.resolver_match.url_name == 'transaction_list' %}active{% endif %}">
                     <i class="bi bi-journal-text"></i><span>Kartu Stok</span>
                 </a>
 
                 <div class="sidebar-section-title">Laporan</div>
-                <a href="{% url 'reports:index' %}" class="sidebar-link {% if request.resolver_match.app_name == 'reports' %}active{% endif %}">
+                <a href="{% url 'reports:index' %}"
+                    class="sidebar-link {% if request.resolver_match.app_name == 'reports' %}active{% endif %}">
                     <i class="bi bi-bar-chart-line"></i><span>Laporan</span>
                 </a>
 
@@ -79,13 +88,25 @@
                     </div>
                     <div class="d-flex align-items-center gap-3">
                         <div class="dropdown">
-                            <button class="btn btn-link dropdown-toggle user-dropdown" type="button" data-bs-toggle="dropdown">
+                            <button class="btn btn-link dropdown-toggle user-dropdown" type="button"
+                                data-bs-toggle="dropdown">
                                 <i class="bi bi-person-circle"></i>
                                 <span class="d-none d-md-inline">{{ user.full_name|default:user.username }}</span>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><span class="dropdown-item-text text-muted small">{{ user.get_role_display }}</span></li>
-                                <li><hr class="dropdown-divider"></li>
+                                <li><span class="dropdown-item-text text-muted small">{{ user.get_role_display }}</span>
+                                </li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li>
+                                    <a href="{% url 'password_change' %}" class="dropdown-item">
+                                        <i class="bi bi-key me-2"></i>Ubah Password
+                                    </a>
+                                </li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
                                 <li>
                                     <form method="post" action="{% url 'logout' %}">
                                         {% csrf_token %}
@@ -132,4 +153,5 @@
     <script src="{% static 'js/app.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>

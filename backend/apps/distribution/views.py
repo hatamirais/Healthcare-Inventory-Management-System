@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
 
+from apps.core.decorators import role_required
 from .models import Distribution, DistributionItem
 from .forms import DistributionForm, DistributionItemFormSet
 
@@ -50,6 +51,7 @@ def distribution_list(request):
 
 
 @login_required
+@role_required('ADMIN', 'GUDANG', 'KEPALA')
 def distribution_create(request):
     if request.method == 'POST':
         form = DistributionForm(request.POST)

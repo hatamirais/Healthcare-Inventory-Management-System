@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
 
+from apps.core.decorators import role_required
 from .models import Item, Unit, Category, FundingSource, Location, Supplier, Facility
 from .forms import ItemForm
 
@@ -57,6 +58,7 @@ def item_list(request):
 
 
 @login_required
+@role_required('ADMIN', 'ADMIN_UMUM', 'KEPALA')
 def item_create(request):
     if request.method == 'POST':
         form = ItemForm(request.POST)
@@ -71,6 +73,7 @@ def item_create(request):
 
 
 @login_required
+@role_required('ADMIN', 'ADMIN_UMUM', 'KEPALA')
 def item_update(request, pk):
     item = get_object_or_404(Item, pk=pk)
     if request.method == 'POST':
@@ -86,6 +89,7 @@ def item_update(request, pk):
 
 
 @login_required
+@role_required('ADMIN', 'ADMIN_UMUM', 'KEPALA')
 def item_delete(request, pk):
     item = get_object_or_404(Item, pk=pk)
     if request.method == 'POST':
