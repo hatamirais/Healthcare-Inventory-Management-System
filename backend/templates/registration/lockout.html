@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Akun Terkunci — Healthcare IMS{% endblock %}
+
+{% block public_content %}
+<div class="login-wrapper">
+    <div class="login-card">
+        <div class="text-center mb-4">
+            <div class="login-icon" style="background: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                <i class="bi bi-shield-lock"></i>
+            </div>
+            <h2 class="mb-1">Akun Terkunci</h2>
+            <p class="text-muted">Terlalu banyak percobaan login yang gagal.</p>
+        </div>
+
+        <div class="alert alert-warning py-3 px-3">
+            <div class="d-flex align-items-start">
+                <i class="bi bi-clock-history me-2 mt-1"></i>
+                <div>
+                    <strong>Akun Anda dikunci selama 30 menit</strong>
+                    <br>
+                    <small class="text-muted">
+                        Demi keamanan, akun dikunci setelah 5x percobaan login gagal.
+                        Silakan coba lagi setelah 30 menit, atau hubungi Administrator untuk membuka kunci.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <a href="{% url 'login' %}" class="btn btn-outline-primary w-100">
+            <i class="bi bi-arrow-left me-2"></i>Kembali ke Halaman Login
+        </a>
+    </div>
+</div>
+{% endblock %}
