@@ -30,53 +30,62 @@
             <div class="sidebar-nav">
                 <div class="sidebar-section-title">Menu Utama</div>
                 <a href="{% url 'dashboard' %}"
-                    class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+                    data-label="Dashboard">
                     <i class="bi bi-house-door"></i><span>Dashboard</span>
                 </a>
 
                 <div class="sidebar-section-title">Master Data</div>
                 <a href="{% url 'items:item_list' %}"
-                    class="sidebar-link {% if request.resolver_match.app_name == 'items' %}active{% endif %}">
+                    class="sidebar-link {% if request.resolver_match.app_name == 'items' %}active{% endif %}"
+                    data-label="Barang">
                     <i class="bi bi-box-seam"></i><span>Barang</span>
                 </a>
                 <a href="{% url 'stock:stock_list' %}"
-                    class="sidebar-link {% if request.resolver_match.app_name == 'stock' and 'stock' in request.resolver_match.url_name %}active{% endif %}">
+                    class="sidebar-link {% if request.resolver_match.app_name == 'stock' and 'stock' in request.resolver_match.url_name %}active{% endif %}"
+                    data-label="Stok">
                     <i class="bi bi-boxes"></i><span>Stok</span>
                 </a>
 
                 <div class="sidebar-section-title">Transaksi</div>
                 <a href="{% url 'receiving:receiving_list' %}"
-                    class="sidebar-link {% if request.resolver_match.app_name == 'receiving' %}active{% endif %}">
+                    class="sidebar-link {% if request.resolver_match.app_name == 'receiving' %}active{% endif %}"
+                    data-label="Penerimaan">
                     <i class="bi bi-inbox-fill"></i><span>Penerimaan</span>
                 </a>
                 <a href="{% url 'distribution:distribution_list' %}"
-                    class="sidebar-link {% if request.resolver_match.app_name == 'distribution' %}active{% endif %}">
+                    class="sidebar-link {% if request.resolver_match.app_name == 'distribution' %}active{% endif %}"
+                    data-label="Distribusi">
                     <i class="bi bi-send"></i><span>Distribusi</span>
                 </a>
                 <a href="{% url 'recall:recall_list' %}"
-                    class="sidebar-link {% if request.resolver_match.app_name == 'recall' %}active{% endif %}">
+                    class="sidebar-link {% if request.resolver_match.app_name == 'recall' %}active{% endif %}"
+                    data-label="Recall / Retur">
                     <i class="bi bi-arrow-return-left"></i><span>Recall / Retur</span>
                 </a>
                 <a href="{% url 'expired:expired_list' %}"
-                    class="sidebar-link {% if request.resolver_match.app_name == 'expired' %}active{% endif %}">
+                    class="sidebar-link {% if request.resolver_match.app_name == 'expired' %}active{% endif %}"
+                    data-label="Kedaluwarsa">
                     <i class="bi bi-trash"></i><span>Kedaluwarsa</span>
                 </a>
 
                 <div class="sidebar-section-title">Transaksi Stok</div>
                 <a href="{% url 'stock:transaction_list' %}"
-                    class="sidebar-link {% if request.resolver_match.url_name == 'transaction_list' %}active{% endif %}">
+                    class="sidebar-link {% if request.resolver_match.url_name == 'transaction_list' %}active{% endif %}"
+                    data-label="Kartu Stok">
                     <i class="bi bi-journal-text"></i><span>Kartu Stok</span>
                 </a>
 
                 <div class="sidebar-section-title">Laporan</div>
                 <a href="{% url 'reports:index' %}"
-                    class="sidebar-link {% if request.resolver_match.app_name == 'reports' %}active{% endif %}">
+                    class="sidebar-link {% if request.resolver_match.app_name == 'reports' %}active{% endif %}"
+                    data-label="Laporan">
                     <i class="bi bi-bar-chart-line"></i><span>Laporan</span>
                 </a>
 
                 {% if user.is_superuser or user.role == 'ADMIN' %}
                 <div class="sidebar-section-title">Administrasi</div>
-                <a href="{% url 'admin:index' %}" class="sidebar-link" target="_blank">
+                <a href="{% url 'admin:index' %}" class="sidebar-link" target="_blank" data-label="Admin Panel">
                     <i class="bi bi-gear"></i><span>Admin Panel</span>
                 </a>
                 {% endif %}
@@ -90,6 +99,9 @@
                 <div class="container-fluid">
                     <button class="btn btn-link sidebar-toggle d-lg-none" id="sidebarToggleMobile">
                         <i class="bi bi-list fs-4"></i>
+                    </button>
+                    <button class="btn btn-link sidebar-collapse-btn d-none d-lg-flex" id="sidebarCollapseBtn" title="Toggle sidebar">
+                        <i class="bi bi-layout-sidebar"></i>
                     </button>
                     <div class="d-flex align-items-center">
                         <h5 class="mb-0 page-title">{% block page_title %}Dashboard{% endblock %}</h5>
