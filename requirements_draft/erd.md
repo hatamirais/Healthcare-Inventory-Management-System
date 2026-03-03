@@ -344,7 +344,7 @@ erDiagram
 - **Indexes:** `code` (unique)
 - **Note:** To be provided by client
 
-#### 5. Supplier
+#### 6. Supplier
 
 - **Purpose:** Vendor management for procurement tracking
 - **Indexes:** `code` (unique)
@@ -373,7 +373,8 @@ erDiagram
   - `(kategori_id, is_program_item)` for filtering
   - Full-text search on `nama_barang`
 - **Special Fields:**
-  - `is_program_item` + `program_name`: For designated program items [P]
+  - `kode_barang`: Auto-generated as `ITM-YYYY-NNNNN` (or manually assigned)
+  - `is_program_item` + `program` (FK to Program): For designated program items [P]
   - `minimum_stock`: Threshold for low stock alerts
 
 #### 9. Stock (Persediaan)
@@ -624,6 +625,10 @@ ALTER TABLE receiving ADD CONSTRAINT uq_receiving_doc
   UNIQUE (document_number);
 ALTER TABLE distribution ADD CONSTRAINT uq_dist_doc 
   UNIQUE (document_number);
+ALTER TABLE recalls ADD CONSTRAINT uq_recall_doc 
+  UNIQUE (document_number);
+ALTER TABLE expired_docs ADD CONSTRAINT uq_expired_doc 
+  UNIQUE (document_number);
 ```
 
 ---
@@ -720,5 +725,7 @@ for row in csv:
 4. ✅ Initial migrations written and applied
 5. ✅ Seed lookup table data (via `django-import-export` in Django Admin)
 6. ✅ CSV import via Django Admin (`django-import-export`)
-7. ⬜ Define DRF serializers (if/when REST API is needed)
-8. ⬜ Build API endpoints (if/when REST API is needed)
+7. ✅ Recall module implemented (models, views, forms, templates)
+8. ✅ Expired module implemented (models, views, forms, templates)
+9. ⬜ Define DRF serializers (if/when REST API is needed)
+10. ⬜ Build API endpoints (if/when REST API is needed)

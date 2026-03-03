@@ -1,17 +1,12 @@
 from django.contrib import admin
-from import_export import resources, fields
 from import_export.admin import ImportExportModelAdmin
+from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 
+from apps.core.admin_mixins import ImportGuideMixin
 from .models import (
-    Unit,
-    Category,
-    FundingSource,
-    Program,
-    Location,
-    Supplier,
-    Facility,
-    Item,
+    Unit, Category, FundingSource, Location,
+    Supplier, Facility, Program, Item,
 )
 
 
@@ -30,7 +25,7 @@ class UnitResource(resources.ModelResource):
 class CategoryResource(resources.ModelResource):
     class Meta:
         model = Category
-        fields = ("id", "code", "name", "sort_order")
+        fields = ("id", "code", "name", "description", "sort_order")
         import_id_fields = ("code",)
         skip_unchanged = True
         report_skipped = False
@@ -58,14 +53,8 @@ class SupplierResource(resources.ModelResource):
     class Meta:
         model = Supplier
         fields = (
-            "id",
-            "code",
-            "name",
-            "address",
-            "phone",
-            "email",
-            "notes",
-            "is_active",
+            "id", "code", "name", "address",
+            "phone", "email", "notes", "is_active",
         )
         import_id_fields = ("code",)
         skip_unchanged = True
@@ -76,13 +65,8 @@ class FacilityResource(resources.ModelResource):
     class Meta:
         model = Facility
         fields = (
-            "id",
-            "code",
-            "name",
-            "address",
-            "phone",
-            "facility_type",
-            "is_active",
+            "id", "code", "name", "facility_type",
+            "address", "phone", "is_active",
         )
         import_id_fields = ("code",)
         skip_unchanged = True
@@ -134,14 +118,7 @@ class ItemResource(resources.ModelResource):
         report_skipped = False
 
     def before_import_row(self, row, **kwargs):
-        """Ensure program column is populated for program items.
-
-        If the incoming row marks the item as a program item but the `program`
-        column is empty, attempt to locate a DEFAULT program (by code or name
-        case-insensitive). Create a DEFAULT program if none exists, then set
-        the row's `program` value to the DEFAULT program code so the
-        ForeignKeyWidget can resolve it.
-        """
+        """Ensure program column is populated for program items."""
         is_prog = str(row.get("is_program_item") or "").strip()
         prog_val = (row.get("program") or "").strip()
 
@@ -155,7 +132,6 @@ class ItemResource(resources.ModelResource):
                 default = Program.objects.create(
                     code="DEFAULT", name="DEFAULT", is_active=True
                 )
-            # Set to program code so ForeignKeyWidget can resolve by code
             row["program"] = default.code
 
 
@@ -163,62 +139,129 @@ class ItemResource(resources.ModelResource):
 
 
 @admin.register(Unit)
-class UnitAdmin(ImportExportModelAdmin):
+class UnitAdmin(ImportGuideMixin, ImportExportModelAdmin):
     resource_classes = [UnitResource]
     list_display = ("code", "name", "description")
     search_fields = ("code", "name")
+    import_guide = {
+        'title': 'Satuan (Unit)',
+        'columns': [
+            {'name': 'code', 'required': True, 'description': 'Kode unik (maks 20 karakter)'},
+            {'name': 'name', 'required': True, 'description': 'Nama satuan (misal: Tablet, Botol, Ampul)'},
+            {'name': 'description', 'required': False, 'description': 'Keterangan'},
+        ],
+    }
 
 
 @admin.register(Category)
-class CategoryAdmin(ImportExportModelAdmin):
+class CategoryAdmin(ImportGuideMixin, ImportExportModelAdmin):
     resource_classes = [CategoryResource]
     list_display = ("code", "name", "sort_order")
     search_fields = ("code", "name")
     list_editable = ("sort_order",)
+    import_guide = {
+        'title': 'Kategori Barang',
+        'columns': [
+            {'name': 'code', 'required': True, 'description': 'Kode unik (maks 20 karakter)'},
+            {'name': 'name', 'required': True, 'description': 'Nama kategori (misal: Obat, Alkes, BHP)'},
+            {'name': 'description', 'required': False, 'description': 'Keterangan'},
+            {'name': 'sort_order', 'required': False, 'description': 'Urutan tampilan (default: 0)'},
+        ],
+    }
 
 
 @admin.register(FundingSource)
-class FundingSourceAdmin(ImportExportModelAdmin):
+class FundingSourceAdmin(ImportGuideMixin, ImportExportModelAdmin):
     resource_classes = [FundingSourceResource]
     list_display = ("code", "name", "is_active")
     list_filter = ("is_active",)
     search_fields = ("code", "name")
+    import_guide = {
+        'title': 'Sumber Dana',
+        'columns': [
+            {'name': 'code', 'required': True, 'description': 'Kode unik (misal: DAK, APBD, HIBAH)'},
+            {'name': 'name', 'required': True, 'description': 'Nama sumber dana'},
+            {'name': 'description', 'required': False, 'description': 'Keterangan'},
+            {'name': 'is_active', 'required': False, 'description': '1 = aktif, 0 = nonaktif (default: 1)'},
+        ],
+    }
 
 
 @admin.register(Location)
-class LocationAdmin(ImportExportModelAdmin):
+class LocationAdmin(ImportGuideMixin, ImportExportModelAdmin):
     resource_classes = [LocationResource]
     list_display = ("code", "name", "is_active")
     list_filter = ("is_active",)
     search_fields = ("code", "name")
+    import_guide = {
+        'title': 'Lokasi Gudang',
+        'columns': [
+            {'name': 'code', 'required': True, 'description': 'Kode unik (misal: GUD-001)'},
+            {'name': 'name', 'required': True, 'description': 'Nama lokasi gudang'},
+            {'name': 'description', 'required': False, 'description': 'Keterangan'},
+            {'name': 'is_active', 'required': False, 'description': '1 = aktif, 0 = nonaktif (default: 1)'},
+        ],
+    }
 
 
 @admin.register(Supplier)
-class SupplierAdmin(ImportExportModelAdmin):
+class SupplierAdmin(ImportGuideMixin, ImportExportModelAdmin):
     resource_classes = [SupplierResource]
     list_display = ("code", "name", "phone", "email", "is_active")
     list_filter = ("is_active",)
     search_fields = ("code", "name", "email")
+    import_guide = {
+        'title': 'Supplier / Pemasok',
+        'columns': [
+            {'name': 'code', 'required': True, 'description': 'Kode unik (misal: SUP-001)'},
+            {'name': 'name', 'required': True, 'description': 'Nama supplier'},
+            {'name': 'address', 'required': False, 'description': 'Alamat'},
+            {'name': 'phone', 'required': False, 'description': 'Nomor telepon'},
+            {'name': 'email', 'required': False, 'description': 'Alamat email'},
+            {'name': 'notes', 'required': False, 'description': 'Catatan tambahan'},
+            {'name': 'is_active', 'required': False, 'description': '1 = aktif, 0 = nonaktif (default: 1)'},
+        ],
+    }
 
 
 @admin.register(Facility)
-class FacilityAdmin(ImportExportModelAdmin):
+class FacilityAdmin(ImportGuideMixin, ImportExportModelAdmin):
     resource_classes = [FacilityResource]
     list_display = ("code", "name", "facility_type", "phone", "is_active")
     list_filter = ("facility_type", "is_active")
     search_fields = ("code", "name")
+    import_guide = {
+        'title': 'Faskes / Fasilitas Kesehatan',
+        'columns': [
+            {'name': 'code', 'required': True, 'description': 'Kode unik (misal: PKM-001)'},
+            {'name': 'name', 'required': True, 'description': 'Nama faskes'},
+            {'name': 'facility_type', 'required': True, 'description': 'PUSKESMAS / RUMAH_SAKIT / KLINIK / PUSTU / POLINDES'},
+            {'name': 'address', 'required': False, 'description': 'Alamat'},
+            {'name': 'phone', 'required': False, 'description': 'Nomor telepon'},
+            {'name': 'is_active', 'required': False, 'description': '1 = aktif, 0 = nonaktif (default: 1)'},
+        ],
+    }
 
 
 @admin.register(Program)
-class ProgramAdmin(ImportExportModelAdmin):
+class ProgramAdmin(ImportGuideMixin, ImportExportModelAdmin):
     resource_classes = [ProgramResource]
     list_display = ("code", "name", "is_active")
     list_filter = ("is_active",)
     search_fields = ("code", "name")
+    import_guide = {
+        'title': 'Program Kesehatan',
+        'columns': [
+            {'name': 'code', 'required': True, 'description': 'Kode unik (misal: TB, HIV, MAL)'},
+            {'name': 'name', 'required': True, 'description': 'Nama program'},
+            {'name': 'description', 'required': False, 'description': 'Keterangan'},
+            {'name': 'is_active', 'required': False, 'description': '1 = aktif, 0 = nonaktif (default: 1)'},
+        ],
+    }
 
 
 @admin.register(Item)
-class ItemAdmin(ImportExportModelAdmin):
+class ItemAdmin(ImportGuideMixin, ImportExportModelAdmin):
     resource_classes = [ItemResource]
     list_display = (
         "kode_barang",
@@ -233,3 +276,17 @@ class ItemAdmin(ImportExportModelAdmin):
     list_filter = ("kategori", "is_program_item", "is_active", "satuan", "program")
     search_fields = ("kode_barang", "nama_barang", "program__code", "program__name")
     list_per_page = 50
+    import_guide = {
+        'title': 'Master Barang',
+        'description': 'Identifier unik: nama_barang. Re-import akan update data yg sudah ada.',
+        'columns': [
+            {'name': 'nama_barang', 'required': True, 'description': 'Nama barang (unik, dipakai sebagai ID import)'},
+            {'name': 'satuan', 'required': True, 'description': 'Kode satuan dari tabel Units'},
+            {'name': 'kategori', 'required': True, 'description': 'Kode kategori dari tabel Categories'},
+            {'name': 'is_program_item', 'required': False, 'description': '1 = item program, 0 = bukan (default: 0)'},
+            {'name': 'program', 'required': False, 'description': 'Kode program dari tabel Programs (jika program item)'},
+            {'name': 'minimum_stock', 'required': False, 'description': 'Batas minimum stok (default: 0)'},
+            {'name': 'description', 'required': False, 'description': 'Keterangan'},
+            {'name': 'is_active', 'required': False, 'description': '1 = aktif, 0 = nonaktif (default: 1)'},
+        ],
+    }

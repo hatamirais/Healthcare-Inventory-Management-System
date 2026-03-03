@@ -42,9 +42,7 @@ def dashboard(request):
         expiry_date__lte=three_months_later,
     ).count()
 
-    # Add is_expired flag for template
-    for stock in expiring_soon:
-        stock.is_expired = stock.expiry_date <= today
+
 
     # Recent transactions
     recent_transactions = (

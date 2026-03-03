@@ -19,8 +19,8 @@ This project uses **`django-import-export`** via the **Django Admin panel** for 
 
 ### Core Data (Import After Lookups)
 
-1. **items.csv** — Item master data (requires units + categories)
-2. **stock.csv** — Initial inventory (requires items + locations + funding sources)
+1. **items.csv** — Item master data (requires units + categories + programs)
+2. **receiving.csv** — Initial receiving documents (creates stock + audit trail via Admin)
 
 ## Import Order
 
@@ -36,8 +36,12 @@ This project uses **`django-import-export`** via the **Django Admin panel** for 
 6. suppliers.csv
 7. facilities.csv
 8. items.csv        ← requires units + categories + programs
-9. stock.csv        ← requires items + locations + funding sources
+9. receiving.csv    ← creates receiving docs + stock + transactions
 ```
+
+> [!TIP]
+> Use `receiving.csv` instead of `stock.csv` for initial stock seeding.
+> This creates proper audit trail (transactions) from day one.
 
 ## How to Import (Django Admin)
 
@@ -57,7 +61,7 @@ This project uses **`django-import-export`** via the **Django Admin panel** for 
 
 | Column | Required | Notes |
 | ------ | -------- | ----- |
-| kode_barang | ✅ Yes | Unique item code, max 50 chars |
+| kode_barang | ❌ No | Auto-generated as `ITM-YYYY-NNNNN` if blank |
 | nama_barang | ✅ Yes | Item name |
 | satuan | ✅ Yes | Unit **code** (e.g. `TAB`) |
 | kategori | ✅ Yes | Category **code** (e.g. `TABLET`) |

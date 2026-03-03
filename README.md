@@ -15,6 +15,8 @@ A web-based inventory management system for managing medicine and medical equipm
 - **Audit Trail** — Immutable transaction log for all stock movements
 - **CSV Import/Export** — Bulk data operations via Django Admin (`django-import-export`)
 - **Dashboard** — Overview of stock levels, near-expiry items, and recent transactions
+- **Role-Based Access Control** — `@role_required` decorator with 5 user roles
+- **Security Hardening** — Brute-force protection (django-axes), session security, production HSTS
 
 ## 🛠️ Tech Stack
 
@@ -25,6 +27,7 @@ A web-based inventory management system for managing medicine and medical equipm
 | Database         | PostgreSQL 16                                      |
 | Cache/Queue      | Redis 7 (via Docker)                               |
 | CSV Import       | django-import-export                               |
+| Security         | django-axes (brute-force protection)               |
 | Containerization | Docker Compose                                     |
 
 ## 📋 Prerequisites
@@ -112,7 +115,9 @@ Notes:
 
 CSV seed files are provided in `backend/seed/`. Import them via the Django Admin panel using the **Import** button (powered by `django-import-export`).
 
-Import order: `units` → `categories` → `funding_sources` → `programs` → `locations` → `suppliers` → `facilities` → `items` → `stock`
+Import order: `units` → `categories` → `funding_sources` → `programs` → `locations` → `suppliers` → `facilities` → `items` → `receiving`
+
+> **Note:** `kode_barang` is auto-generated as `ITM-YYYY-NNNNN`. Use `receiving.csv` to seed initial stock with a proper audit trail.
 
 See [`backend/seed/README.md`](backend/seed/README.md) for column specifications.
 

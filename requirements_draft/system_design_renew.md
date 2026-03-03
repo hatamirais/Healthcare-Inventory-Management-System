@@ -19,6 +19,7 @@
 | **Backend** | Django 6.0.2 + Django Templates | ✅ Active |
 | **Database** | PostgreSQL 16 | ✅ Active |
 | **Auth** | Django built-in (session-based) | ✅ Active |
+| **Security** | django-axes (brute-force), session hardening, HSTS | ✅ Active |
 | **CSV Import** | django-import-export (via Django Admin) | ✅ Active |
 | **Storage** | Local filesystem (media files) | ✅ Active |
 | **Deployment** | Docker Compose (PostgreSQL + Redis only) | ✅ Partial |
@@ -256,6 +257,7 @@ flowchart TB
 | Notes | Text | Optional notes |
 
 **Verification behavior:**
+
 - Deducts stock quantity per selected batch
 - Creates `Transaction(type=OUT, reference_type=RECALL)` for each item
 
@@ -271,6 +273,7 @@ flowchart TB
 | Notes | Text | Optional notes |
 
 **Verification behavior:**
+
 - Deducts stock quantity per selected batch
 - Creates `Transaction(type=OUT, reference_type=EXPIRED)` for each item
 
@@ -335,6 +338,7 @@ django-crispy-forms==2.5
 crispy-bootstrap5==2025.6
 django-filter==25.1
 django-import-export==4.4.0
+django-axes==8.3.1
 psycopg2-binary==2.9.11
 python-dotenv==1.2.1
 redis==7.2.0
@@ -342,6 +346,17 @@ celery==5.6.2
 gunicorn==25.1.0
 tablib==3.9.0
 ```
+
+### Security & Authentication
+
+- **Brute-Force Protection:** `django-axes` — locks account after 5 failed attempts for 30 minutes
+- **RBAC:** Custom `@role_required` decorator in `apps.core.decorators` — restricts views by role
+- **Session Security:** 1-hour sliding expiry, browser-close logout, HttpOnly + SameSite cookies
+- **CSRF:** HttpOnly + SameSite cookies
+- **Password Policy:** Min 10 chars, CommonPasswordValidator, NumericPasswordValidator
+- **Password Change:** Users can change their own password via `/password/change/`
+- **Production Hardening (DEBUG=False):** HSTS (1 year + preload), SSL redirect, X-Frame-Options DENY, strict referrer policy
+- **Custom User Model:** `apps.users.User` extends AbstractUser with a `role` field (5 roles)
 
 ### Core Features
 
@@ -514,6 +529,8 @@ python manage.py createsuperuser
 | OCR Feature | ✅ For Special Request proof documents |
 | Frontend Approach | ✅ Django Templates + Bootstrap5 for now; React planned |
 | CSV Import Method | ✅ `django-import-export` via Django Admin |
+| Security/Auth | ✅ django-axes + session hardening + RBAC decorator + password policy |
+| Recall/Expired | ✅ Full CRUD with stock mutation on verify |
 
 ---
 
@@ -530,7 +547,7 @@ python manage.py createsuperuser
 9. ✅ Django template-based UI (dashboard, items, stock, receiving, distribution, recall, expired)
 10. ⬜ Reports module implementation (currently placeholder)
 11. ⬜ Celery tasks for expiry/low-stock alerts
-12. ⬜ Role-based permission enforcement (middleware/decorators)
+12. ✅ Role-based permission enforcement (`@role_required` decorator)
 13. ⬜ Receiving verification workflow (status transitions + stock creation)
 14. ⬜ Distribution workflow (FEFO batch selection, stock reservation)
 15. ✅ Recall workflow (status transitions + stock deduction + transaction posting)

@@ -158,11 +158,19 @@ class ReceivingAdmin(admin.ModelAdmin):
                 item = Item.objects.get(kode_barang=row['item_code'])
                 quantity = self._parse_decimal(row.get('quantity', '0'))
                 unit_price = self._parse_decimal(row.get('unit_price', '0'))
-                batch_lot = row.get('batch_lot', '')
-                expiry_date = self._parse_date(row['expiry_date'])
+                batch_lot = row.get('batch_lot', '').strip()
+                expiry_date_str = row.get('expiry_date', '').strip()
 
+                # Auto-generate batch_lot if empty
                 if not batch_lot:
-                    raise ValueError(f"Baris {row_num}: batch_lot kosong")
+                    batch_lot = f"SALDO-{row_num:04d}"
+
+                # Default expiry_date if empty
+                if expiry_date_str:
+                    expiry_date = self._parse_date(expiry_date_str)
+                else:
+                    from datetime import date
+                    expiry_date = date(2099, 12, 31)
 
                 # ReceivingItem
                 ReceivingItem.objects.create(
@@ -236,7 +244,8 @@ class ReceivingAdmin(admin.ModelAdmin):
     @staticmethod
     def _parse_decimal(value):
         """Parse decimal value, handling comma as decimal separator."""
+        from decimal import Decimal
         value = value.strip().replace(',', '.').replace(' ', '')
         if not value:
-            return 0
-        return float(value)
+            return Decimal('0')
+        return Decimal(value)

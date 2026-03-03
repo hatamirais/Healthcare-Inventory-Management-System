@@ -3,6 +3,7 @@ from import_export import resources, fields
 from import_export.admin import ImportExportModelAdmin
 from import_export.widgets import ForeignKeyWidget, DateWidget
 
+from apps.core.admin_mixins import ImportGuideMixin
 from .models import Stock, Transaction
 from apps.items.models import Item, Location, FundingSource
 
@@ -47,7 +48,7 @@ class StockResource(resources.ModelResource):
 
 
 @admin.register(Stock)
-class StockAdmin(ImportExportModelAdmin):
+class StockAdmin(ImportGuideMixin, ImportExportModelAdmin):
     resource_classes = [StockResource]
     list_display = (
         'item', 'location', 'batch_lot', 'expiry_date',
@@ -58,6 +59,20 @@ class StockAdmin(ImportExportModelAdmin):
     raw_id_fields = ('item', 'receiving_ref')
     list_per_page = 50
     date_hierarchy = 'expiry_date'
+    import_guide = {
+        'title': 'Stok Barang',
+        'description': 'Identifier unik: item_code + location_code + batch_lot',
+        'columns': [
+            {'name': 'item_code', 'required': True, 'description': 'Kode barang (kode_barang) dari tabel Items'},
+            {'name': 'location_code', 'required': True, 'description': 'Kode lokasi dari tabel Locations'},
+            {'name': 'batch_lot', 'required': True, 'description': 'Nomor batch/lot'},
+            {'name': 'expiry_date', 'required': True, 'description': 'Format: DD/MM/YYYY'},
+            {'name': 'quantity', 'required': False, 'description': 'Jumlah stok (default: 0)'},
+            {'name': 'reserved', 'required': False, 'description': 'Stok dialokasikan (default: 0)'},
+            {'name': 'unit_price', 'required': False, 'description': 'Harga satuan (default: 0)'},
+            {'name': 'sumber_dana_code', 'required': True, 'description': 'Kode sumber dana dari tabel Funding Sources'},
+        ],
+    }
 
 
 @admin.register(Transaction)

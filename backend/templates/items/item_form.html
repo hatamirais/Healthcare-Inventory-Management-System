@@ -1,11 +1,11 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}{{ title }} — Healthcare IMS{% endblock %}
 {% block page_title %}{{ title }}{% endblock %}
 
 {% block extra_css %}
-<link href="{% static 'vendor/tom-select/tom-select.bootstrap5.min.css' %}" rel="stylesheet">
+<link href="{% static 'vendor/tom-select/tom-select.bootstrap5.min.css' %} " rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -28,17 +28,17 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <label for="{{ field.id_for_label }}" class="form-label fw-semibold mb-0">{{ field.label }}</label>
                             {% if field.name == 'satuan' %}
-                            <a class="btn btn-sm btn-outline-primary" href="{% url 'items:unit_create' %}?next={{ request.get_full_path|urlencode }}">
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modal-satuan">
                                 <i class="bi bi-plus-lg me-1"></i>Tambah Satuan
-                            </a>
+                            </button>
                             {% elif field.name == 'kategori' %}
-                            <a class="btn btn-sm btn-outline-primary" href="{% url 'items:category_create' %}?next={{ request.get_full_path|urlencode }}">
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modal-kategori">
                                 <i class="bi bi-plus-lg me-1"></i>Tambah Kategori
-                            </a>
+                            </button>
                             {% elif field.name == 'program' %}
-                            <a class="btn btn-sm btn-outline-primary" href="{% url 'items:program_create' %}?next={{ request.get_full_path|urlencode }}">
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modal-program">
                                 <i class="bi bi-plus-lg me-1"></i>Tambah Program
-                            </a>
+                            </button>
                             {% endif %}
                         </div>
                         {{ field }}
@@ -63,65 +63,212 @@
         </div>
     </div>
 </div>
+
+<!-- Modal: Tambah Satuan -->
+<div class="modal fade" id="modal-satuan" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title"><i class="bi bi-plus-circle me-1"></i>Tambah Satuan Baru</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Kode <span class="text-danger">*</span></label>
+                        <input type="text" id="unit-code" class="form-control form-control-sm" placeholder="TAB" maxlength="20">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Nama <span class="text-danger">*</span></label>
+                        <input type="text" id="unit-name" class="form-control form-control-sm" placeholder="Tablet">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Keterangan</label>
+                        <textarea id="unit-description" class="form-control form-control-sm" rows="2" placeholder="Deskripsi satuan"></textarea>
+                    </div>
+                </div>
+                <div id="unit-error" class="text-danger small d-none mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-save-unit">
+                    <i class="bi bi-check-lg me-1"></i>Simpan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Tambah Kategori -->
+<div class="modal fade" id="modal-kategori" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title"><i class="bi bi-plus-circle me-1"></i>Tambah Kategori Baru</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Kode <span class="text-danger">*</span></label>
+                        <input type="text" id="cat-code" class="form-control form-control-sm" placeholder="OBAT" maxlength="20">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Nama <span class="text-danger">*</span></label>
+                        <input type="text" id="cat-name" class="form-control form-control-sm" placeholder="Obat-obatan">
+                    </div>
+                    <input type="hidden" id="cat-sort_order" value="0">
+                </div>
+                <div id="cat-error" class="text-danger small d-none mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-save-cat">
+                    <i class="bi bi-check-lg me-1"></i>Simpan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Tambah Program -->
+<div class="modal fade" id="modal-program" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title"><i class="bi bi-plus-circle me-1"></i>Tambah Program Baru</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Kode <span class="text-danger">*</span></label>
+                        <input type="text" id="prog-code" class="form-control form-control-sm" placeholder="TB" maxlength="20">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Nama <span class="text-danger">*</span></label>
+                        <input type="text" id="prog-name" class="form-control form-control-sm" placeholder="Tuberkulosis">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Keterangan</label>
+                        <textarea id="prog-description" class="form-control form-control-sm" rows="2" placeholder="Deskripsi program"></textarea>
+                    </div>
+                </div>
+                <div id="prog-error" class="text-danger small d-none mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-save-prog">
+                    <i class="bi bi-check-lg me-1"></i>Simpan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'vendor/tom-select/tom-select.complete.min.js' %}"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const checkbox = document.getElementById('id_is_program_item');
-        const programSelect = document.getElementById('id_program');
-        const programField = document.getElementById('id_program')?.closest('.mb-3');
+document.addEventListener('DOMContentLoaded', () => {
+    const checkbox = document.getElementById('id_is_program_item');
+    const programSelect = document.getElementById('id_program');
+    const programField = document.getElementById('id_program')?.closest('.mb-3');
 
-        function initTomSelect(selectId, placeholder, isRequired = false) {
-            const select = document.getElementById(selectId);
-            if (!select || typeof TomSelect === 'undefined') return null;
+    function initTomSelect(selectId, placeholder, isRequired) {
+        const select = document.getElementById(selectId);
+        if (!select || typeof TomSelect === 'undefined') return null;
+        if (isRequired && !select.value) select.selectedIndex = -1;
+        return new TomSelect(select, {
+            create: false,
+            allowEmptyOption: !isRequired,
+            maxOptions: 500,
+            placeholder: placeholder,
+            searchField: ['text'],
+            sortField: [{ field: '$score' }, { field: 'text' }],
+        });
+    }
 
-            // Only clear selection for required selects when there is no current value
-            if (isRequired && !select.value) {
-                select.selectedIndex = -1;
+    function toggleProgramField() {
+        if (programField) programField.style.display = checkbox?.checked ? 'block' : 'none';
+        if (programSelect) {
+            if (checkbox?.checked) { programSelect.required = true; }
+            else {
+                programSelect.required = false;
+                if (programTom) programTom.clear(true);
+                else programSelect.value = '';
             }
+        }
+    }
 
-            return new TomSelect(select, {
-                create: false,
-                allowEmptyOption: !isRequired,
-                maxOptions: 500,
-                placeholder: placeholder,
-                searchField: ['text'],
-                sortField: [
-                    { field: '$score' },
-                    { field: 'text' }
-                ],
+    const satuanTom = initTomSelect('id_satuan', 'Pilih atau cari satuan...', true);
+    const kategoriTom = initTomSelect('id_kategori', 'Pilih atau cari kategori...', true);
+    const programTom = initTomSelect('id_program', 'Pilih atau cari program...');
+
+    if (checkbox) {
+        checkbox.addEventListener('change', toggleProgramField);
+        toggleProgramField();
+    }
+
+    // AJAX helpers
+    function getCookie(name) {
+        let val = null;
+        document.cookie.split(';').forEach(c => {
+            c = c.trim();
+            if (c.startsWith(name + '=')) val = decodeURIComponent(c.substring(name.length + 1));
+        });
+        return val;
+    }
+
+    function quickCreate(url, bodyStr, errorElId, modalId, tomInstance, fieldIds) {
+        const errorEl = document.getElementById(errorElId);
+        errorEl.classList.add('d-none');
+        fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken')},
+            body: bodyStr,
+        })
+        .then(r => r.json().then(data => ({ok: r.ok, data: data})))
+        .then(function(result) {
+            if (!result.ok) { errorEl.textContent = result.data.error; errorEl.classList.remove('d-none'); return; }
+            if (tomInstance) {
+                tomInstance.addOption({value: String(result.data.id), text: result.data.text});
+                tomInstance.setValue(String(result.data.id));
+            }
+            fieldIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
             });
-        }
+            bootstrap.Modal.getInstance(document.getElementById(modalId)).hide();
+        });
+    }
 
-        function toggleProgramField() {
-            if (programField) {
-                programField.style.display = checkbox?.checked ? 'block' : 'none';
-            }
-
-            if (programSelect) {
-                if (checkbox?.checked) {
-                    programSelect.required = true;
-                } else {
-                    programSelect.required = false;
-                    if (programTom) {
-                        programTom.clear(true);
-                    } else {
-                        programSelect.value = '';
-                    }
-                }
-            }
-        }
-
-        initTomSelect('id_satuan', 'Pilih atau cari satuan...', true);
-        initTomSelect('id_kategori', 'Pilih atau cari kategori...', true);
-        const programTom = initTomSelect('id_program', 'Pilih atau cari program...');
-
-        if (checkbox) {
-            checkbox.addEventListener('change', toggleProgramField);
-            toggleProgramField();
-        }
+    // Tambah Satuan
+    document.getElementById('btn-save-unit').addEventListener('click', function() {
+        const ids = ['unit-code', 'unit-name', 'unit-description'];
+        const body = 'code=' + encodeURIComponent(document.getElementById('unit-code').value.trim())
+            + '&name=' + encodeURIComponent(document.getElementById('unit-name').value.trim())
+            + '&description=' + encodeURIComponent(document.getElementById('unit-description').value.trim());
+        quickCreate("{% url 'items:quick_create_unit' %}", body, 'unit-error', 'modal-satuan', satuanTom, ids);
     });
+
+    // Tambah Kategori
+    document.getElementById('btn-save-cat').addEventListener('click', function() {
+        const ids = ['cat-code', 'cat-name', 'cat-sort_order'];
+        const body = 'code=' + encodeURIComponent(document.getElementById('cat-code').value.trim())
+            + '&name=' + encodeURIComponent(document.getElementById('cat-name').value.trim())
+            + '&sort_order=' + encodeURIComponent(document.getElementById('cat-sort_order').value.trim());
+        quickCreate("{% url 'items:quick_create_category' %}", body, 'cat-error', 'modal-kategori', kategoriTom, ids);
+    });
+
+    // Tambah Program
+    document.getElementById('btn-save-prog').addEventListener('click', function() {
+        const ids = ['prog-code', 'prog-name', 'prog-description'];
+        const body = 'code=' + encodeURIComponent(document.getElementById('prog-code').value.trim())
+            + '&name=' + encodeURIComponent(document.getElementById('prog-name').value.trim())
+            + '&description=' + encodeURIComponent(document.getElementById('prog-description').value.trim());
+        quickCreate("{% url 'items:quick_create_program' %}", body, 'prog-error', 'modal-program', programTom, ids);
+    });
+});
 </script>
 {% endblock %}

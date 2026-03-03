@@ -11,4 +11,7 @@ urlpatterns = [
     path('programs/create/', views.program_create, name='program_create'),
     path('<int:pk>/edit/', views.item_update, name='item_update'),
     path('<int:pk>/delete/', views.item_delete, name='item_delete'),
+    path('api/quick-create-unit/', views.quick_create_unit, name='quick_create_unit'),
+    path('api/quick-create-category/', views.quick_create_category, name='quick_create_category'),
+    path('api/quick-create-program/', views.quick_create_program, name='quick_create_program'),
 ]

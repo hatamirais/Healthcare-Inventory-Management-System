@@ -119,7 +119,7 @@ Import lookup tables first, then items that reference them:
 | `description` | ❌ No | blank | |
 | `is_active` | ❌ No | `1` | |
 
-> **Note:** `kode_barang` is auto-generated as `ITM-00001`, `ITM-00002`, etc. You don't need to provide it.
+> **Note:** `kode_barang` is auto-generated as `ITM-YYYY-00001`, `ITM-YYYY-00002`, etc. (year-based). You don't need to provide it.
 
 ### stock.csv
 

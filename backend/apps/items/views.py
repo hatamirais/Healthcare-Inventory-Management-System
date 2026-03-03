@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 
 from apps.core.decorators import role_required
 from .models import (
@@ -207,3 +209,68 @@ def program_create(request):
             "next_url": request.GET.get("next", ""),
         },
     )
+
+
+# ── AJAX Quick-Create Views ────────────────────────────────
+
+
+@login_required
+@require_POST
+def quick_create_unit(request):
+    """AJAX endpoint to create a new Unit."""
+    code = request.POST.get('code', '').strip().upper()
+    name = request.POST.get('name', '').strip()
+    description = request.POST.get('description', '').strip()
+
+    if not code or not name:
+        return JsonResponse({'error': 'Kode dan Nama wajib diisi.'}, status=400)
+    if Unit.objects.filter(code=code).exists():
+        return JsonResponse({'error': f'Satuan dengan kode "{code}" sudah ada.'}, status=400)
+    if Unit.objects.filter(name__iexact=name).exists():
+        return JsonResponse({'error': f'Satuan dengan nama "{name}" sudah ada.'}, status=400)
+
+    unit = Unit.objects.create(code=code, name=name, description=description)
+    return JsonResponse({'id': unit.pk, 'text': unit.name})
+
+
+@login_required
+@require_POST
+def quick_create_category(request):
+    """AJAX endpoint to create a new Category."""
+    code = request.POST.get('code', '').strip().upper()
+    name = request.POST.get('name', '').strip()
+    sort_order = request.POST.get('sort_order', '0').strip()
+
+    if not code or not name:
+        return JsonResponse({'error': 'Kode dan Nama wajib diisi.'}, status=400)
+    if Category.objects.filter(code=code).exists():
+        return JsonResponse({'error': f'Kategori dengan kode "{code}" sudah ada.'}, status=400)
+    if Category.objects.filter(name__iexact=name).exists():
+        return JsonResponse({'error': f'Kategori dengan nama "{name}" sudah ada.'}, status=400)
+
+    try:
+        sort_order = int(sort_order) if sort_order else 0
+    except ValueError:
+        sort_order = 0
+
+    cat = Category.objects.create(code=code, name=name, sort_order=sort_order)
+    return JsonResponse({'id': cat.pk, 'text': cat.name})
+
+
+@login_required
+@require_POST
+def quick_create_program(request):
+    """AJAX endpoint to create a new Program."""
+    code = request.POST.get('code', '').strip().upper()
+    name = request.POST.get('name', '').strip()
+    description = request.POST.get('description', '').strip()
+
+    if not code or not name:
+        return JsonResponse({'error': 'Kode dan Nama wajib diisi.'}, status=400)
+    if Program.objects.filter(code=code).exists():
+        return JsonResponse({'error': f'Program dengan kode "{code}" sudah ada.'}, status=400)
+    if Program.objects.filter(name__iexact=name).exists():
+        return JsonResponse({'error': f'Program dengan nama "{name}" sudah ada.'}, status=400)
+
+    prog = Program.objects.create(code=code, name=name, description=description)
+    return JsonResponse({'id': prog.pk, 'text': prog.name})

@@ -87,6 +87,20 @@ Currently only infrastructure services are containerized:
 - **CORS**: Configured to restrict API access to the frontend domain.
 - **Media Files**: Served by Nginx but protected by application logic where necessary.
 
+### 4. Application Security (Implemented)
+
+- **Brute-Force Protection**: `django-axes` — locks account after 5 failed login attempts for 30 minutes
+- **RBAC**: Custom `@role_required` decorator restricts views by user role (5 roles)
+- **Session Security**: 1-hour sliding expiry, browser-close logout, HttpOnly + SameSite cookies
+- **CSRF Protection**: HttpOnly + SameSite cookies
+- **Password Policy**: Minimum 10 characters, common password validation, numeric-only validation
+- **Production Hardening** (when `DEBUG=False`):
+  - HSTS (1 year + preload + subdomains)
+  - SSL redirect (configurable via `SECURE_SSL_REDIRECT`)
+  - X-Frame-Options: DENY
+  - Strict referrer policy
+  - Content type nosniff
+
 ## Deployment Strategy
 
 ### Seamless Dev-to-Prod Workflow
