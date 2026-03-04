@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
-from apps.core.decorators import role_required
+from apps.core.decorators import perm_required
 from .models import (
     Item,
     Unit,
@@ -94,7 +94,7 @@ def item_list(request):
 
 
 @login_required
-@role_required("ADMIN", "ADMIN_UMUM", "KEPALA")
+@perm_required('items.add_item')
 def item_create(request):
     if request.method == "POST":
         form = ItemForm(request.POST)
@@ -111,7 +111,7 @@ def item_create(request):
 
 
 @login_required
-@role_required("ADMIN", "ADMIN_UMUM", "KEPALA")
+@perm_required('items.change_item')
 def item_update(request, pk):
     item = get_object_or_404(Item, pk=pk)
     if request.method == "POST":
@@ -131,7 +131,7 @@ def item_update(request, pk):
 
 
 @login_required
-@role_required("ADMIN", "ADMIN_UMUM", "KEPALA")
+@perm_required('items.delete_item')
 def item_delete(request, pk):
     item = get_object_or_404(Item, pk=pk)
     if request.method == "POST":
@@ -143,7 +143,7 @@ def item_delete(request, pk):
 
 
 @login_required
-@role_required("ADMIN", "ADMIN_UMUM", "KEPALA")
+@perm_required('items.add_unit')
 def unit_create(request):
     if request.method == "POST":
         form = UnitForm(request.POST)
@@ -166,7 +166,7 @@ def unit_create(request):
 
 
 @login_required
-@role_required("ADMIN", "ADMIN_UMUM", "KEPALA")
+@perm_required('items.add_category')
 def category_create(request):
     if request.method == "POST":
         form = CategoryForm(request.POST)
@@ -189,7 +189,7 @@ def category_create(request):
 
 
 @login_required
-@role_required("ADMIN", "ADMIN_UMUM", "KEPALA")
+@perm_required('items.add_program')
 def program_create(request):
     if request.method == "POST":
         form = ProgramForm(request.POST)

@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from apps.core.decorators import role_required
+from apps.core.decorators import perm_required
 from apps.stock.models import Stock, Transaction
 
 from .forms import RecallForm, RecallItemFormSet
@@ -43,7 +43,7 @@ def recall_list(request):
 
 
 @login_required
-@role_required('ADMIN', 'GUDANG', 'KEPALA')
+@perm_required('recall.add_recall')
 def recall_create(request):
     if request.method == 'POST':
         form = RecallForm(request.POST)
@@ -73,7 +73,7 @@ def recall_create(request):
 
 
 @login_required
-@role_required('ADMIN', 'GUDANG', 'KEPALA')
+@perm_required('recall.change_recall')
 def recall_edit(request, pk):
     recall = get_object_or_404(Recall, pk=pk)
     if recall.status == Recall.Status.VERIFIED:
@@ -123,7 +123,7 @@ def recall_detail(request, pk):
 
 
 @login_required
-@role_required('ADMIN', 'GUDANG', 'KEPALA')
+@perm_required('recall.change_recall')
 def recall_submit(request, pk):
     recall = get_object_or_404(Recall, pk=pk)
     if request.method != 'POST':
@@ -144,7 +144,7 @@ def recall_submit(request, pk):
 
 
 @login_required
-@role_required('ADMIN', 'GUDANG', 'KEPALA')
+@perm_required('recall.change_recall')
 def recall_verify(request, pk):
     recall = get_object_or_404(Recall, pk=pk)
     if request.method != 'POST':
@@ -204,7 +204,7 @@ def recall_verify(request, pk):
 
 
 @login_required
-@role_required('ADMIN', 'GUDANG', 'KEPALA')
+@perm_required('recall.change_recall')
 def recall_complete(request, pk):
     recall = get_object_or_404(Recall, pk=pk)
     if request.method != 'POST':

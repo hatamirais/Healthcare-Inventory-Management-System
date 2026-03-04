@@ -6,7 +6,7 @@ from django.db import transaction
 from django.db.models import Q, F
 from django.utils import timezone
 
-from apps.core.decorators import role_required
+from apps.core.decorators import perm_required
 from apps.stock.models import Stock
 
 from .models import StockOpname, StockOpnameItem
@@ -47,7 +47,7 @@ def opname_list(request):
 
 
 @login_required
-@role_required('ADMIN', 'KEPALA')
+@perm_required('stock_opname.add_stockopname')
 def opname_create(request):
     if request.method == 'POST':
         form = StockOpnameForm(request.POST)
@@ -68,7 +68,7 @@ def opname_create(request):
 
 
 @login_required
-@role_required('ADMIN', 'KEPALA')
+@perm_required('stock_opname.change_stockopname')
 def opname_edit(request, pk):
     opname = get_object_or_404(StockOpname, pk=pk)
     if opname.status == StockOpname.Status.COMPLETED:
@@ -135,7 +135,7 @@ def opname_detail(request, pk):
 
 
 @login_required
-@role_required('ADMIN', 'KEPALA')
+@perm_required('stock_opname.change_stockopname')
 def opname_start(request, pk):
     """Transition DRAFT → IN_PROGRESS and snapshot stock quantities filtered by categories."""
     opname = get_object_or_404(StockOpname, pk=pk, status=StockOpname.Status.DRAFT)
@@ -173,7 +173,7 @@ def opname_start(request, pk):
 
 
 @login_required
-@role_required('ADMIN', 'ADMIN_UMUM', 'KEPALA', 'GUDANG')
+@perm_required('stock_opname.change_stockopnameitem')
 def opname_input(request, pk):
     """Input actual quantities for a stock opname session."""
     opname = get_object_or_404(
@@ -235,7 +235,7 @@ def opname_input(request, pk):
 
 
 @login_required
-@role_required('ADMIN', 'KEPALA')
+@perm_required('stock_opname.change_stockopname')
 def opname_complete(request, pk):
     """Finalize a stock opname session."""
     opname = get_object_or_404(
@@ -291,7 +291,7 @@ def opname_print(request, pk):
 
 
 @login_required
-@role_required('ADMIN', 'KEPALA')
+@perm_required('stock_opname.delete_stockopname')
 def opname_delete(request, pk):
     """Delete a stock opname session (only DRAFT or IN_PROGRESS)."""
     opname = get_object_or_404(

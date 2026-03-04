@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
-from apps.core.decorators import role_required
+from apps.core.decorators import perm_required
 from apps.items.models import Supplier, FundingSource
 from .models import Receiving, ReceivingItem
 from .forms import ReceivingForm, ReceivingItemFormSet
@@ -51,7 +51,7 @@ def receiving_list(request):
 
 
 @login_required
-@role_required('ADMIN', 'GUDANG', 'KEPALA', 'ADMIN_UMUM')
+@perm_required('receiving.add_receiving')
 def receiving_create(request):
     if request.method == 'POST':
         form = ReceivingForm(request.POST)

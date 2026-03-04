@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from apps.core.decorators import role_required
+from apps.core.decorators import perm_required
 from apps.stock.models import Stock, Transaction
 
 from .forms import ExpiredForm, ExpiredItemFormSet
@@ -40,7 +40,7 @@ def expired_list(request):
 
 
 @login_required
-@role_required('ADMIN', 'GUDANG', 'KEPALA')
+@perm_required('expired.add_expired')
 def expired_create(request):
     if request.method == 'POST':
         form = ExpiredForm(request.POST)
@@ -70,7 +70,7 @@ def expired_create(request):
 
 
 @login_required
-@role_required('ADMIN', 'GUDANG', 'KEPALA')
+@perm_required('expired.change_expired')
 def expired_edit(request, pk):
     expired_doc = get_object_or_404(Expired, pk=pk)
     if expired_doc.status == Expired.Status.VERIFIED:
@@ -120,7 +120,7 @@ def expired_detail(request, pk):
 
 
 @login_required
-@role_required('ADMIN', 'GUDANG', 'KEPALA')
+@perm_required('expired.change_expired')
 def expired_submit(request, pk):
     expired_doc = get_object_or_404(Expired, pk=pk)
     if request.method != 'POST':
@@ -141,7 +141,7 @@ def expired_submit(request, pk):
 
 
 @login_required
-@role_required('ADMIN', 'GUDANG', 'KEPALA')
+@perm_required('expired.change_expired')
 def expired_verify(request, pk):
     expired_doc = get_object_or_404(Expired, pk=pk)
     if request.method != 'POST':
@@ -201,7 +201,7 @@ def expired_verify(request, pk):
 
 
 @login_required
-@role_required('ADMIN', 'GUDANG', 'KEPALA')
+@perm_required('expired.change_expired')
 def expired_dispose(request, pk):
     expired_doc = get_object_or_404(Expired, pk=pk)
     if request.method != 'POST':
