@@ -63,8 +63,30 @@ function initSidebarCollapse() {
         const isCollapsed = sidebar.classList.toggle('collapsed');
         if (pageWrapper) pageWrapper.classList.toggle('sidebar-collapsed', isCollapsed);
         localStorage.setItem('sidebarCollapsed', isCollapsed);
+        // Ensure any dropdown toggle that should be active keeps the active
+        // appearance after collapsing/expanding. When collapsed the server-side
+        // active class may be present on child links but not on the parent
+        // toggle; this sync will add/remove `.active` on the toggle where
+        // appropriate so the icon doesn't look dimmed.
+        syncDropdownActiveStates(sidebar);
     });
 }
+
+function syncDropdownActiveStates(sidebar) {
+    if (!sidebar) return;
+    sidebar.querySelectorAll('.sidebar-dropdown-toggle').forEach(toggle => {
+        const target = document.querySelector(toggle.getAttribute('data-bs-target'));
+        if (!target) return;
+        // If any child link is active or submenu is shown, mark the toggle active
+        const shouldBeActive = target.querySelector('.sidebar-link.active') !== null || target.classList.contains('show');
+        toggle.classList.toggle('active', shouldBeActive);
+    });
+}
+
+// Run once on load to correct any mismatched active state
+document.addEventListener('DOMContentLoaded', () => {
+    syncDropdownActiveStates(document.getElementById('sidebar'));
+});
 
 
 /** Auto-dismiss alerts after 5 seconds */

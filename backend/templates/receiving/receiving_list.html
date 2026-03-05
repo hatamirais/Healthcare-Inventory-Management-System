@@ -6,10 +6,7 @@
 {% block content %}
 <div class="table-container">
     <div class="table-header">
-        <div class="d-flex flex-wrap gap-2 align-items-center">
-            <h5 class="mb-0"><i class="bi bi-inbox-fill me-2"></i>Daftar Penerimaan</h5>
-            <a href="{% url 'receiving:receiving_plan_list' %}" class="btn btn-outline-secondary btn-sm">Rencana Penerimaan</a>
-        </div>
+        <h5><i class="bi bi-inbox-fill me-2"></i>Daftar Penerimaan</h5>
         <a href="{% url 'receiving:receiving_create' %}" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg me-1"></i>Buat Penerimaan
         </a>

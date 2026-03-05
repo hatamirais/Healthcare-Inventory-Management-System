@@ -49,11 +49,26 @@
                 </a>
 
                 <div class="sidebar-section-title">Transaksi</div>
-                <a href="{% url 'receiving:receiving_list' %}"
-                    class="sidebar-link {% if request.resolver_match.app_name == 'receiving' %}active{% endif %}"
-                    data-label="Penerimaan">
+                <button class="sidebar-link sidebar-dropdown-toggle {% if request.resolver_match.app_name == 'receiving' %}active{% endif %}"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#sidebar-receiving"
+                    aria-expanded="{% if request.resolver_match.app_name == 'receiving' %}true{% else %}false{% endif %}"
+                    type="button">
                     <i class="bi bi-inbox-fill"></i><span>Penerimaan</span>
-                </a>
+                    <i class="bi bi-chevron-down chevron"></i>
+                </button>
+                <div class="collapse sidebar-submenu {% if request.resolver_match.app_name == 'receiving' %}show{% endif %}" id="sidebar-receiving">
+                    <a href="{% url 'receiving:receiving_list' %}"
+                        class="sidebar-link {% if request.resolver_match.url_name == 'receiving_list' %}active{% endif %}"
+                        data-label="Buat Penerimaan">
+                        <i class="bi bi-inbox-arrow-down"></i><span>Buat Penerimaan</span>
+                    </a>
+                    <a href="{% url 'receiving:receiving_plan_list' %}"
+                        class="sidebar-link {% if request.resolver_match.url_name == 'receiving_plan_list' %}active{% endif %}"
+                        data-label="Rencana Penerimaan">
+                        <i class="bi bi-clipboard-check"></i><span>Rencana Penerimaan</span>
+                    </a>
+                </div>
                 <a href="{% url 'distribution:distribution_list' %}"
                     class="sidebar-link {% if request.resolver_match.app_name == 'distribution' %}active{% endif %}"
                     data-label="Distribusi">

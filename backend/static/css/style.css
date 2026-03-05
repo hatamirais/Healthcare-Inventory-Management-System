@@ -122,6 +122,11 @@ body {
     font-size: 1.25rem;
 }
 
+.sidebar.collapsed .sidebar-dropdown-toggle .chevron,
+.sidebar.collapsed .sidebar-submenu {
+    display: none;
+}
+
 /* Tooltip on hover when collapsed */
 .sidebar.collapsed .sidebar-link::after {
     content: attr(data-label);
@@ -170,6 +175,57 @@ body {
     font-weight: 500;
     border-left: 3px solid transparent;
     transition: all 0.15s ease;
+    background: transparent;
+}
+
+.sidebar-dropdown-toggle {
+    width: 100%;
+    background: transparent;
+    border: none;
+    text-align: left;
+    color: var(--sidebar-text);
+    cursor: pointer;
+    font: inherit;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+}
+
+.sidebar-dropdown-toggle i {
+    font-size: 1.15rem;
+    width: 24px;
+    text-align: center;
+}
+
+.sidebar-dropdown-toggle span {
+    display: inline-block;
+    line-height: 1.1;
+}
+
+.sidebar-dropdown-toggle:focus,
+.sidebar-dropdown-toggle:active {
+    outline: none;
+    box-shadow: none;
+}
+
+.sidebar-dropdown-toggle .chevron {
+    margin-left: auto;
+    font-size: 0.9rem;
+    transition: transform 0.2s ease;
+}
+
+.sidebar-dropdown-toggle[aria-expanded="true"] .chevron {
+    transform: rotate(180deg);
+}
+
+.sidebar-submenu {
+    padding-left: 12px;
+}
+
+.sidebar-submenu .sidebar-link {
+    padding: 8px 20px 8px 34px;
+    font-size: 0.88rem;
 }
 
 .sidebar-link:hover {
@@ -181,6 +237,44 @@ body {
     background: var(--sidebar-hover-bg);
     color: var(--sidebar-active);
     border-left-color: var(--sidebar-active);
+}
+
+.sidebar-dropdown-toggle:hover {
+    background: var(--sidebar-hover-bg);
+    color: #fff;
+}
+
+.sidebar-dropdown-toggle.active {
+    background: var(--sidebar-hover-bg);
+    color: var(--sidebar-active);
+    border-left-color: var(--sidebar-active);
+}
+
+.sidebar-dropdown-toggle:hover i,
+.sidebar-dropdown-toggle.active i {
+    color: inherit;
+}
+
+/* When the sidebar is collapsed the left border indicator is hidden; ensure
+   active links (including dropdown toggles) still show a clear active state
+   by coloring the icon and adding a subtle background ring. This fixes the
+   "dimmed" appearance reported for the Penerimaan dropdown when collapsed. */
+.sidebar.collapsed .sidebar-link.active,
+.sidebar.collapsed .sidebar-dropdown-toggle.active {
+    background: rgba(79, 140, 255, 0.08);
+    color: var(--sidebar-active);
+}
+
+.sidebar.collapsed .sidebar-link.active i,
+.sidebar.collapsed .sidebar-dropdown-toggle.active i {
+    color: var(--sidebar-active);
+}
+
+/* Make sure the collapse tooltip doesn't visually override the active color
+   when hovering an active item in collapsed state. */
+.sidebar.collapsed .sidebar-link.active::after {
+    background: #2d3748;
+    color: #fff;
 }
 
 .sidebar-link i {
