@@ -247,6 +247,9 @@ function initFormsetControls() {
         const clearButtons = document.querySelectorAll(`.formset-clear[data-formset-target="${container.dataset.formset}"]`);
         clearButtons.forEach((btn) => {
             btn.addEventListener('click', () => {
+                if (!confirm('Hapus semua baris? Setidaknya satu baris akan tetap tersedia.')) {
+                    return;
+                }
                 const rows = Array.from(tableBody.querySelectorAll('tr.formset-row'));
                 if (rows.length === 0) return;
                 rows.forEach((row, index) => {
