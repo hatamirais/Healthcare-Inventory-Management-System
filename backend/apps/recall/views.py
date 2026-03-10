@@ -76,8 +76,8 @@ def recall_create(request):
 @perm_required('recall.change_recall')
 def recall_edit(request, pk):
     recall = get_object_or_404(Recall, pk=pk)
-    if recall.status == Recall.Status.VERIFIED:
-        messages.error(request, 'Recall terverifikasi tidak dapat diubah.')
+    if recall.status not in (Recall.Status.DRAFT, Recall.Status.SUBMITTED):
+        messages.error(request, 'Hanya recall Draft/Diajukan yang dapat diubah.')
         return redirect('recall:recall_detail', pk=recall.pk)
 
     if request.method == 'POST':
@@ -215,6 +215,25 @@ def recall_complete(request, pk):
         return redirect('recall:recall_detail', pk=pk)
 
     recall.status = Recall.Status.COMPLETED
-    recall.save(update_fields=['status', 'updated_at'])
+    recall.completed_by = request.user
+    recall.completed_at = timezone.now()
+    recall.save(update_fields=['status', 'completed_by', 'completed_at', 'updated_at'])
     messages.success(request, f'Recall {recall.document_number} ditandai selesai.')
     return redirect('recall:recall_detail', pk=pk)
+
+
+@login_required
+@perm_required('recall.delete_recall')
+def recall_delete(request, pk):
+    recall = get_object_or_404(Recall, pk=pk)
+    if request.method != 'POST':
+        return redirect('recall:recall_detail', pk=pk)
+
+    if recall.status != Recall.Status.DRAFT:
+        messages.error(request, 'Hanya recall Draft yang dapat dihapus.')
+        return redirect('recall:recall_detail', pk=pk)
+
+    doc_number = recall.document_number
+    recall.delete()
+    messages.success(request, f'Recall {doc_number} berhasil dihapus.')
+    return redirect('recall:recall_list')

@@ -13,7 +13,7 @@ class RecallAdmin(admin.ModelAdmin):
     list_display = ('document_number', 'recall_date', 'supplier', 'status', 'created_by')
     list_filter = ('status', 'recall_date', 'supplier')
     search_fields = ('document_number', 'supplier__name')
-    readonly_fields = ('created_at', 'updated_at', 'verified_at')
+    readonly_fields = ('created_at', 'updated_at', 'verified_at', 'completed_at')
     inlines = [RecallItemInline]
     autocomplete_fields = ['supplier', 'created_by', 'verified_by']
     actions = ['mark_completed']
@@ -33,6 +33,8 @@ class RecallAdmin(admin.ModelAdmin):
                 'created_by',
                 'verified_by',
                 'verified_at',
+                'completed_by',
+                'completed_at',
             )
         }),
         ('Audit Trail', {

@@ -43,6 +43,14 @@ class Recall(TimeStampedModel):
         related_name='verified_recalls',
     )
     verified_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='completed_recalls',
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
 
     class Meta:

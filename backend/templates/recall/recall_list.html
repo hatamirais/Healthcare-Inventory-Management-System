@@ -47,7 +47,6 @@
                     <th>Supplier</th>
                     <th>Status</th>
                     <th>Dibuat oleh</th>
-                    <!-- <th class="text-end">Aksi</th> -->
                 </tr>
             </thead>
             <tbody>
@@ -74,5 +73,29 @@
             </tbody>
         </table>
     </div>
+
+    {% if recalls.has_other_pages %}
+    <div class="d-flex justify-content-center py-3 border-top">
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                {% if recalls.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ recalls.previous_page_number }}{% if search %}&q={{ search }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">&laquo;</a>
+                </li>
+                {% endif %}
+                {% for num in recalls.paginator.page_range %}
+                <li class="page-item {% if recalls.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if search %}&q={{ search }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if recalls.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ recalls.next_page_number }}{% if search %}&q={{ search }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">&raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

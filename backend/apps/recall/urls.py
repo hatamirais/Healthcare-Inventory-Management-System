@@ -11,4 +11,5 @@ urlpatterns = [
     path('<int:pk>/submit/', views.recall_submit, name='recall_submit'),
     path('<int:pk>/verify/', views.recall_verify, name='recall_verify'),
     path('<int:pk>/complete/', views.recall_complete, name='recall_complete'),
+    path('<int:pk>/delete/', views.recall_delete, name='recall_delete'),
 ]

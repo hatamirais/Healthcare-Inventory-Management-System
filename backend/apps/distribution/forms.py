@@ -22,12 +22,14 @@ class DistributionForm(forms.ModelForm):
     class Meta:
         model = Distribution
         fields = [
+            "document_number",
             "distribution_type",
             "request_date",
             "facility",
             "notes",
         ]
         widgets = {
+            "document_number": forms.TextInput(attrs={"class": "form-control", "placeholder": "Kosongkan untuk auto-generate"}),
             "distribution_type": forms.Select(attrs={"class": "form-select"}),
             "request_date": forms.DateInput(
                 attrs={"class": "form-control", "type": "date"}
