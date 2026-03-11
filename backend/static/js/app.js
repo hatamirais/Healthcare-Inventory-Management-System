@@ -549,7 +549,21 @@ function initDeleteConfirmation() {
  * Utility: Format number to Indonesian locale
  */
 function formatNumber(num) {
-    return new Intl.NumberFormat('id-ID').format(num);
+    const value = typeof num === 'string' ? Number.parseFloat(num) : num;
+    if (!Number.isFinite(value)) return '0';
+    return new Intl.NumberFormat('id-ID').format(value);
+}
+
+/**
+ * Utility: Format decimal with Indonesian separators
+ */
+function formatDecimal(num, minFractionDigits = 2, maxFractionDigits = 2) {
+    const value = typeof num === 'string' ? Number.parseFloat(num) : num;
+    if (!Number.isFinite(value)) return '0';
+    return new Intl.NumberFormat('id-ID', {
+        minimumFractionDigits: minFractionDigits,
+        maximumFractionDigits: maxFractionDigits,
+    }).format(value);
 }
 
 /**
@@ -602,7 +616,7 @@ function initStockTransferTable() {
                 <td><span class="badge bg-light text-dark border">${row.kategori || '-'}</span></td>
                 <td>${row.batch}</td>
                 <td>${row.expiry}</td>
-                <td class="text-end fw-semibold">${row.available}</td>
+                <td class="text-end fw-semibold">${formatDecimal(row.available)}</td>
                 <td><span class="badge bg-light text-dark border">${row.funding}</span></td>
                 <td>
                     <div class="input-group input-group-sm">
