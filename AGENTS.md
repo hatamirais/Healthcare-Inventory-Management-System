@@ -124,6 +124,26 @@ All stock movements produce immutable `Transaction` records in `apps.stock`. Nev
 
 Document numbers (e.g., `RCV-YYYY-NNNNN`, `ITM-YYYY-NNNNN`) are auto-generated in models. Do not allow users to set these manually.
 
+### Receiving & Outbound UX (Latest)
+
+- Sidebar groups are organized as:
+  - **Penerimaan** → `Buat Penerimaan`, `Rencana Penerimaan`
+  - **Pengeluaran** → `Distribusi`, `Recall / Retur`, `Kadaluarsa`
+- Create forms for Receiving/Distribution/Recall/Expired use full-width card layout aligned with list pages.
+- Top navbar can show contextual back buttons (to sub-main list pages) on non-list routes.
+
+### Search & Formset UX (Latest)
+
+- Default preference for large item selectors is **inline typeahead search** (input + suggestion list), not native dropdown-only selection.
+- Typeahead behavior should support keyboard interaction (`ArrowUp/ArrowDown`, `Enter`, `Esc`).
+- Distribution `Stok (Batch)` is intentionally **not typeahead**; it is a dependent dropdown filtered by selected `Barang` in the same row.
+- Distribution stock option ordering follows FEFO (earliest expiry first) and excludes unavailable batches (`quantity <= reserved`).
+- Dynamic line-item tables should support:
+  - add row (`Tambah Baris`)
+  - remove row per line
+  - clear all with confirmation (`Hapus Semua`)
+  - minimum one visible row
+
 ### Item Module Behaviors (Latest)
 
 - Item list supports search (`kode_barang`, `nama_barang`, program code/name), category filter, program-item filter, and pagination (25/page).
