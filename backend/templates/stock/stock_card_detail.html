@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Kartu Stok {{ item.kode_barang }} - Healthcare IMS{% endblock %}
+{% block page_title %}Kartu Stok: {{ item.kode_barang }}{% endblock %}
+
+{% block extra_css %}
+<style>
+@media print {
+    body { background-color: white; }
+    .sidebar, .navbar-top, .filter-form, .btn, .pagination, .print-hide { display: none !important; }
+    #page-content-wrapper { margin: 0; padding: 0; }
+    .card { border: none !important; box-shadow: none !important; }
+    .table-container { box-shadow: none; border: none; padding: 0; margin: 0; }
+    .print-header { display: block !important; margin-bottom: 2rem; text-align: center; }
+}
+.balance-col { width: 120px; text-align: right; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Print Header (Hidden on screen) -->
+<div class="print-header d-none">
+    <h3 class="mb-1">KARTU STOK BARANG</h3>
+    <p class="mb-4 text-muted">Dicetak pada: {% now "d/m/Y H:i" %}</p>
+</div>
+
+<!-- Item Info Header -->
+<div class="card mb-3 border-0 shadow-sm">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-7">
+                <h4 class="card-title fw-bold mb-1">{{ item.nama_barang }}</h4>
+                <div class="text-muted font-monospace">{{ item.kode_barang }} &bull; Satuan: {{ item.satuan.name }} &bull; Kategori: {{ item.kategori.name }}</div>
+            </div>
+            <div class="col-md-5 text-md-end mt-3 mt-md-0 print-hide">
+                <div class="d-inline-block bg-light px-3 py-2 rounded text-end me-2">
+                    <small class="text-muted d-block">Stok Akhir</small>
+                    <span class="fs-5 fw-bold">{{ closing_balance }}</span>
+                </div>
+                <div class="d-inline-block align-top">
+                    <a href="{% url 'stock:stock_card_select' %}" class="btn btn-outline-secondary h-100 me-2">
+                        <i class="bi bi-arrow-left me-1"></i> Kembali
+                    </a>
+                    <button onclick="window.print()" class="btn btn-outline-primary h-100">
+                        <i class="bi bi-printer me-1"></i> Cetak
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-container shadow-sm">
+    <!-- Filters -->
+    <div class="px-3 py-3 border-bottom bg-light print-hide">
+        <form method="get" class="filter-form d-flex gap-2 flex-wrap align-items-center">
+            <div class="input-group input-group-sm" style="width: auto;">
+                <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                <span class="input-group-text">s/d</span>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <select name="location" class="form-select form-select-sm" style="width: auto; min-width: 150px;">
+                <option value="">Semua Lokasi</option>
+                {% for loc in locations %}
+                <option value="{{ loc.id }}" {{ loc.selected }}>{{ loc.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+            {% if date_from or date_to or selected_location %}
+            <a href="{% url 'stock:stock_card_detail' item.id %}" class="btn btn-outline-danger btn-sm">Reset</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Stock Card Table -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th rowspan="2" class="align-middle" width="12%">Tanggal</th>
+                    <th rowspan="2" class="align-middle" width="12%">Tipe & Ref</th>
+                    <th rowspan="2" class="align-middle">Catatan / Lot</th>
+                    <th rowspan="2" class="align-middle">Lokasi</th>
+                    <th colspan="3" class="text-center border-bottom-0">Mutasi</th>
+                </tr>
+                <tr>
+                    <th class="text-end" width="10%">Masuk</th>
+                    <th class="text-end" width="10%">Keluar</th>
+                    <th class="text-end balance-col bg-light fw-bold">Saldo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if transactions.number == 1 and date_from or transactions.number == 1 and selected_location %}
+                <!-- Saldo Awal Row if filtered -->
+                <tr class="table-info">
+                    <td colspan="4" class="text-end fw-bold">SALDO AWAL</td>
+                    <td class="text-end">-</td>
+                    <td class="text-end">-</td>
+                    <td class="text-end fw-bold">{{ opening_balance }}</td>
+                </tr>
+                {% endif %}
+
+                {% for tx in transactions %}
+                <tr>
+                    <td class="text-nowrap">{{ tx.created_at|date:"d/m/Y H:i" }}<br><small class="text-muted">{{ tx.user.username }}</small></td>
+                    <td>
+                        <span class="badge {% if tx.transaction_type == 'IN' or tx.transaction_type == 'RETURN' %}bg-success-subtle text-success{% elif tx.transaction_type == 'OUT' %}bg-danger-subtle text-danger{% else %}bg-warning-subtle text-warning{% endif %} d-block mb-1 text-center">
+                            {{ tx.get_transaction_type_display }}
+                        </span>
+                        <code class="d-block text-center">{{ tx.reference_type }}-{{ tx.reference_id }}</code>
+                    </td>
+                    <td>
+                        {% if tx.notes %}<div class="mb-1">{{ tx.notes }}</div>{% endif %}
+                        {% if tx.batch_lot %}<span class="badge bg-light text-dark border"><i class="bi bi-box-seam me-1"></i>{{ tx.batch_lot }}</span>{% endif %}
+                    </td>
+                    <td>{{ tx.location.name|default:"-" }}</td>
+                    <td class="text-end text-success fw-semibold">{% if tx.tx_in > 0 %}+{{ tx.tx_in }}{% else %}-{% endif %}</td>
+                    <td class="text-end text-danger fw-semibold">{% if tx.tx_out > 0 %}-{{ tx.tx_out }}{% else %}-{% endif %}</td>
+                    <td class="text-end fw-bold bg-light">{{ tx.running_balance }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state py-4">
+                            <i class="bi bi-journal-x d-block fs-2 text-muted mb-2"></i>
+                            <p class="mb-0">Tidak ada riwayat transaksi untuk filter ini.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if transactions %}
+            <tfoot class="table-light fw-bold">
+                <tr>
+                    <td colspan="4" class="text-end">TOTAL MUTASI (Periode/Filter ini)</td>
+                    <td class="text-end text-success">+{{ total_in }}</td>
+                    <td class="text-end text-danger">-{{ total_out }}</td>
+                    <td class="text-end bg-light">{{ closing_balance }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if transactions.has_other_pages %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top print-hide">
+        <small class="text-muted">{{ transactions.start_index }}-{{ transactions.end_index }} dari {{ transactions.paginator.count }} mutasi</small>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                {% if transactions.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ transactions.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}">&laquo;</a></li>
+                {% endif %}
+                
+                {% for num in transactions.paginator.page_range %}
+                    {% if transactions.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > transactions.number|add:'-3' and num < transactions.number|add:'3' %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}">{{ num }}</a></li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if transactions.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ transactions.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}">&raquo;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

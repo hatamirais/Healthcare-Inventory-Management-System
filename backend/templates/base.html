@@ -43,7 +43,7 @@
                     <i class="bi bi-box-seam"></i><span>Barang</span>
                 </a>
                 <a href="{% url 'stock:stock_list' %}"
-                    class="sidebar-link {% if request.resolver_match.app_name == 'stock' and 'stock' in request.resolver_match.url_name %}active{% endif %}"
+                    class="sidebar-link {% if request.resolver_match.url_name == 'stock_list' %}active{% endif %}"
                     data-label="Stok">
                     <i class="bi bi-boxes"></i><span>Stok</span>
                 </a>
@@ -96,10 +96,15 @@
                 </div>
 
                 <div class="sidebar-section-title">Transaksi Stok</div>
-                <a href="{% url 'stock:transaction_list' %}"
-                    class="sidebar-link {% if request.resolver_match.url_name == 'transaction_list' %}active{% endif %}"
+                <a href="{% url 'stock:stock_card_select' %}"
+                    class="sidebar-link {% if request.resolver_match.url_name == 'stock_card_select' or request.resolver_match.url_name == 'stock_card_detail' %}active{% endif %}"
                     data-label="Kartu Stok">
                     <i class="bi bi-journal-text"></i><span>Kartu Stok</span>
+                </a>
+                <a href="{% url 'stock:transaction_list' %}"
+                    class="sidebar-link {% if request.resolver_match.url_name == 'transaction_list' %}active{% endif %}"
+                    data-label="Log Transaksi">
+                    <i class="bi bi-clock-history"></i><span>Log Transaksi</span>
                 </a>
                 <a href="{% url 'stock_opname:opname_list' %}"
                     class="sidebar-link {% if request.resolver_match.app_name == 'stock_opname' %}active{% endif %}"
