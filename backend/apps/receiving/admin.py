@@ -10,6 +10,7 @@ import csv
 import io
 from collections import defaultdict
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
 from .models import Receiving, ReceivingItem, ReceivingDocument, ReceivingOrderItem
 from apps.items.models import Item, FundingSource, Location, Supplier
@@ -132,13 +133,32 @@ class ReceivingAdmin(admin.ModelAdmin):
         reader = csv.DictReader(io.StringIO(decoded))
 
         # Normalize headers (strip whitespace, lowercase)
-        if reader.fieldnames:
-            reader.fieldnames = [h.strip().lower() for h in reader.fieldnames]
+        if not reader.fieldnames:
+            raise ValueError("Header CSV tidak ditemukan.")
+        reader.fieldnames = [h.strip().lower() for h in reader.fieldnames]
+
+        required_columns = {
+            "document_number",
+            "receiving_date",
+            "item_code",
+            "sumber_dana_code",
+            "location_code",
+            "quantity",
+        }
+        missing_columns = sorted(required_columns - set(reader.fieldnames))
+        if missing_columns:
+            raise ValueError(
+                "Kolom wajib tidak ditemukan: " + ", ".join(missing_columns)
+            )
 
         # Group rows by document_number
         grouped = defaultdict(list)
         for row_num, row in enumerate(reader, start=2):
-            row = {k.strip(): v.strip() for k, v in row.items()}
+            row = {
+                (k or "").strip(): (v or "").strip()
+                for k, v in row.items()
+                if k is not None
+            }
             if not row.get("document_number"):
                 raise ValueError(f"Baris {row_num}: document_number kosong")
             grouped[row["document_number"]].append((row_num, row))
@@ -147,19 +167,51 @@ class ReceivingAdmin(admin.ModelAdmin):
 
         for doc_number, rows in grouped.items():
             # Use first row for header-level data
-            first_row = rows[0][1]
+            first_row_num, first_row = rows[0]
+
+            receiving_date_str = first_row.get("receiving_date", "")
+            if not receiving_date_str:
+                raise ValueError(f"Baris {first_row_num}: receiving_date kosong")
+
+            header_sumber_dana_code = first_row.get("sumber_dana_code", "")
+            if not header_sumber_dana_code:
+                raise ValueError(f"Baris {first_row_num}: sumber_dana_code kosong")
+
+            header_location_code = first_row.get("location_code", "")
+            if not header_location_code:
+                raise ValueError(f"Baris {first_row_num}: location_code kosong")
 
             # Resolve FKs
-            sumber_dana = FundingSource.objects.get(code=first_row["sumber_dana_code"])
-            location = Location.objects.get(code=first_row["location_code"])
+            try:
+                sumber_dana = FundingSource.objects.get(code=header_sumber_dana_code)
+            except FundingSource.DoesNotExist as exc:
+                raise ValueError(
+                    f"Baris {first_row_num}: sumber_dana_code '{header_sumber_dana_code}' tidak ditemukan"
+                ) from exc
+
+            try:
+                location = Location.objects.get(code=header_location_code)
+            except Location.DoesNotExist as exc:
+                raise ValueError(
+                    f"Baris {first_row_num}: location_code '{header_location_code}' tidak ditemukan"
+                ) from exc
 
             supplier = None
             supplier_code = first_row.get("supplier_code", "").strip()
             if supplier_code:
-                supplier = Supplier.objects.get(code=supplier_code)
+                try:
+                    supplier = Supplier.objects.get(code=supplier_code)
+                except Supplier.DoesNotExist as exc:
+                    raise ValueError(
+                        f"Baris {first_row_num}: supplier_code '{supplier_code}' tidak ditemukan"
+                    ) from exc
 
             # Parse date
-            receiving_date = self._parse_date(first_row["receiving_date"])
+            receiving_date = self._parse_date(
+                receiving_date_str,
+                row_num=first_row_num,
+                field_name="receiving_date",
+            )
 
             # Create Receiving (parent)
             receiving = Receiving.objects.create(
@@ -178,9 +230,26 @@ class ReceivingAdmin(admin.ModelAdmin):
 
             # Create ReceivingItem + Stock + Transaction for each row
             for row_num, row in rows:
-                item = Item.objects.get(kode_barang=row["item_code"])
-                quantity = self._parse_decimal(row.get("quantity", "0"))
-                unit_price = self._parse_decimal(row.get("unit_price", "0"))
+                item_code = row.get("item_code", "")
+                if not item_code:
+                    raise ValueError(f"Baris {row_num}: item_code kosong")
+                try:
+                    item = Item.objects.get(kode_barang=item_code)
+                except Item.DoesNotExist as exc:
+                    raise ValueError(
+                        f"Baris {row_num}: item_code '{item_code}' tidak ditemukan"
+                    ) from exc
+
+                quantity = self._parse_decimal(
+                    row.get("quantity", "0"),
+                    row_num=row_num,
+                    field_name="quantity",
+                )
+                unit_price = self._parse_decimal(
+                    row.get("unit_price", "0"),
+                    row_num=row_num,
+                    field_name="unit_price",
+                )
                 batch_lot = row.get("batch_lot", "").strip()
                 expiry_date_str = row.get("expiry_date", "").strip()
 
@@ -190,7 +259,11 @@ class ReceivingAdmin(admin.ModelAdmin):
 
                 # Default expiry_date if empty
                 if expiry_date_str:
-                    expiry_date = self._parse_date(expiry_date_str)
+                    expiry_date = self._parse_date(
+                        expiry_date_str,
+                        row_num=row_num,
+                        field_name="expiry_date",
+                    )
                 else:
                     from datetime import date
 
@@ -199,16 +272,31 @@ class ReceivingAdmin(admin.ModelAdmin):
                 # Row-level overrides (location/sumber_dana can vary per row)
                 row_sumber_dana_code = row.get("sumber_dana_code", "").strip()
                 row_location_code = row.get("location_code", "").strip()
-                row_sumber_dana = (
-                    FundingSource.objects.get(code=row_sumber_dana_code)
-                    if row_sumber_dana_code
-                    else sumber_dana
+                effective_sumber_dana_code = (
+                    row_sumber_dana_code or header_sumber_dana_code
                 )
-                row_location = (
-                    Location.objects.get(code=row_location_code)
-                    if row_location_code
-                    else location
-                )
+                effective_location_code = row_location_code or header_location_code
+
+                if not effective_sumber_dana_code:
+                    raise ValueError(f"Baris {row_num}: sumber_dana_code kosong")
+                if not effective_location_code:
+                    raise ValueError(f"Baris {row_num}: location_code kosong")
+
+                try:
+                    row_sumber_dana = FundingSource.objects.get(
+                        code=effective_sumber_dana_code
+                    )
+                except FundingSource.DoesNotExist as exc:
+                    raise ValueError(
+                        f"Baris {row_num}: sumber_dana_code '{effective_sumber_dana_code}' tidak ditemukan"
+                    ) from exc
+
+                try:
+                    row_location = Location.objects.get(code=effective_location_code)
+                except Location.DoesNotExist as exc:
+                    raise ValueError(
+                        f"Baris {row_num}: location_code '{effective_location_code}' tidak ditemukan"
+                    ) from exc
 
                 # ReceivingItem
                 ReceivingItem.objects.create(
@@ -261,23 +349,38 @@ class ReceivingAdmin(admin.ModelAdmin):
         return counts
 
     @staticmethod
-    def _parse_date(value):
+    def _parse_date(value, row_num=None, field_name="tanggal"):
         """Parse date from DD/MM/YYYY or YYYY-MM-DD format."""
+        value = (value or "").strip()
+        if not value:
+            if row_num is not None:
+                raise ValueError(f"Baris {row_num}: {field_name} kosong")
+            raise ValueError(f"{field_name} kosong")
+
         for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%y"):
             try:
-                return datetime.strptime(value.strip(), fmt).date()
+                return datetime.strptime(value, fmt).date()
             except ValueError:
                 continue
+        if row_num is not None:
+            raise ValueError(
+                f"Baris {row_num}: format {field_name} tidak dikenali: '{value}'. Gunakan DD/MM/YYYY."
+            )
         raise ValueError(
-            f"Format tanggal tidak dikenali: '{value}'. Gunakan DD/MM/YYYY."
+            f"Format {field_name} tidak dikenali: '{value}'. Gunakan DD/MM/YYYY."
         )
 
     @staticmethod
-    def _parse_decimal(value):
+    def _parse_decimal(value, row_num=None, field_name="nilai"):
         """Parse decimal value, handling comma as decimal separator."""
-        from decimal import Decimal
-
-        value = value.strip().replace(",", ".").replace(" ", "")
+        value = (value or "").strip().replace(",", ".").replace(" ", "")
         if not value:
             return Decimal("0")
-        return Decimal(value)
+        try:
+            return Decimal(value)
+        except (InvalidOperation, ValueError) as exc:
+            if row_num is not None:
+                raise ValueError(
+                    f"Baris {row_num}: format {field_name} tidak valid: '{value}'"
+                ) from exc
+            raise ValueError(f"Format {field_name} tidak valid: '{value}'") from exc
