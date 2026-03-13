@@ -129,7 +129,7 @@ All stock movements produce immutable `Transaction` records in `apps.stock`. Nev
 
 ### Auto-generated Document Numbers
 
-Document numbers (e.g., `RCV-YYYY-NNNNN`, `ITM-YYYY-NNNNN`) are auto-generated in models. Do not allow users to set these manually.
+Document numbers (e.g., `RCV-YYYY-NNNNN`, `ITM-YYYY-NNNNN`) are auto-generated in models if the user does not provide or leave the form  empty.
 
 ### Receiving & Outbound UX (Latest)
 
