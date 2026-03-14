@@ -13,7 +13,7 @@
                 <div class="d-flex align-items-center justify-content-between mb-3">
                     <div class="stat-icon blue"><i class="bi bi-box-seam"></i></div>
                     <button type="button" class="btn btn-link p-0 kpi-help" data-bs-toggle="tooltip" data-bs-placement="top"
-                        data-bs-title="Jumlah master barang aktif (Item.is_active = true)." aria-label="Info Total Jenis Barang">
+                        data-bs-title="Jumlah master barang aktif (Item.is_active = true)." aria-label="Informasi Total Jenis Barang">
                         <i class="bi bi-info-circle"></i>
                     </button>
                 </div>
@@ -28,7 +28,7 @@
                 <div class="d-flex align-items-center justify-content-between mb-3">
                     <div class="stat-icon green"><i class="bi bi-boxes"></i></div>
                     <button type="button" class="btn btn-link p-0 kpi-help" data-bs-toggle="tooltip" data-bs-placement="top"
-                        data-bs-title="Jumlah entri stok dengan kuantitas > 0 (per batch/lokasi)." aria-label="Info Total Stok Aktif">
+                        data-bs-title="Jumlah entri stok dengan kuantitas > 0 (per batch/lokasi)." aria-label="Informasi Total Stok Aktif">
                         <i class="bi bi-info-circle"></i>
                     </button>
                 </div>
@@ -43,7 +43,7 @@
                 <div class="d-flex align-items-center justify-content-between mb-3">
                     <div class="stat-icon orange"><i class="bi bi-exclamation-triangle"></i></div>
                     <button type="button" class="btn btn-link p-0 kpi-help" data-bs-toggle="tooltip" data-bs-placement="top"
-                        data-bs-title="Barang aktif dengan total stok di bawah minimum stock yang ditetapkan." aria-label="Info Stok Rendah">
+                        data-bs-title="Barang aktif dengan total stok di bawah stok minimum yang ditetapkan." aria-label="Informasi Stok Rendah">
                         <i class="bi bi-info-circle"></i>
                     </button>
                 </div>
@@ -58,13 +58,13 @@
                 <div class="d-flex align-items-center justify-content-between mb-3">
                     <div class="stat-icon red"><i class="bi bi-calendar-x"></i></div>
                     <button type="button" class="btn btn-link p-0 kpi-help" data-bs-toggle="tooltip" data-bs-placement="top"
-                        data-bs-title="Jumlah batch stok aktif dengan tanggal kedaluwarsa <= 90 hari ke depan." aria-label="Info Mendekati Kedaluwarsa">
+                        data-bs-title="Jumlah batch stok aktif dengan tanggal kedaluwarsa <= 90 hari ke depan." aria-label="Informasi Mendekati Kedaluwarsa">
                         <i class="bi bi-info-circle"></i>
                     </button>
                 </div>
                 <div class="stat-value">{{ expiring_soon_count }}</div>
                 <div class="stat-label">Mendekati Kedaluwarsa</div>
-                <a href="{% url 'expired:expired_alerts' %}?level=all&pending=1" class="stretched-link" aria-label="Lihat monitoring expiry"></a>
+                <a href="{% url 'expired:expired_alerts' %}?level=all&pending=1" class="stretched-link" aria-label="Lihat pemantauan kedaluwarsa"></a>
             </div>
         </div>
     </div>
@@ -80,7 +80,7 @@
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge bg-primary-subtle text-primary">Semua Lokasi</span>
                         <button type="button" class="btn btn-link p-0 kpi-help" data-bs-toggle="tooltip" data-bs-placement="top"
-                            data-bs-title="Total penjumlahan field quantity pada stok aktif." aria-label="Info Total Kuantitas Tersedia">
+                            data-bs-title="Total penjumlahan kuantitas pada stok aktif." aria-label="Informasi Total Kuantitas Tersedia">
                             <i class="bi bi-info-circle"></i>
                         </button>
                     </div>
@@ -98,7 +98,7 @@
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge bg-success-subtle text-success">IDR</span>
                         <button type="button" class="btn btn-link p-0 kpi-help" data-bs-toggle="tooltip" data-bs-placement="top"
-                            data-bs-title="Total quantity x unit_price pada stok aktif (estimasi nilai buku)." aria-label="Info Estimasi Nilai Stok">
+                            data-bs-title="Total kuantitas x harga satuan pada stok aktif (estimasi nilai buku)." aria-label="Informasi Estimasi Nilai Stok">
                             <i class="bi bi-info-circle"></i>
                         </button>
                     </div>
@@ -116,7 +116,7 @@
                     <div class="d-flex align-items-center gap-2">
                         <i class="bi bi-activity text-info"></i>
                         <button type="button" class="btn btn-link p-0 kpi-help" data-bs-toggle="tooltip" data-bs-placement="top"
-                            data-bs-title="Jumlah transaksi yang dibuat pada tanggal hari ini." aria-label="Info Transaksi Hari Ini">
+                            data-bs-title="Jumlah transaksi yang dibuat pada tanggal hari ini." aria-label="Informasi Transaksi Hari Ini">
                             <i class="bi bi-info-circle"></i>
                         </button>
                     </div>
@@ -205,8 +205,8 @@
                                 <th>Tanggal</th>
                                 <th>Tipe</th>
                                 <th>Barang</th>
-                                <th>Qty</th>
-                                <th>User</th>
+                                <th>Kuantitas</th>
+                                <th>Pengguna</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -219,7 +219,7 @@
                                     {% elif tx.transaction_type == 'OUT' %}
                                     <span class="badge bg-danger-subtle text-danger">Keluar</span>
                                     {% elif tx.transaction_type == 'ADJUST' %}
-                                    <span class="badge bg-warning-subtle text-warning">Adjust</span>
+                                    <span class="badge bg-warning-subtle text-warning">Penyesuaian</span>
                                     {% else %}
                                     <span class="badge bg-info-subtle text-info">Retur</span>
                                     {% endif %}
@@ -242,11 +242,11 @@
         </div>
     </div>
 
-    <!-- Near-Expiry Items -->
+    <!-- Item Mendekati Kedaluwarsa -->
     <div class="col-lg-4">
         <div class="card content-card">
             <div class="card-header">
-                <span><i class="bi bi-calendar-x me-2"></i>Mendekati ED</span>
+                <span><i class="bi bi-calendar-x me-2"></i>Mendekati Kedaluwarsa</span>
                 <a href="{% url 'expired:expired_alerts' %}?level=all&pending=1" class="btn btn-sm btn-outline-secondary">Lihat Semua</a>
             </div>
             <div class="card-body p-0">

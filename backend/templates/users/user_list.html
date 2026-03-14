@@ -1,27 +1,27 @@
 {% extends "base.html" %}
 
-{% block title %}Manajemen User - Healthcare IMS{% endblock %}
-{% block page_title %}Manajemen User{% endblock %}
+{% block title %}Manajemen Pengguna - Healthcare IMS{% endblock %}
+{% block page_title %}Manajemen Pengguna{% endblock %}
 
 {% block content %}
 <div class="table-container">
     <div class="table-header">
-        <h5><i class="bi bi-people me-2"></i>Manajemen User</h5>
+        <h5><i class="bi bi-people me-2"></i>Manajemen Pengguna</h5>
         {% if not can_change_user %}
         <span class="badge bg-info-subtle text-info border">Mode Lihat Saja</span>
         {% endif %}
         {% if can_add_user %}
         <a href="{% url 'users:user_create' %}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-lg me-1"></i>Tambah User
+            <i class="bi bi-plus-lg me-1"></i>Tambah Pengguna
         </a>
         {% endif %}
     </div>
 
     <div class="px-3 py-2 border-bottom bg-light">
         <form method="get" class="filter-form">
-            <input type="text" name="q" class="form-control" placeholder="Cari username/nama/email..." value="{{ search }}">
+            <input type="text" name="q" class="form-control" placeholder="Cari nama pengguna/nama/email..." value="{{ search }}">
             <select name="role" class="form-select">
-                <option value="">Semua Role</option>
+                <option value="">Semua Peran</option>
                 {% for code, label in role_choices %}
                 <option value="{{ code }}" {% if selected_role == code %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
@@ -42,10 +42,10 @@
         <table class="table">
             <thead>
                 <tr>
-                    <th>Username</th>
+                    <th>Nama Pengguna</th>
                     <th>Nama Lengkap</th>
                     <th>Email</th>
-                    <th>Role</th>
+                    <th>Peran</th>
                     <th>Status</th>
                     <th class="text-end">Aksi</th>
                 </tr>
@@ -66,26 +66,26 @@
                     </td>
                     <td class="text-end">
                         {% if can_change_user %}
-                        <a href="{% url 'users:user_update' account.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit user" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Edit data user">
+                        <a href="{% url 'users:user_update' account.pk %}" class="btn btn-sm btn-outline-secondary" title="Ubah pengguna" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Ubah data pengguna">
                             <i class="bi bi-pencil"></i>
                         </a>
                         <form method="post" action="{% url 'users:user_toggle_active' account.pk %}" class="d-inline">
                             {% csrf_token %}
                             {% if account.is_active %}
-                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Nonaktifkan user" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Ubah jadi nonaktif" {% if request.user == account %}disabled{% endif %}>
+                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Nonaktifkan pengguna" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Ubah jadi nonaktif" {% if request.user == account %}disabled{% endif %}>
                                 <i class="bi bi-person-x"></i>
                             </button>
                             {% else %}
-                            <button type="submit" class="btn btn-sm btn-outline-success" title="Aktifkan user" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Ubah jadi aktif">
+                            <button type="submit" class="btn btn-sm btn-outline-success" title="Aktifkan pengguna" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Ubah jadi aktif">
                                 <i class="bi bi-person-check"></i>
                             </button>
                             {% endif %}
                         </form>
                         {% endif %}
                         {% if can_delete_user %}
-                        <form method="post" action="{% url 'users:user_delete' account.pk %}" class="d-inline" onsubmit="return confirm('Hapus user ini? Tindakan ini tidak dapat dibatalkan.');">
+                        <form method="post" action="{% url 'users:user_delete' account.pk %}" class="d-inline" onsubmit="return confirm('Hapus pengguna ini? Tindakan ini tidak dapat dibatalkan.');">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-outline-danger" title="{% if account.is_active %}Nonaktifkan dulu{% else %}Hapus permanen{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="{% if account.is_active %}Nonaktifkan dulu baru hapus{% else %}Hapus permanen user{% endif %}" {% if request.user == account or account.is_active %}disabled{% endif %}>
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="{% if account.is_active %}Nonaktifkan dulu{% else %}Hapus permanen{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="{% if account.is_active %}Nonaktifkan dulu baru hapus{% else %}Hapus permanen pengguna{% endif %}" {% if request.user == account or account.is_active %}disabled{% endif %}>
                                 <i class="bi bi-trash"></i>
                             </button>
                         </form>
@@ -97,7 +97,7 @@
                     <td colspan="6">
                         <div class="empty-state">
                             <i class="bi bi-person-lines-fill d-block"></i>
-                            <p>Belum ada data user</p>
+                            <p>Belum ada data pengguna</p>
                         </div>
                     </td>
                 </tr>

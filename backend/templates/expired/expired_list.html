@@ -6,7 +6,7 @@
 {% block content %}
 <div class="table-container">
     <div class="table-header">
-        <h5><i class="bi bi-trash me-2"></i>Daftar Pemusnahan (Expired)</h5>
+        <h5><i class="bi bi-trash me-2"></i>Daftar Pemusnahan (Kedaluwarsa)</h5>
         <div class="d-flex gap-2">
             <a href="{% url 'expired:expired_alerts' %}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-exclamation-triangle me-1"></i>Stok Mendekati/Kedaluwarsa
@@ -25,7 +25,7 @@
                 <option value="DRAFT" {{ status_draft }}>Draft</option>
                 <option value="SUBMITTED" {{ status_submitted }}>Diajukan</option>
                 <option value="VERIFIED" {{ status_verified }}>Terverifikasi</option>
-                <option value="DISPOSED" {{ status_disposed }}>Keluar dari Stock</option>
+                <option value="DISPOSED" {{ status_disposed }}>Keluar dari Stok</option>
             </select>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-search"></i></button>
@@ -39,7 +39,7 @@
             <span class="badge-status badge-draft">Draft</span>
             <span class="badge-status badge-submitted">Diajukan</span>
             <span class="badge-status badge-verified">Terverifikasi</span>
-            <span class="badge-status badge-disposed">Keluar dari Stock</span>
+            <span class="badge-status badge-disposed">Keluar dari Stok</span>
         </div>
     </div>
 

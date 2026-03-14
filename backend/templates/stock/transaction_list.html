@@ -36,9 +36,9 @@
                     <th>Barang</th>
                     <th>Batch/Lot</th>
                     <th>Lokasi</th>
-                    <th class="text-end">Qty</th>
+                    <th class="text-end">Kuantitas</th>
                     <th>Ref</th>
-                    <th>User</th>
+                    <th>Pengguna</th>
                     <th>Catatan</th>
                 </tr>
             </thead>
@@ -52,7 +52,7 @@
                         {% elif tx.transaction_type == 'OUT' %}
                         <span class="badge bg-danger-subtle text-danger">Keluar</span>
                         {% elif tx.transaction_type == 'ADJUST' %}
-                        <span class="badge bg-warning-subtle text-warning">Adjust</span>
+                        <span class="badge bg-warning-subtle text-warning">Penyesuaian</span>
                         {% else %}
                         <span class="badge bg-info-subtle text-info">Retur</span>
                         {% endif %}

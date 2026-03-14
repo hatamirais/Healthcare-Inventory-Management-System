@@ -90,13 +90,13 @@
                     </a>
                     <a href="{% url 'expired:expired_list' %}"
                         class="sidebar-link {% if request.resolver_match.app_name == 'expired' %}active{% endif %}"
-                        data-label="Kadaluarsa">
-                        <i class="bi bi-trash"></i><span>Kadaluarsa</span>
+                        data-label="Kedaluwarsa">
+                        <i class="bi bi-trash"></i><span>Kedaluwarsa</span>
                     </a>
                     <a href="{% url 'expired:expired_alerts' %}"
                         class="sidebar-link {% if request.resolver_match.url_name == 'expired_alerts' %}active{% endif %}"
-                        data-label="Monitoring Expiry">
-                        <i class="bi bi-exclamation-triangle"></i><span>Monitoring Expiry</span>
+                        data-label="Pemantauan Kedaluwarsa">
+                        <i class="bi bi-exclamation-triangle"></i><span>Pemantauan Kedaluwarsa</span>
                     </a>
                 </div>
 
@@ -133,8 +133,8 @@
                 <div class="sidebar-section-title">Administrasi</div>
                 <a href="{% url 'users:user_list' %}"
                     class="sidebar-link {% if request.resolver_match.app_name == 'users' %}active{% endif %}"
-                    data-label="Manajemen User">
-                    <i class="bi bi-people"></i><span>Manajemen User</span>
+                    data-label="Manajemen Pengguna">
+                    <i class="bi bi-people"></i><span>Manajemen Pengguna</span>
                 </a>
                 {% if user.role == 'ADMIN' %}
                 <a href="{% url 'admin:index' %}" class="sidebar-link" target="_blank" data-label="Admin Panel">
@@ -154,7 +154,7 @@
                         <button class="btn btn-link sidebar-toggle d-lg-none" id="sidebarToggleMobile">
                             <i class="bi bi-list fs-4"></i>
                         </button>
-                        <button class="btn btn-link sidebar-collapse-btn d-none d-lg-flex" id="sidebarCollapseBtn" title="Toggle sidebar">
+                        <button class="btn btn-link sidebar-collapse-btn d-none d-lg-flex" id="sidebarCollapseBtn" title="Tampilkan/sembunyikan panel samping">
                             <i class="bi bi-layout-sidebar"></i>
                         </button>
 
@@ -167,12 +167,12 @@
                             <i class="bi bi-arrow-left me-1"></i>Recall / Retur
                         </a>
                         {% elif request.resolver_match.app_name == 'expired' and request.resolver_match.url_name != 'expired_list' %}
-                        <a href="{% url 'expired:expired_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Kadaluarsa">
-                            <i class="bi bi-arrow-left me-1"></i>Kadaluarsa
+                        <a href="{% url 'expired:expired_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Kedaluwarsa">
+                            <i class="bi bi-arrow-left me-1"></i>Kedaluwarsa
                         </a>
                         {% elif request.resolver_match.url_name == 'expired_alerts' %}
-                        <a href="{% url 'expired:expired_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Kadaluarsa">
-                            <i class="bi bi-arrow-left me-1"></i>Kadaluarsa
+                        <a href="{% url 'expired:expired_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Kedaluwarsa">
+                            <i class="bi bi-arrow-left me-1"></i>Kedaluwarsa
                         </a>
                         {% elif request.resolver_match.app_name == 'receiving' and 'receiving_plan_' in request.resolver_match.url_name and request.resolver_match.url_name != 'receiving_plan_list' %}
                         <a href="{% url 'receiving:receiving_plan_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Rencana Penerimaan">
@@ -187,8 +187,8 @@
                             <i class="bi bi-arrow-left me-1"></i>Mutasi Lokasi
                         </a>
                         {% elif request.resolver_match.app_name == 'users' and request.resolver_match.url_name != 'user_list' %}
-                        <a href="{% url 'users:user_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Manajemen User">
-                            <i class="bi bi-arrow-left me-1"></i>Manajemen User
+                        <a href="{% url 'users:user_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Manajemen Pengguna">
+                            <i class="bi bi-arrow-left me-1"></i>Manajemen Pengguna
                         </a>
                         {% endif %}
                     </div>
@@ -211,7 +211,7 @@
                                 </li>
                                 <li>
                                     <a href="{% url 'password_change' %}" class="dropdown-item">
-                                        <i class="bi bi-key me-2"></i>Ubah Password
+                                        <i class="bi bi-key me-2"></i>Ubah Kata Sandi
                                     </a>
                                 </li>
                                 <li>

@@ -7,7 +7,7 @@
 <div class="row g-3">
     <div class="col-12">
         <div class="card content-card">
-            <div class="card-header"><span>Info Distribusi</span></div>
+            <div class="card-header"><span>Informasi Distribusi</span></div>
             <div class="card-body">
                 <dl class="row mb-0">
                     <dt class="col-5 text-muted">No. Dokumen</dt>
@@ -58,7 +58,7 @@
         <div class="d-flex flex-wrap gap-2 mt-3">
             {% if distribution.status == 'DRAFT' %}
             <a href="{% url 'distribution:distribution_edit' distribution.pk %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-pencil me-1"></i>Edit
+                <i class="bi bi-pencil me-1"></i>Ubah
             </a>
             <form method="post" action="{% url 'distribution:distribution_submit' distribution.pk %}">
                 {% csrf_token %}
@@ -68,7 +68,7 @@
             </form>
             {% elif distribution.status == 'SUBMITTED' %}
             <a href="{% url 'distribution:distribution_edit' distribution.pk %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-pencil me-1"></i>Edit
+                <i class="bi bi-pencil me-1"></i>Ubah
             </a>
             <form method="post" action="{% url 'distribution:distribution_verify' distribution.pk %}">
                 {% csrf_token %}

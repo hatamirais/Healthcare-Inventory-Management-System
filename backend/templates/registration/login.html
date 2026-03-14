@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Login — Healthcare IMS{% endblock %}
+{% block title %}Masuk — Healthcare IMS{% endblock %}
 
 {% block public_content %}
 <div class="login-wrapper">
@@ -16,21 +16,21 @@
 
         {% if form.errors %}
         <div class="alert alert-danger py-2 px-3">
-            <small><i class="bi bi-exclamation-circle me-1"></i>Username atau password salah.</small>
+            <small><i class="bi bi-exclamation-circle me-1"></i>Nama pengguna atau kata sandi salah.</small>
         </div>
         {% endif %}
 
         <form method="post" action="{% url 'login' %}">
             {% csrf_token %}
             <div class="mb-3">
-                <label for="id_username" class="form-label fw-semibold">Username</label>
+                <label for="id_username" class="form-label fw-semibold">Nama Pengguna</label>
                 <input type="text" name="username" id="id_username" class="form-control form-control-lg"
                     placeholder="Masukkan username" autofocus required>
             </div>
             <div class="mb-4">
-                <label for="id_password" class="form-label fw-semibold">Password</label>
+                <label for="id_password" class="form-label fw-semibold">Kata Sandi</label>
                 <input type="password" name="password" id="id_password" class="form-control form-control-lg"
-                    placeholder="Masukkan password" required>
+                    placeholder="Masukkan kata sandi" required>
             </div>
             <button type="submit" class="btn btn-primary btn-lg w-100">
                 <i class="bi bi-box-arrow-in-right me-2"></i>Masuk
@@ -40,7 +40,7 @@
 
         <div class="text-center mt-3">
             <small class="text-muted">
-                <i class="bi bi-question-circle me-1"></i>Lupa password? Hubungi Administrator untuk reset.
+                <i class="bi bi-question-circle me-1"></i>Lupa kata sandi? Hubungi administrator untuk mengatur ulang.
             </small>
         </div>
     </div>
