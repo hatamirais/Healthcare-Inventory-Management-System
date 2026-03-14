@@ -459,6 +459,10 @@ erDiagram
 - **Purpose:** System authentication and authorization
 - **Indexes:** `username` (unique), `email` (unique)
 - **Roles:** Admin, Kepala Instalasi, Admin Umum, Petugas Gudang, Auditor
+- **UAC notes:**
+  - User management read access: Admin + Kepala Instalasi
+  - User management write access: Admin only
+  - Safety constraints in management flow: cannot deactivate/delete own account; active users must be deactivated before deletion
 
 ---
 

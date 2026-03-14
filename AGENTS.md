@@ -83,6 +83,7 @@ All route prefixes are defined in `backend/config/urls.py`:
 | `/login/` | Auth login |
 | `/logout/` | Auth logout |
 | `/password/change/` | Password change |
+| `/users/` | `apps.users` (User Management) |
 | `/items/` | `apps.items` |
 | `/stock/` | `apps.stock` |
 | `/receiving/` | `apps.receiving` |

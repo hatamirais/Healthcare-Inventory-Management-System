@@ -305,11 +305,17 @@ flowchart TB
 
 | Role | Permissions |
 | ---- | ----------- |
-| **Admin** | Full access, user management, system settings |
-| **Kepala Instalasi** | Approve allocations, view all reports, dashboard |
+| **Admin** | Full access, user management (view/create/edit/activate/deactivate/delete), system settings, admin panel |
+| **Kepala Instalasi** | Approve allocations, view all reports, dashboard, and user management (view-only) |
 | **Admin Umum** | Manage receiving, create distributions, basic reports |
 | **Petugas Gudang** | Stock updates, receiving verification, distribution preparation |
 | **Auditor** | Financial reports, stock valuation, accounting exports, audit |
+
+**Administrative access rules (implementation):**
+
+- User Management page (`/users/`) is available to Admin and Kepala Instalasi.
+- User-management write actions are restricted to Admin.
+- Admin Panel menu access is restricted to Admin.
 
 ---
 

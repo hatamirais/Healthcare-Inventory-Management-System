@@ -24,6 +24,7 @@ A web-based inventory management system for managing medicine and medical equipm
 - **Dashboard** — Overview of stock levels, near-expiry items, and recent transactions
 - **Stock Opname** — Physical inventory counting with category-based filtering, staff assignment, and printable discrepancy reports
 - **Role-Based Access Control** — `@perm_required` decorator with Django groups/permissions (managed via Admin)
+- **User Management Module** — Dedicated `/users/` pages with role-filtered access, activation toggles, and guarded delete flow
 - **Security Hardening** — Brute-force protection (django-axes), session security, production HSTS
 
 ## 🛠️ Tech Stack
@@ -161,11 +162,20 @@ DJANGO-IMS/
 
 | Role | Description |
 | --- | --- |
-| **Admin** | Full system access + user management |
-| **Kepala Instalasi** | Approvals, all reports, dashboard |
+| **Admin** | Full system access, Admin Panel access, and full User Management (create/edit/activate/deactivate/delete) |
+| **Kepala Instalasi** | Approvals, all reports, dashboard, and User Management view access |
 | **Admin Umum** | Receiving, distribution, basic reports |
 | **Petugas Gudang** | Stock operations, receiving verification |
 | **Auditor** | Financial reports, stock valuation, audit |
+
+## 🔐 UAC Rules (Latest)
+
+- **User Management pages (`/users/`)** are accessible by **Admin** and **Kepala Instalasi**.
+- **User-management write actions** (create/edit/toggle active/delete) are **Admin only**.
+- **Admin Panel (`/admin/`) sidebar link** is **Admin only**.
+- Safety guards in user actions:
+  - Users cannot deactivate or delete their own account.
+  - Active users cannot be deleted; they must be deactivated first.
 
 ## 🔄 Workflow Snapshot
 
