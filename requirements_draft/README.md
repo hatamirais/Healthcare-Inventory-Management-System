@@ -1,134 +1,135 @@
-# Seed Data & CSV Import Guide
+# Seed Data and Import Review Plan
 
-This project uses **`django-import-export`** via the **Django Admin panel** for importing master data. Seed CSV files are located in `backend/seed/`.
+This document defines the audit and revision plan for seed/import documentation and provides the current verified import behavior.
 
-## Seed Files
+Last verified: 2026-03-17
+Verification sources: `backend/seed/*.csv`, `backend/apps/items/admin.py`, `backend/apps/stock/admin.py`, `backend/apps/receiving/admin.py`
 
-> [!NOTE]
-> Seed CSV files only cover **master + initial stock** data. Transactional documents (`Receiving`, `Distribution`, `Recall`, `Expired`) are created through app workflows or Django Admin, not seeded via CSV templates.
+## 1) Scope and Objectives
 
-### Lookup Tables (Import First)
+Objectives:
 
-1. **units.csv** — Measurement units (TAB, KAP, SYR, BTL, AMP, etc.)
-2. **categories.csv** — Item categories (TABLET, KAPSUL, INJEKSI, VAKSIN, etc.)
-3. **funding_sources.csv** — Funding sources (DAK, DAU, APBD, etc.)
-4. **programs.csv** — Health programs (TB, HIV, etc.)
-5. **locations.csv** — Storage locations (customize with actual warehouse layout)
-6. **suppliers.csv** — Vendor/supplier list
-7. **facilities.csv** — Puskesmas and hospitals (customize with actual facility list)
+- Keep CSV guides synchronized with actual admin resource fields and parsers.
+- Keep import-order guidance aligned with FK dependencies.
+- Ensure initial-stock guidance preserves audit trail semantics.
 
-### Core Data (Import After Lookups)
+In-scope files:
 
-1. **items.csv** — Item master data (requires units + categories + programs)
-2. **receiving.csv** — Initial receiving documents (creates stock + audit trail via Admin)
+- `backend/seed/README.md`
+- `requirements_draft/README.md`
+- `README.md` import sections
+- `AGENTS.md` documentation governance sections
 
-## Import Order
+## 2) Verified Current Import Behavior
 
-> [!IMPORTANT]
-> Import in this exact order to satisfy foreign key dependencies.
+### 2.1 django-import-export based model imports
 
-```text
-1. units.csv
-2. categories.csv
-3. funding_sources.csv
-4. programs.csv
-5. locations.csv
-6. suppliers.csv
-7. facilities.csv
-8. items.csv        ← requires units + categories + programs
-9. receiving.csv    ← creates receiving docs + stock + transactions
-```
+Configured resources include:
 
-> [!TIP]
-> Use `receiving.csv` instead of `stock.csv` for initial stock seeding.
-> This creates proper audit trail (transactions) from day one.
+- `UnitResource`, `CategoryResource`, `FundingSourceResource`, `LocationResource`, `SupplierResource`, `FacilityResource`, `ProgramResource`, `ItemResource`
+- `StockResource`
 
-> [!NOTE]
-> Receiving Admin CSV import currently accepts date formats `DD/MM/YYYY`, `YYYY-MM-DD`, `DD-MM-YYYY`, and `DD/MM/YY`.
-> Decimal values support comma separators (for example `10,5`).
+Notable behavior:
 
-## How to Import (Django Admin)
+- `skip_unchanged = True` is enabled across these resources.
+- Admin import follows dry-run and confirm flow (standard django-import-export admin behavior).
+- `ItemResource.before_import_row` auto-assigns/creates `Program(code=DEFAULT)` when `is_program_item` is truthy and `program` is empty.
 
-1. Go to **Django Admin** (`/admin/`)
-2. Select a model (e.g., **Units**)
-3. Click **Import** (top-right button)
-4. Choose the CSV file and set format to **csv**
-5. Click **Submit** → review the dry-run preview
-6. Click **Confirm Import** to commit the data
+### 2.2 Dedicated Receiving CSV import endpoint
 
-> [!TIP]
-> See `backend/seed/README.md` for detailed column specifications for each CSV file.
+Endpoint:
 
-## Column Reference (Quick Summary)
+- `/admin/receiving/receiving/import-csv/`
 
-### items.csv
+Handler behavior (`ReceivingAdmin._process_csv`):
 
-| Column | Required | Notes |
-| ------ | -------- | ----- |
-| kode_barang | ❌ No | Auto-generated as `ITM-YYYY-NNNNN` if blank |
-| nama_barang | ✅ Yes | Item name |
-| satuan | ✅ Yes | Unit **code** (e.g. `TAB`) |
-| kategori | ✅ Yes | Category **code** (e.g. `TABLET`) |
-| is_program_item | ❌ No | `1` for program items, default `0` |
-| program | ❌ No | Program **code** (e.g. TB, HIV) from programs table. If `is_program_item=1` and empty, importer auto-uses/creates `DEFAULT` |
-| minimum_stock | ❌ No | Low stock alert threshold, default `0` |
-| description | ❌ No | |
-| is_active | ❌ No | Default `1` |
+- Runs in a DB transaction (`@transaction.atomic`).
+- Groups rows by `document_number` and creates one `Receiving` header per group.
+- Creates `ReceivingItem` per row.
+- Updates or creates `Stock` per row.
+- Writes `Transaction(IN)` per row.
+- Supports row-level overrides for `location_code` and `sumber_dana_code`.
+- Auto-generates `batch_lot` as `SALDO-<rownum>` when blank.
+- Uses fallback expiry date `2099-12-31` when `expiry_date` is blank.
 
-### stock.csv (reference only)
+Required columns enforced:
 
-| Column | Required | Notes |
-| ------ | -------- | ----- |
-| item | ✅ Yes | Item **kode_barang** |
-| location | ✅ Yes | Location **code** |
-| batch_lot | ✅ Yes | Batch/lot number |
-| expiry_date | ✅ Yes | Format: `YYYY-MM-DD` |
-| quantity | ❌ No | Default `0` |
-| reserved | ❌ No | Default `0` |
-| unit_price | ❌ No | Default `0` |
-| sumber_dana | ✅ Yes | Funding source **code** |
+- `document_number`
+- `receiving_date`
+- `item_code`
+- `sumber_dana_code`
+- `location_code`
+- `quantity`
 
-> [!NOTE]
-> `stock.csv` is kept as a reference format. For initial stock seeding, prefer `receiving.csv` so the system creates proper `Receiving` + `Stock` + `Transaction(IN)` records.
+Accepted date formats:
 
-## Customization Guide
+- `DD/MM/YYYY`
+- `YYYY-MM-DD`
+- `DD-MM-YYYY`
+- `DD/MM/YY`
 
-### For Client: Update These Files
+Decimal parsing:
 
-1. **locations.csv** — Replace placeholder locations with actual warehouse layout
-2. **facilities.csv** — Add all Puskesmas and healthcare facilities
-3. **items.csv** — Replace sample data with actual item master
-4. **receiving.csv** — Add initial inventory using receiving documents (recommended for audit trail)
+- Comma decimal separator is accepted.
 
-### Mapping from Legacy Data
+## 3) Import Order (Canonical)
 
-If migrating from the old `data.csv`:
+Import in this sequence:
 
-| Old Column | New Column | Notes |
-| ---------- | ---------- | ----- |
-| namaBarang | nama_barang | |
-| satuan | satuan (in items.csv) | Use Unit code (e.g. `TAB`) |
-| kategori | kategori (in items.csv) | Use Category code (e.g. `TABLET`) |
-| batch | batch_lot (in stock.csv) | |
-| ed | expiry_date (in stock.csv) | Format: `YYYY-MM-DD` |
-| qty | quantity (in stock.csv) | |
-| hargaSatuan | unit_price (in stock.csv) | |
-| sumberDana | sumber_dana (in stock.csv) | Use FundingSource code |
+1. `units.csv`
+2. `categories.csv`
+3. `funding_sources.csv`
+4. `programs.csv`
+5. `locations.csv`
+6. `suppliers.csv`
+7. `facilities.csv`
+8. `items.csv`
+9. `receiving.csv`
 
-## Error Handling
+Reason: this sequence satisfies FK dependencies for item and receiving imports.
 
-If import fails:
+## 4) CSV Templates in Repository
 
-1. Check error message for specific row/field
-2. Verify foreign key references exist (Unit, Category, Location, etc.)
-3. Validate date formats (`YYYY-MM-DD`)
-4. Ensure numeric fields don't have commas or currency symbols
-5. CSV files must be **UTF-8** encoded
+Current seed templates (under `backend/seed/`):
 
-## Notes
+- `units.csv`
+- `categories.csv`
+- `funding_sources.csv`
+- `programs.csv`
+- `locations.csv`
+- `suppliers.csv`
+- `facilities.csv`
+- `items.csv`
+- `receiving.csv`
+- `stock.csv` (reference format; not preferred for initial stock)
 
-- Test imports on development environment first
-- Keep backup of original CSV files
-- Excel can create CSVs but watch for encoding issues
-- `django-import-export` supports dry-run preview before committing
-- The `skip_unchanged` option is enabled — re-importing the same CSV is safe
+## 5) Documentation Audit Checklist
+
+For each doc update touching imports:
+
+1. Ensure every documented CSV column exists in the corresponding resource parser.
+2. Ensure date-format claims match parser code.
+3. Ensure decimal-format claims match parser code.
+4. Ensure required vs optional fields match code validations.
+5. Ensure notes on stock/audit trail match runtime behavior.
+
+## 6) Context7 Best-Practice Alignment
+
+Primary references:
+
+- django-import-export: `/websites/django-import-export_readthedocs_io_en`
+
+Applied policy:
+
+- Document dry-run and confirm phases explicitly.
+- Prefer import workflows that preserve traceability and transactional integrity.
+- Keep resource-level behavior (e.g., defaults, relation mapping) documented near CSV specs.
+
+## 7) Ongoing Maintenance Plan
+
+When import code changes:
+
+1. Update `backend/seed/README.md` first.
+2. Update this file with changed behavior and verification sources.
+3. Update top-level import summary in `README.md` if onboarding impact exists.
+4. Record date and changed code paths.

@@ -1,90 +1,130 @@
-# 🏥 Healthcare Inventory Management System
+# Healthcare Inventory Management System
 
-A web-based inventory management system for managing medicine and medical equipment distribution at government healthcare facilities (Dinas Kesehatan level). Built to replace Excel-based workflows with a modern, structured application.
+Web-based inventory management for medicines and medical equipment at the Dinas Kesehatan level. The system replaces spreadsheet workflows with structured document flows, role-aware access control, and an immutable stock movement audit trail.
 
-## ✨ Features
+## Tech Stack
 
-- **Item Master Management** — Full CRUD for medicines & medical equipment with category, unit, and program tracking
-- **Item List Filtering & Pagination** — Search by code/name/program, filter by category/program flag, paginated at 25 rows per page
-- **Quick Lookup Creation** — Create Unit/Category/Program directly from item form via AJAX endpoints
-- **Multi-Location Stock Tracking** — Track inventory across multiple storage locations with batch/lot numbers
-- **FEFO Management** — First Expiry, First Out tracking with expiry date monitoring
-- **Stock Card (Kartu Stok)** — Item-centric movement history with running balance, date range filter, and reference document labels
-- **Stock Transfer (Mutasi Lokasi)** — Draft → Completed workflow for inter-location stock movement with automatic IN/OUT transactions
-- **Receiving Module** — Record incoming stock from procurement (eKatalog) and grants (Hibah)
-- **Receiving Planning Workflow** — Plan receipts with Draft → Submitted → Approved → Partial/Received → Closed flow
-- **Distribution Module** — Full workflow (Draft → Submitted → Verified → Prepared → Distributed) with stock reservation and posting
-- **Recall Module** — Manage supplier returns with Draft → Submitted → Verified → Completed workflow
-- **Expired Module** — Manage expired/disposal documents with Draft → Submitted → Verified → Disposed workflow and disposal tracking
-- **Funding Source Tracking** — Track budget allocation per batch (DAK, DAU, APBD, etc.)
-- **Audit Trail** — Immutable transaction log for all stock movements
-- **CSV Import/Export** — Bulk data operations via Django Admin (`django-import-export`)
-- **Smart Item Import Defaults** — Program items imported without a program are auto-mapped to a `DEFAULT` program
-- **Receiving CSV Import (Admin)** — Bulk initial receiving import with row-level validation, flexible date parsing, and automatic stock/transaction posting
-- **Dashboard** — Overview of stock levels, total stock value, near-expiry items, today's transactions, and recent activity
-- **Stock Opname** — Physical inventory counting with category-based filtering, staff assignment, and printable discrepancy reports
-- **Role-Based Access Control** — `@perm_required` decorator + `ModuleAccess` scopes (NONE/VIEW/OPERATE/APPROVE/MANAGE) per module per user
-- **User Management Module** — Dedicated `/users/` pages with role-filtered access, activation toggles, and guarded delete flow
-- **Expired Alerts Page** — Monitor near-expiry and expired stock at `/expired/alerts/`
-- **Security Hardening** — Brute-force protection (django-axes), session security, production HSTS
+| Layer | Technology |
+| --- | --- |
+| Language | Python 3.13+ |
+| Framework | Django 6.0.2 |
+| Database | PostgreSQL 16 |
+| Cache/Broker | Redis 7 |
+| UI | Django Templates + Bootstrap 5 |
+| Forms | django-crispy-forms + crispy-bootstrap5 |
+| Data Import | django-import-export |
+| Security | django-axes |
 
-## 🛠️ Tech Stack
+## Key Capabilities
 
-| Layer            | Technology                                         |
-| ---------------- | -------------------------------------------------- |
-| Backend          | Django 6.0.2                                       |
-| Frontend         | Django Templates + Bootstrap 5 (crispy-bootstrap5) |
-| Database         | PostgreSQL 16                                      |
-| Cache/Queue      | Redis 7 (via Docker)                               |
-| CSV Import       | django-import-export                               |
-| Security         | django-axes (brute-force protection)               |
-| Containerization | Docker Compose                                     |
+- Item master and lookup management (`Unit`, `Category`, `Program`, `FundingSource`, `Location`, `Supplier`, `Facility`)
+- Batch-level stock with FEFO support and funding-source traceability
+- End-to-end workflows for receiving, distribution, recall, expired disposal, stock transfer, and stock opname
+- Immutable `Transaction` log for all stock movement (`IN`, `OUT`, `ADJUST`, `RETURN`)
+- User access control via Django permissions and per-user `ModuleAccess` scopes
+- CSV import support via Django Admin, including dedicated Receiving CSV import endpoint
 
-## 📋 Prerequisites
+## Current Modules
 
-- Python 3.13+
-- Docker & Docker Compose
-- Git
+### Implemented and active
 
-## 🚀 Getting Started
+- `items`: item/lookup CRUD + list filtering + AJAX quick-create lookup endpoints
+- `stock`: stock list, transaction list, stock card, and stock transfer flow
+- `receiving`: regular receiving and planned receiving workflow
+- `distribution`: request/verification/preparation/distribution workflow
+- `recall`: draft to complete supplier return flow
+- `expired`: draft to disposed expired-item flow + expiry alerts page
+- `stock_opname`: physical count workflow and discrepancy report printing
+- `users`: user management and module-scope assignment
 
-### 1. Clone the repository
+### Placeholder
 
-```bash
-git clone https://github.com/<your-username>/DJANGO-IMS.git
-cd DJANGO-IMS
+- `reports`: index route is available, model layer is still placeholder (`backend/apps/reports/models.py`)
+
+## Workflow Snapshot
+
+- Receiving (planned): `DRAFT -> SUBMITTED -> APPROVED -> PARTIAL/RECEIVED -> CLOSED`
+- Receiving (regular/imported): commonly persisted as `VERIFIED` after posting
+- Distribution: `DRAFT -> SUBMITTED -> VERIFIED -> PREPARED -> DISTRIBUTED` (or `REJECTED`)
+- Recall: `DRAFT -> SUBMITTED -> VERIFIED -> COMPLETED`
+- Expired: `DRAFT -> SUBMITTED -> VERIFIED -> DISPOSED`
+- Stock transfer: `DRAFT -> COMPLETED`
+- Stock opname: `DRAFT -> IN_PROGRESS -> COMPLETED`
+
+## Data Model (At a Glance)
+
+- Core inventory tables: `items`, `stock`, `transactions`
+- Document headers: `receivings`, `distributions`, `recalls`, `expired_docs`, `stock_transfers`, `stock_opnames`
+- Document lines: `receiving_items`, `receiving_order_items`, `distribution_items`, `recall_items`, `expired_items`, `stock_transfer_items`, `stock_opname_items`
+- Authorization tables: `users`, `user_module_accesses`
+
+For canonical schema details, see `SYSTEM_MODEL.md`.
+
+## Repository Layout
+
+```text
+Healthcare-Inventory-Management-System/
+|- README.md
+|- AGENTS.md
+|- SYSTEM_MODEL.md
+|- docker-compose.yml
+|- .env.example
+|- backend/
+|  |- manage.py
+|  |- requirements.txt
+|  |- config/
+|  |- apps/
+|  |- templates/
+|  |- static/
+|  |- seed/
+|  `- tests/
+|- requirements_draft/
+`- scripts/
 ```
 
-### 2. Set up environment variables
+## Getting Started
+
+### 1) Clone
+
+```bash
+git clone git@github.com:ahliweb/Healthcare-Inventory-Management-System.git
+cd Healthcare-Inventory-Management-System
+```
+
+### 2) Configure environment
 
 ```bash
 cp .env.example .env
-# Edit .env with your own values (especially DJANGO_SECRET_KEY)
 ```
 
-### 3. Start infrastructure services
+Set at least:
+
+- `DJANGO_SECRET_KEY`
+- `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`
+- `ALLOWED_HOSTS`
+
+### 3) Start infrastructure
 
 ```bash
 docker compose up -d
 ```
 
-This starts PostgreSQL and Redis containers.
-
-### 4. Set up Python environment
+### 4) Install Python dependencies
 
 ```bash
 python -m venv venv
-
-# Windows
-venv\Scripts\activate
-
-# Linux/Mac
-source venv/bin/activate
-
+source venv/bin/activate  # Linux/macOS
 pip install -r backend/requirements.txt
 ```
 
-### 5. Run migrations & create superuser
+On Windows PowerShell:
+
+```powershell
+venv\Scripts\activate
+pip install -r backend/requirements.txt
+```
+
+### 5) Run migrations and create admin user
 
 ```bash
 cd backend
@@ -92,117 +132,78 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
-### 6. Start the development server
+### 6) Run development server
 
 ```bash
 python manage.py runserver
 ```
 
-Visit `http://localhost:8000` for the app and `http://localhost:8000/admin/` for the admin panel.
+App URL: `http://localhost:8000`
+Admin URL: `http://localhost:8000/admin/`
 
-### Running tests safely (Windows)
+## Testing
 
-From repository root, use helper script:
+- Recommended on Windows: `scripts/run-django-test.ps1`
+- Example:
 
 ```powershell
 .\scripts\run-django-test.ps1 -Target apps.items
 ```
 
-Examples:
+The script changes into `backend/`, optionally activates `venv`, and checks `crispy_forms` before running tests.
 
-```powershell
-.\scripts\run-django-test.ps1 -Target apps.recall
-.\scripts\run-django-test.ps1 -Target apps.expired
-.\scripts\run-django-test.ps1 -Target tests.test_item_import
-```
+## Seed and Import
 
-Notes:
+- Seed templates live in `backend/seed/`
+- Import sequence: `units -> categories -> funding_sources -> programs -> locations -> suppliers -> facilities -> items -> receiving`
+- For initial stock, prefer `receiving.csv` via the custom Receiving Admin import (`/admin/receiving/receiving/import-csv/`) so stock and `Transaction(IN)` records are created together.
 
-- Script auto-activates `venv` (if available)
-- Script always runs tests from `backend/` (prevents wrong cwd errors)
-- Script checks `crispy_forms` dependency first and prints install hint if missing
+Details: `backend/seed/README.md` and `requirements_draft/README.md`.
 
-### 7. Import seed data (optional)
+## Security Notes
 
-CSV seed files are provided in `backend/seed/`. Import them via the Django Admin panel using the **Import** button (powered by `django-import-export`).
+- Brute-force lockout with `django-axes` (`AXES_FAILURE_LIMIT=5`, `AXES_COOLOFF_TIME=0.5`)
+- `axes.backends.AxesStandaloneBackend` is configured before Django `ModelBackend`
+- Session and CSRF cookies use `HttpOnly` and `SameSite=Lax`
+- Production hardening is enabled when `DEBUG=False` (HSTS, secure cookies, frame deny, referrer policy)
 
-Import order: `units` → `categories` → `funding_sources` → `programs` → `locations` → `suppliers` → `facilities` → `items` → `receiving`
+## Documentation Index
 
-> **Note:** `kode_barang` is auto-generated as `ITM-YYYY-NNNNN`. Use `receiving.csv` to seed initial stock with a proper audit trail.
+- `AGENTS.md`: coding-agent orientation and conventions
+- `SYSTEM_MODEL.md`: canonical schema and workflow model map
+- `backend/seed/README.md`: CSV seed column specification
+- `requirements_draft/system_design_renew.md`: functional and architecture design narrative
+- `requirements_draft/erd.md`: ERD reference
+- `requirements_draft/infrastructure_plan.md`: infrastructure and deployment plan
+- `requirements_draft/README.md`: import workflow and migration notes
 
-See [`backend/seed/README.md`](backend/seed/README.md) for column specifications.
+## Documentation Governance Plan
 
-## 📁 Project Structure
+Use this cycle to keep all docs aligned with code and best practices.
 
-```text
-DJANGO-IMS/
-├── docker-compose.yml          # PostgreSQL + Redis
-├── .env.example                # Environment template
-├── backend/
-│   ├── manage.py
-│   ├── requirements.txt
-│   ├── config/                 # Django settings & URLs
-│   ├── apps/
-│   │   ├── core/               # Base models, dashboard
-│   │   ├── items/              # Item master + lookup tables
-│   │   ├── stock/              # Stock + transaction audit trail
-│   │   ├── receiving/          # Incoming stock (procurement/grants)
-│   │   ├── distribution/       # Outgoing stock to facilities
-│   │   ├── recall/             # Return/recall to supplier
-│   │   ├── expired/            # Expired/disposal workflow
-│   │   ├── reports/            # Reporting (in progress)
-│   │   ├── stock_opname/       # Physical count & discrepancy report
-│   │   └── users/              # Custom user model with roles
-│   ├── seed/                   # CSV seed data
-│   ├── templates/              # Django HTML templates
-│   └── static/                 # CSS & JS assets
-└── requirements_draft/         # Design documents & ERD
-```
+1. Inventory all documentation files in repository root, `requirements_draft/`, and `backend/seed/`.
+2. Map each statement in docs to source-of-truth files:
+   - models -> `backend/apps/*/models.py`
+   - routes -> `backend/config/urls.py` and `backend/apps/*/urls.py`
+   - security/settings -> `backend/config/settings.py`
+   - scripts -> `scripts/`
+3. Validate third-party guidance against Context7 primary references:
+   - `/django/django`
+   - `/websites/django-import-export_readthedocs_io_en`
+   - `/jazzband/django-axes`
+4. Flag drift by severity:
+   - Critical: wrong schema, workflow, auth, or security behavior
+   - Major: outdated commands/routes/env vars
+   - Minor: wording/format/terminology inconsistency
+5. Update canonical docs first (`SYSTEM_MODEL.md`, `README.md`, `AGENTS.md`), then dependent drafts.
+6. Add or update "Last verified" metadata and include verification source paths.
+7. Run doc QA checklist before merge:
+   - no route mismatch
+   - no model/table mismatch
+   - all commands executable as written
+   - all environment keys exist
+8. Enforce ongoing maintenance by requiring doc updates in PRs that change models, routes, settings, or scripts.
 
-## 👥 User Roles
+## License
 
-| Role | Description |
-| --- | --- |
-| **Admin** | Full system access, Admin Panel access, and full User Management (create/edit/activate/deactivate/delete) |
-| **Kepala Instalasi** | Approvals, all reports, dashboard, and User Management view access |
-| **Admin Umum** | Receiving, distribution, basic reports |
-| **Petugas Gudang** | Stock operations, receiving verification |
-| **Auditor** | Financial reports, stock valuation, audit |
-
-## 🔐 UAC Rules (Latest)
-
-- `User.role` is treated as **job title** ("Jabatan") for identity purposes.
-- Effective authorization uses **module role access** (`ModuleAccess`) with scopes: `NONE`, `VIEW`, `OPERATE`, `APPROVE`, `MANAGE`.
-- Default module scopes are seeded by role but can be adjusted per user.
-- **User Management pages (`/users/`)** are accessible by **Admin** (manage) and **Kepala Instalasi** (view only).
-- **Admin Panel (`/admin/`) sidebar link** is **Admin only**.
-- Safety guards in user actions:
-  - Users cannot deactivate or delete their own account.
-  - Active users cannot be deleted; they must be deactivated first.
-
-## 🔄 Workflow Snapshot
-
-- **Receiving (regular):** Create/list/detail for direct receiving documents
-- **Receiving (planned):** Draft → Submitted → Approved → Partial/Received → Closed (`Transaction(IN)` created during receipt input)
-- **Distribution:** Draft → Submitted → Verified → Prepared → Distributed (`Transaction(OUT)` when distributed, stock reservation on prepare)
-- **Recall:** Draft → Submitted → Verified → Completed (`Transaction(OUT)` on verify)
-- **Expired:** Draft → Submitted → Verified → Disposed (`Transaction(OUT)` on verify)
-- **Stock Transfer:** Draft → Completed (`Transaction(OUT)` at source + `Transaction(IN)` at destination)
-- **Stock Opname:** Draft → In Progress (snapshots stock) → Completed (printable discrepancy report)
-
-## 🧩 Item Module Notes
-
-- Item code (`kode_barang`) is auto-generated as `ITM-YYYY-NNNNN`; users do not enter it manually.
-- If `is_program_item` is enabled, program selection is required in forms.
-- CSV import safety: for program items with an empty `program` column, importer auto-creates/uses `DEFAULT` program.
-
-## 📖 Documentation
-
-- [System Design](requirements_draft/system_design_renew.md) — Full system design document
-- [ERD](requirements_draft/erd.md) — Entity Relationship Diagram
-- [Infrastructure Plan](requirements_draft/infrastructure_plan.md) — Deployment architecture
-- [Seed Data Guide](requirements_draft/README.md) — CSV import instructions
-
-## 📝 License
-
-This project is licensed under the [MIT License](LICENSE).
+MIT. See `LICENSE`.

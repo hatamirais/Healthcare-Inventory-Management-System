@@ -1,140 +1,151 @@
 # Seed Data Templates
 
-CSV templates for importing master data via Django Admin.
+CSV templates used for bootstrap imports via Django Admin.
 
-> [!NOTE]
-> Seed CSV templates are intended for **master data + initial stock only**. Transactional modules (`receiving`, `distribution`, `recall`, `expired`) are operational documents and should be created via app workflow or Admin forms.
+Last verified: 2026-03-17
+Verification sources: `backend/seed/*.csv`, `backend/apps/items/admin.py`, `backend/apps/stock/admin.py`, `backend/apps/receiving/admin.py`
 
-## Import Order (important!)
+## Import Order
 
-Import lookup tables first, then items that reference them:
+Import lookup and master dependencies first:
 
 1. `units.csv`
 2. `categories.csv`
 3. `funding_sources.csv`
-4. `programs.csv` ← health programs (TB, HIV, etc.)
+4. `programs.csv`
 5. `locations.csv`
 6. `suppliers.csv`
 7. `facilities.csv`
-8. `items.csv` ← requires units + categories + programs to exist first
-9. `receiving.csv` ← creates receiving + stock + transactions (via Admin → Receivings → Import CSV)
+8. `items.csv`
+9. `receiving.csv`
 
-> **Note:** For initial stock seeding, use `receiving.csv` instead of `stock.csv`.
-> This creates proper audit trail (transactions + kartu stok) from day one.
+For initial stock, prefer `receiving.csv` (custom receiving import endpoint) so the system creates receiving headers, stock updates, and `Transaction(IN)` entries consistently.
 
 ## How to Import
 
-1. Go to Django Admin → select a model (e.g., Units)
-2. Click **Import** → choose CSV file, format = "csv"
-3. Click **Submit** → review the dry-run preview
-4. Click **Confirm Import** to commit
+### Standard django-import-export flow
 
-> **Admin Receiving CSV Import:**
-> For initial stock, you can also use Admin → Receivings → `import-csv/`.
-> Accepted date formats: `DD/MM/YYYY`, `YYYY-MM-DD`, `DD-MM-YYYY`, `DD/MM/YY`.
-> Decimal values accept comma decimal separator.
+1. Open `/admin/`.
+2. Open target model (for example, Units).
+3. Click `Import`.
+4. Upload CSV and submit dry run.
+5. Confirm import.
 
-## Column Reference
+### Dedicated receiving import
 
-### `code` Field Rules (all tables except items)
+Use `/admin/receiving/receiving/import-csv/` for `receiving.csv`.
 
-- **Any text** — letters, numbers, hyphens, underscores
-- **Max 20 characters**
-- **Must be unique** within its table
-- Examples: `TAB`, `001`, `GD-01`, `TABLET`
+## CSV Column Specifications
 
----
+### `units.csv`
 
-### units.csv
+Columns:
 
-| Column | Required | Default | Notes |
-| -------- | ---------- | --------- | ------- |
-| `code` | ✅ Yes | — | Unique, max 20 chars |
-| `name` | ✅ Yes | — | Display name |
-| `description` | ❌ No | blank | |
+- `code` (required, unique)
+- `name` (required)
+- `description` (optional)
 
-### categories.csv
+### `categories.csv`
 
-| Column | Required | Default | Notes |
-| -------- | ---------- | --------- | ------- |
-| `code` | ✅ Yes | — | Unique, max 20 chars |
-| `name` | ✅ Yes | — | Display name |
-| `sort_order` | ❌ No | `0` | Controls dropdown order |
+Columns:
 
-### funding_sources.csv
+- `code` (required, unique)
+- `name` (required)
+- `sort_order` (optional, default `0`)
 
-| Column | Required | Default | Notes |
-| -------- | ---------- | --------- | ------- |
-| `code` | ✅ Yes | — | Unique, max 20 chars |
-| `name` | ✅ Yes | — | |
-| `description` | ❌ No | blank | |
-| `is_active` | ❌ No | `1` | |
+### `funding_sources.csv`
 
-### locations.csv
+Columns:
 
-| Column | Required | Default | Notes |
-| -------- | ---------- | --------- | ------- |
-| `code` | ✅ Yes | — | Unique, max 20 chars |
-| `name` | ✅ Yes | — | |
-| `description` | ❌ No | blank | |
-| `is_active` | ❌ No | `1` | |
+- `code` (required, unique)
+- `name` (required)
+- `description` (optional)
+- `is_active` (optional, default `1`)
 
-### suppliers.csv
+### `programs.csv`
 
-| Column | Required | Default | Notes |
-| -------- | ---------- | --------- | ------- |
-| `code` | ✅ Yes | — | Unique, max 20 chars |
-| `name` | ✅ Yes | — | |
-| `address` | ❌ No | blank | |
-| `phone` | ❌ No | blank | |
-| `email` | ❌ No | blank | |
-| `notes` | ❌ No | blank | |
-| `is_active` | ❌ No | `1` | |
+Columns:
 
-### facilities.csv
+- `code` (required, unique)
+- `name` (required)
+- `description` (optional)
+- `is_active` (optional, default `1`)
 
-| Column | Required | Default | Notes |
-| -------- | ---------- | --------- | ------- |
-| `code` | ✅ Yes | — | Unique, max 20 chars |
-| `name` | ✅ Yes | — | |
-| `address` | ❌ No | blank | |
-| `phone` | ❌ No | blank | |
-| `facility_type` | ❌ No | `PUSKESMAS` | Options: `PUSKESMAS`, `RS`, `CLINIC` |
-| `is_active` | ❌ No | `1` | |
+### `locations.csv`
 
-### programs.csv
+Columns:
 
-| Column | Required | Default | Notes |
-| -------- | ---------- | --------- | ------- |
-| `code` | ✅ Yes | — | Unique, max 20 chars (e.g. `TB`, `HIV`) |
-| `name` | ✅ Yes | — | Display name (e.g. `Tuberkulosis`) |
-| `description` | ❌ No | blank | |
-| `is_active` | ❌ No | `1` | |
+- `code` (required, unique)
+- `name` (required)
+- `description` (optional)
+- `is_active` (optional, default `1`)
 
-### items.csv
+### `suppliers.csv`
 
-| Column | Required | Default | Notes |
-| -------- | ---------- | --------- | ------- |
-| `nama_barang` | ✅ Yes | — | Item name (used as unique identifier for import) |
-| `satuan` | ✅ Yes | — | Unit **code** (e.g. `TAB`) |
-| `kategori` | ✅ Yes | — | Category **code** (e.g. `TABLET`) |
-| `is_program_item` | ❌ No | `0` | `1` for program items |
-| `program` | ❌ No | blank | Program **code** (e.g. `TB`, `HIV`) from programs table. If `is_program_item=1` and this is empty, importer auto-uses/creates `DEFAULT` |
-| `minimum_stock` | ❌ No | `0` | Low stock alert threshold |
-| `description` | ❌ No | blank | |
-| `is_active` | ❌ No | `1` | |
+Columns:
 
-> **Note:** `kode_barang` is auto-generated as `ITM-YYYY-00001`, `ITM-YYYY-00002`, etc. (year-based). You don't need to provide it.
+- `code` (required, unique)
+- `name` (required)
+- `address` (optional)
+- `phone` (optional)
+- `email` (optional)
+- `notes` (optional)
+- `is_active` (optional, default `1`)
 
-### stock.csv
+### `facilities.csv`
 
-| Column | Required | Default | Notes |
-| -------- | ---------- | --------- | ------- |
-| `item_code` | ✅ Yes | — | Item **kode_barang** from items table |
-| `location_code` | ✅ Yes | — | Location **code** from locations table |
-| `batch_lot` | ✅ Yes | — | Batch/lot number |
-| `expiry_date` | ✅ Yes | — | Format: `YYYY-MM-DD` |
-| `quantity` | ❌ No | `0` | |
-| `reserved` | ❌ No | `0` | Allocated for pending distributions |
-| `unit_price` | ❌ No | `0` | |
-| `sumber_dana_code` | ✅ Yes | — | Funding source **code** from funding_sources table |
+Columns:
+
+- `code` (required, unique)
+- `name` (required)
+- `facility_type` (optional, default `PUSKESMAS`; values: `PUSKESMAS`, `RS`, `CLINIC`)
+- `address` (optional)
+- `phone` (optional)
+- `is_active` (optional, default `1`)
+
+### `items.csv`
+
+Columns:
+
+- `nama_barang` (required)
+- `satuan` (required, maps to `Unit.code`)
+- `kategori` (required, maps to `Category.code`)
+- `is_program_item` (optional, default `0`)
+- `program` (optional, maps to `Program.code`)
+- `minimum_stock` (optional, default `0`)
+- `description` (optional)
+- `is_active` (optional, default `1`)
+
+Notes:
+
+- `kode_barang` is auto-generated when missing.
+- If `is_program_item` is true and `program` is blank, importer auto-uses/creates `DEFAULT`.
+
+### `receiving.csv`
+
+Expected columns for custom receiving import:
+
+- `document_number` (required)
+- `receiving_type` (optional; defaults to `GRANT` in import handler)
+- `receiving_date` (required)
+- `supplier_code` (optional)
+- `sumber_dana_code` (required at least header/row effective value)
+- `location_code` (required at least header/row effective value)
+- `item_code` (required, maps to `Item.kode_barang`)
+- `quantity` (required)
+- `batch_lot` (optional; auto-generated if blank)
+- `expiry_date` (optional; defaults to `2099-12-31` when blank)
+- `unit_price` (optional; default `0`)
+
+Date formats accepted by parser:
+
+- `DD/MM/YYYY`
+- `YYYY-MM-DD`
+- `DD-MM-YYYY`
+- `DD/MM/YY`
+
+Decimal parsing accepts comma separator.
+
+### `stock.csv` (reference only)
+
+The repository still contains `stock.csv` template and stock admin import resources, but for first-time inventory bootstrap, `receiving.csv` is preferred because it posts auditable inbound transactions.
