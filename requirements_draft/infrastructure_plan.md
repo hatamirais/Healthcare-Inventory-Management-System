@@ -1,133 +1,96 @@
 # Infrastructure Plan
 
-## Overview
+Architecture and deployment notes for the current implementation, plus planned evolution.
 
-The infrastructure is designed for high reliability, ease of deployment, and seamless scalability on **Proxmox VMs (Ubuntu Server)**. We use **Docker Compose** to orchestrate services, ensuring consistency between Development and Production environments.
+Last verified: 2026-03-17
+Verification sources: `docker-compose.yml`, `.env.example`, `backend/config/settings.py`, `backend/config/urls.py`, `backend/apps/reports/models.py`
 
-## Current Development Setup
+## 1) Current Runtime Topology
 
-The project is currently in **active development** with a simplified setup:
+### Application runtime
 
-- **Backend**: Django 6.0.2 running natively via `python manage.py runserver` (not containerized)
-- **Database**: PostgreSQL 16 via Docker Compose
-- **Cache/Queue**: Redis 7 via Docker Compose (available but not actively used yet)
-- **Frontend**: Django templates with Bootstrap5 (crispy-bootstrap5) — no separate frontend service
-- **Celery**: Not yet running (planned for alerts/notifications)
+- Django app runs directly from host/developer environment (`python manage.py runserver`) from `backend/`.
+- UI is server-rendered Django templates.
 
-### Current Feature Topology (Application Layer)
+### Containerized services
 
-- **Stock Card** and **Stock Transfer** run inside the Django app (`/stock/stock-card/*`, `/stock/transfers/*`) without extra infrastructure services.
-- **Receiving CSV Import** runs as a Django Admin endpoint and writes database records in one transaction flow.
+- PostgreSQL 16 (`postgres:16-alpine`) via Docker Compose
+- Redis 7 (`redis:7-alpine`) via Docker Compose
 
-```mermaid
-graph TD
-    Client[Client Browser] -->|HTTP| Django[Django Dev Server\nmanage.py runserver\nPort 8000]
+### Notes
 
-    subgraph Docker Compose
-        DB[(PostgreSQL 16\nPort 5432)]
-        Redis[(Redis 7\nPort 6379)]
-    end
+- Redis is available and configured but current codebase does not yet run active Celery workers in default local workflow.
+- `reports` module exists as route and view entry, but model layer is still placeholder.
 
-    Django -->|Read/Write| DB
-    Django -.->|Planned| Redis
-```
+## 2) Current docker-compose Baseline
 
-## Target Production Architecture
+From `docker-compose.yml`:
 
-```mermaid
-graph TD
-    Client[Client Browser/Mobile] -->|HTTPS| Nginx[Nginx Reverse Proxy]
+- Service `postgres`
+  - env: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+  - host port `5432`
+  - persistent volume `postgres_data`
+- Service `redis`
+  - host port `6379`
+  - persistent volume `redis_data`
 
-    subgraph Docker Network
-        Nginx -->|/| API[Django Backend\nGunicorn]
-        Nginx -->|/*| FE[React Frontend\nStatic Files (planned)]
+No backend container is defined in current compose file.
 
-        API -->|Read/Write| DB[(PostgreSQL 16)]
-        API -->|Cache/Queue| Redis[(Redis 7)]
-        API -->|Async Tasks| Celery[Celery Worker]
-        Celery --> Redis
-        Celery -.->|Update| DB
-    end
+## 3) Environment and Settings Coupling
 
-    subgraph Storage
-        DB --> VolDB[Postgres Volume]
-        API --> VolMedia[Media Volume]
-        Nginx --> VolMedia
-    end
-```
+### Environment keys
 
-> [!NOTE]
-> The React frontend is **planned but not yet started**. The current UI is built with Django templates + Bootstrap5. When the React frontend is implemented, the architecture will transition to the target diagram above.
+Documented in `.env.example` and consumed by settings:
 
-> [!NOTE]
-> There is currently no REST API layer. Nginx-to-Django routing in production is expected to proxy standard Django routes first; API-specific routing will be added only if DRF is introduced.
+- `DJANGO_SETTINGS_MODULE`
+- `DJANGO_SECRET_KEY`
+- `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`
+- `ALLOWED_HOSTS`
+- `REDIS_URL`
+- `SECURE_SSL_REDIRECT`
 
-## Core Components
+### Security posture in settings
 
-### 1. Servers (Proxmox VMs)
+- `SECRET_KEY` is required from environment (`os.environ[...]`, fail-fast)
+- `AUTH_USER_MODEL = "users.User"`
+- Axes backend is first in `AUTHENTICATION_BACKENDS`
+- `axes.middleware.AxesMiddleware` installed in middleware stack
+- Production hardening enabled when `DEBUG=False`:
+  - secure cookies
+  - HSTS
+  - frame deny
+  - strict referrer policy
 
-- **OS**: Ubuntu Server 22.04 LTS (or later)
-- **Environment**:
-  - **Development VM**: Runs with hot-reloading enabled.
-  - **Production VM**: Runs optimized, static builds.
+## 4) Production Target (Planned)
 
-### 2. Container Orchestration (Docker Compose)
+Planned direction (not fully implemented in repo):
 
-#### Current `docker-compose.yml` (Development)
+- Gunicorn for Django process management
+- Nginx reverse proxy and static/media serving
+- Celery worker for async jobs and periodic checks
+- Optional split frontend/API architecture if React + API layer is introduced later
 
-Currently only infrastructure services are containerized:
+Important implementation note:
 
-- **PostgreSQL**: Database service (Port 5432)
-- **Redis**: Caching and message broker (Port 6379)
+- Do not document `/api/*` routing or React deployment as active until actual code and compose manifests exist.
 
-#### Planned: Production Override (`docker-compose.prod.yml`)
+## 5) Deployment Review Checklist
 
-- **Backend**: Django via **Gunicorn** (`gunicorn config.wsgi:application`).
-- **Frontend**: Built static files served by **Nginx** (when React is implemented).
-- **Nginx**: Reverse proxy — serves static assets, proxies `/api/` to Django, serves media files.
-- **Celery**: Background task worker (expiry alerts, low stock notifications).
-- **Restart Policy**: `restart: always` for high availability.
+When preparing production docs and manifests:
 
-### 3. Networking & Security
+1. Verify all environment variables in docs exist in settings or runtime scripts.
+2. Verify all service names/ports in docs match compose files.
+3. Verify security claims match `settings.py` branches (`DEBUG=True/False`).
+4. Verify backup/restore steps are executable and include DB + media handling.
+5. Verify runbooks mention migration order and rollback strategy.
 
-- **Internal**: All services communicate on a private Docker network.
-- **External**: Only **Nginx** (ports 80/443) is exposed to the host network in production.
-- **CORS**: Configured to restrict API access to the frontend domain.
-- **Media Files**: Served by Nginx but protected by application logic where necessary.
+## 6) Documentation Maintenance Plan
 
-### 4. Application Security (Implemented)
+When infra or settings change:
 
-- **Brute-Force Protection**: `django-axes` — locks account after 5 failed login attempts for 30 minutes
-- **RBAC**: `@perm_required` decorator uses Django groups/permissions (managed via Admin panel)
-- **Session Security**: 1-hour sliding expiry, browser-close logout, HttpOnly + SameSite cookies
-- **CSRF Protection**: HttpOnly + SameSite cookies
-- **Password Policy**: Minimum 10 characters, common password validation, numeric-only validation
-- **Production Hardening** (when `DEBUG=False`):
-  - HSTS (1 year + preload + subdomains)
-  - SSL redirect (configurable via `SECURE_SSL_REDIRECT`)
-  - X-Frame-Options: DENY
-  - Strict referrer policy
-  - Content type nosniff
-
-## Deployment Strategy
-
-### Seamless Dev-to-Prod Workflow
-
-1. **Develop**: Code locally or on Dev VM.
-2. **Push**: Commit changes to Git.
-3. **Deploy**:
-    - SSH into Production VM.
-    - `git pull origin main`
-    - `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
-    - `docker compose exec backend python manage.py migrate` (if DB changes)
-    - `docker compose exec backend python manage.py collectstatic --noinput`
-
-## Scalability
-
-- **Horizontal**: Can add more Celery workers or Backend replicas easily via Docker Compose.
-- **Vertical**: Proxmox allows resizing VM resources (CPU/RAM) on the fly.
-
-## Backup Strategy
-
-- **Database**: Automated `pg_dump` via scheduled cron job on the host.
-- **Media Files**: RSYNC media volume to backup storage.
+1. Update this file.
+2. Update root `README.md` setup sections.
+3. Update `AGENTS.md` environment snapshot and source-of-truth pointers.
+4. Cross-check with Context7 best-practice refs:
+   - Django `/django/django`
+   - django-axes `/jazzband/django-axes`
