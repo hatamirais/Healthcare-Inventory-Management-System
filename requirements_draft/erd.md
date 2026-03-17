@@ -84,9 +84,18 @@ erDiagram
         string email UK
         string password_hash
         string full_name
-        string role "Admin, Kepala, Admin Umum, Petugas Gudang, Auditor"
+        string role "Admin, Kepala, Admin Umum, Gudang, Auditor"
         boolean is_active
         timestamp last_login NULL
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    ModuleAccess {
+        int id PK
+        int user_id FK
+        string module "users, items, stock, receiving, distribution, recall, expired, stock_opname, reports, admin_panel"
+        int scope "0=None, 1=View, 2=Operate, 3=Approve, 4=Manage"
         timestamp created_at
         timestamp updated_at
     }
@@ -139,6 +148,15 @@ erDiagram
     }
     
     %% Receiving Module
+    ReceivingTypeOption {
+        int id PK
+        string code UK
+        string name
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
     Receiving {
         int id PK
         string receiving_type "PROCUREMENT, GRANT"
@@ -271,6 +289,8 @@ erDiagram
         int created_by_id FK
         int verified_by_id FK NULL
         timestamp verified_at NULL
+        int disposed_by_id FK NULL
+        timestamp disposed_at NULL
         text notes NULL
         timestamp created_at
         timestamp updated_at
@@ -287,6 +307,7 @@ erDiagram
       }
     
     %% Relationships - Lookup to Core
+    User ||--o{ ModuleAccess : "has_access"
     Item ||--|| Unit : "has"
     Item ||--|| Category : "has"
     Item ||--o| Program : "belongs_to"
@@ -324,10 +345,10 @@ erDiagram
     DistributionItem ||--|| Item : "distributes"
     DistributionItem ||--o| Stock : "from_batch"
 
-    %% Recall relationships
     Recall ||--|| Supplier : "to_supplier"
     Recall ||--|| User : "created_by"
     Recall ||--o| User : "verified_by"
+    Recall ||--o| User : "completed_by"
     Recall ||--o{ RecallItem : "contains"
     RecallItem ||--|| Item : "recalls"
     RecallItem ||--|| Stock : "from_batch"
@@ -335,6 +356,7 @@ erDiagram
     %% Expired relationships
     Expired ||--|| User : "created_by"
     Expired ||--o| User : "verified_by"
+    Expired ||--o| User : "disposed_by"
     Expired ||--o{ ExpiredItem : "contains"
     ExpiredItem ||--|| Item : "disposes"
     ExpiredItem ||--|| Stock : "from_batch"
@@ -458,11 +480,21 @@ erDiagram
 
 - **Purpose:** System authentication and authorization
 - **Indexes:** `username` (unique), `email` (unique)
-- **Roles:** Admin, Kepala Instalasi, Admin Umum, Petugas Gudang, Auditor
+- **Roles (Jabatan):** Admin, Kepala Instalasi, Admin Umum, Petugas Gudang, Auditor
+- **Note:** `User.role` is treated as job title. Effective authorization uses `ModuleAccess` scopes.
 - **UAC notes:**
   - User management read access: Admin + Kepala Instalasi
   - User management write access: Admin only
-  - Safety constraints in management flow: cannot deactivate/delete own account; active users must be deactivated before deletion
+  - Safety constraints: cannot deactivate/delete own account; active users must be deactivated before deletion
+
+#### 8. ModuleAccess
+
+- **Purpose:** Per-user, per-module authorization scope assignment
+- **Key Fields:**
+  - `module`: One of 10 modules (users, items, stock, receiving, distribution, recall, expired, stock_opname, reports, admin_panel)
+  - `scope`: 0=None, 1=View, 2=Operate, 3=Approve, 4=Manage
+- **Unique Constraint:** `(user_id, module)` — one entry per user per module
+- **Note:** Default scopes seeded by role via `access.py:ROLE_DEFAULT_SCOPES` but adjustable per user
 
 ---
 
@@ -556,6 +588,14 @@ erDiagram
   - `received_quantity`: Accumulated amount received so far
   - `remaining_quantity`: Computed property (planned - received)
 
+#### 23. ReceivingTypeOption
+
+- **Purpose:** Custom receiving type options managed from quick-create in forms
+- **Key Fields:**
+  - `code`: Unique uppercase code (e.g., `PROCUREMENT`, `GRANT`)
+  - `name`: Human-readable label
+  - `is_active`: Soft-disable toggle
+
 ---
 
 ### Distribution Module
@@ -614,6 +654,7 @@ erDiagram
   - `(status, report_date)` for workflow queries
 - **Status Workflow:** Draft → Submitted → Verified → Disposed
 - **Verification:** Deducts stock and creates `Transaction(type=OUT, reference_type=EXPIRED)`
+- **Key Fields:** Tracks `verified_by` and `disposed_by` for full lifecycle tracking.
 
 #### 19. ExpiredItem
 

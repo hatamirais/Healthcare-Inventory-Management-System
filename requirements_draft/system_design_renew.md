@@ -567,13 +567,18 @@ python manage.py createsuperuser
 9. ✅ Django template-based UI (dashboard, items, stock, receiving, distribution, recall, expired, stock opname)
 10. ⬜ Reports module implementation (currently placeholder)
 11. ⬜ Celery tasks for expiry/low-stock alerts
-12. ✅ Permission-based access control (`@perm_required` decorator via Django groups)
+12. ✅ Permission-based access control (`@perm_required` + `ModuleAccess` scopes via `access.py`)
 13. ✅ Receiving planned workflow (submit/approve/receive/close) with stock posting on receive
-14. ⬜ Distribution workflow actions (verify/prepare/distribute with stock reservation posting)
+14. ✅ Distribution workflow actions (verify/prepare/distribute with stock reservation posting)
 15. ✅ Recall workflow (status transitions + stock deduction + transaction posting)
-16. ✅ Expired workflow (status transitions + stock deduction + transaction posting)
+16. ✅ Expired workflow (status transitions + stock deduction + disposal tracking + transaction posting)
 17. ⬜ Excel/PDF export for reports
 18. ⬜ React frontend (if/when decided)
 19. ⬜ DRF REST API (if/when React frontend is started)
 20. ⬜ Production Docker Compose setup
 21. ⬜ Testing & deployment
+22. ✅ User management CRUD (list/create/edit/delete/toggle-active) with module access control
+23. ✅ Stock card feature (item search, running balance, date filtering)
+24. ✅ Stock transfer module (Draft → Completed with paired transactions)
+25. ✅ Expired alerts page for monitoring near-expiry and expired stock
+26. ✅ Dashboard KPIs (total stock quantity, stock value, today's transactions)

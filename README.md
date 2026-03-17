@@ -13,18 +13,19 @@ A web-based inventory management system for managing medicine and medical equipm
 - **Stock Transfer (Mutasi Lokasi)** — Draft → Completed workflow for inter-location stock movement with automatic IN/OUT transactions
 - **Receiving Module** — Record incoming stock from procurement (eKatalog) and grants (Hibah)
 - **Receiving Planning Workflow** — Plan receipts with Draft → Submitted → Approved → Partial/Received → Closed flow
-- **Distribution Module** — Create and review LPLPO, allocation, and special request documents to facilities
+- **Distribution Module** — Full workflow (Draft → Submitted → Verified → Prepared → Distributed) with stock reservation and posting
 - **Recall Module** — Manage supplier returns with Draft → Submitted → Verified → Completed workflow
-- **Expired Module** — Manage expired/disposal documents with Draft → Submitted → Verified → Disposed workflow
+- **Expired Module** — Manage expired/disposal documents with Draft → Submitted → Verified → Disposed workflow and disposal tracking
 - **Funding Source Tracking** — Track budget allocation per batch (DAK, DAU, APBD, etc.)
 - **Audit Trail** — Immutable transaction log for all stock movements
 - **CSV Import/Export** — Bulk data operations via Django Admin (`django-import-export`)
 - **Smart Item Import Defaults** — Program items imported without a program are auto-mapped to a `DEFAULT` program
 - **Receiving CSV Import (Admin)** — Bulk initial receiving import with row-level validation, flexible date parsing, and automatic stock/transaction posting
-- **Dashboard** — Overview of stock levels, near-expiry items, and recent transactions
+- **Dashboard** — Overview of stock levels, total stock value, near-expiry items, today's transactions, and recent activity
 - **Stock Opname** — Physical inventory counting with category-based filtering, staff assignment, and printable discrepancy reports
-- **Role-Based Access Control** — `@perm_required` decorator with Django groups/permissions (managed via Admin)
+- **Role-Based Access Control** — `@perm_required` decorator + `ModuleAccess` scopes (NONE/VIEW/OPERATE/APPROVE/MANAGE) per module per user
 - **User Management Module** — Dedicated `/users/` pages with role-filtered access, activation toggles, and guarded delete flow
+- **Expired Alerts Page** — Monitor near-expiry and expired stock at `/expired/alerts/`
 - **Security Hardening** — Brute-force protection (django-axes), session security, production HSTS
 
 ## 🛠️ Tech Stack
@@ -170,8 +171,10 @@ DJANGO-IMS/
 
 ## 🔐 UAC Rules (Latest)
 
-- **User Management pages (`/users/`)** are accessible by **Admin** and **Kepala Instalasi**.
-- **User-management write actions** (create/edit/toggle active/delete) are **Admin only**.
+- `User.role` is treated as **job title** ("Jabatan") for identity purposes.
+- Effective authorization uses **module role access** (`ModuleAccess`) with scopes: `NONE`, `VIEW`, `OPERATE`, `APPROVE`, `MANAGE`.
+- Default module scopes are seeded by role but can be adjusted per user.
+- **User Management pages (`/users/`)** are accessible by **Admin** (manage) and **Kepala Instalasi** (view only).
 - **Admin Panel (`/admin/`) sidebar link** is **Admin only**.
 - Safety guards in user actions:
   - Users cannot deactivate or delete their own account.
@@ -181,7 +184,7 @@ DJANGO-IMS/
 
 - **Receiving (regular):** Create/list/detail for direct receiving documents
 - **Receiving (planned):** Draft → Submitted → Approved → Partial/Received → Closed (`Transaction(IN)` created during receipt input)
-- **Distribution:** Create/list/detail is active; workflow status enum is available in model for phased rollout
+- **Distribution:** Draft → Submitted → Verified → Prepared → Distributed (`Transaction(OUT)` when distributed, stock reservation on prepare)
 - **Recall:** Draft → Submitted → Verified → Completed (`Transaction(OUT)` on verify)
 - **Expired:** Draft → Submitted → Verified → Disposed (`Transaction(OUT)` on verify)
 - **Stock Transfer:** Draft → Completed (`Transaction(OUT)` at source + `Transaction(IN)` at destination)

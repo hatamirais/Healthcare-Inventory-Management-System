@@ -95,7 +95,7 @@ All route prefixes are defined in `backend/config/urls.py`:
 
 ## User Roles
 
-The system uses `@perm_required` decorator for permission-based access control via Django groups (managed in Admin). Five roles:
+The system uses `@perm_required` decorator for permission-based access control via `ModuleAccess` scopes (`access.py`). Five roles:
 
 | Role | Access Scope |
 | --- | --- |
@@ -103,7 +103,7 @@ The system uses `@perm_required` decorator for permission-based access control v
 | **Kepala Instalasi** | Approvals, all reports, dashboard, and User Management (view-only) |
 | **Admin Umum** | Receiving, distribution, basic reports |
 | **Petugas Gudang** | Stock operations, receiving verification |
-| **Auditor** | Financial reports, stock valuation, audit |
+| **Auditor** | Financial reports, stock valuation, audit (view scope on most modules) |
 
 ### Administrative Access Rules (Latest)
 
@@ -132,9 +132,9 @@ Most modules follow a status-based workflow with transitions enforced in views:
 
 - **Receiving (planned):** Draft → Submitted → Approved → Partial/Received → Closed (`Transaction(IN)` during receipt input)
 - **Receiving (regular):** create/list/detail available for direct documents
-- **Distribution:** create/list/detail available; status enum supports Draft → Submitted → Verified → Prepared → Distributed
+- **Distribution:** Fully implemented workflow: Draft → Submitted → Verified → Prepared → Distributed (`Transaction(OUT)` when distributed)
 - **Recall:** Draft → Submitted → Verified → Completed (`Transaction(OUT)`)
-- **Expired:** Draft → Submitted → Verified → Disposed (`Transaction(OUT)`)
+- **Expired:** Draft → Submitted → Verified → Disposed (`Transaction(OUT)`, tracks `disposed_by`/`disposed_at`)
 - **Stock Transfer:** Draft → Completed (`Transaction(OUT)` from source + `Transaction(IN)` at destination)
 
 ### Transaction Audit Trail
