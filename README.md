@@ -152,6 +152,18 @@ Admin URL: `http://localhost:8000/admin/`
 
 The script changes into `backend/`, optionally activates `venv`, and checks `crispy_forms` before running tests.
 
+## Versioning
+
+This repository now uses semantic versioning with `MAJOR.MINOR.PATCH` in the root `VERSION` file.
+
+- Show current version: `python manage.py app_version`
+- Bump patch version: `python manage.py app_version --patch`
+- Bump minor version: `python manage.py app_version --minor`
+- Bump major version: `python manage.py app_version --major`
+- Set explicit version: `python manage.py app_version --set 2.0.0`
+
+The active app version is loaded from `VERSION` at startup and shown in the authenticated UI header.
+
 ## Seed and Import
 
 - Seed templates live in `backend/seed/`
