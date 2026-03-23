@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.0.4] - 2026-03-23
+
+### Added
+
+- Bootstrap toast-based flash message display in the authenticated UI, including client-side handling and styling updates.
+
+### Changed
+
+- Distribution reset-to-draft status check now includes `DISTRIBUTED` in `distribution_detail` flow conditions.
+
 ## [1.0.3] - 2026-03-23
 
 ### Added
