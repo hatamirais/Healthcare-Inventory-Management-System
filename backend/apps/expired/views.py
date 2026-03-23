@@ -181,6 +181,29 @@ def expired_alerts(request):
         sort_field, "expiry_date", "item__nama_barang", "batch_lot"
     )
 
+    base_params = request.GET.copy()
+
+    def _build_sort_url(sort_key):
+        params = base_params.copy()
+        params.pop("page", None)
+        if sort == sort_key:
+            params["dir"] = "desc" if direction == "asc" else "asc"
+        else:
+            params["sort"] = sort_key
+            params["dir"] = "asc"
+        return f"?{params.urlencode()}"
+
+    sort_urls = {
+        "code": _build_sort_url("code"),
+        "name": _build_sort_url("name"),
+        "category": _build_sort_url("category"),
+        "batch": _build_sort_url("batch"),
+        "location": _build_sort_url("location"),
+        "expiry": _build_sort_url("expiry"),
+        "available": _build_sort_url("available"),
+        "processed": _build_sort_url("processed"),
+    }
+
     rows = []
     for stock in queryset:
         days_to_expiry = (stock.expiry_date - today).days
@@ -224,6 +247,7 @@ def expired_alerts(request):
             "pending_only": pending_only,
             "selected_sort": sort,
             "selected_dir": direction,
+            "sort_urls": sort_urls,
             "today": today,
         },
     )
