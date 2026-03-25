@@ -9,105 +9,113 @@
         <div class="card content-card">
             <div class="card-header"><span>Informasi Distribusi</span></div>
             <div class="card-body">
-                <dl class="row mb-0">
-                    <dt class="col-5 text-muted">No. Dokumen</dt>
-                    <dd class="col-7 fw-semibold">{{ distribution.document_number }}</dd>
+                <div class="row g-4 align-items-start">
+                    <div class="col-12 col-xl-8">
+                        <dl class="row mb-0">
+                            <dt class="col-5 text-muted">No. Dokumen</dt>
+                            <dd class="col-7 fw-semibold">{{ distribution.document_number }}</dd>
 
-                    <dt class="col-5 text-muted">Tanggal</dt>
-                    <dd class="col-7">{{ distribution.request_date|date:"d/m/Y" }}</dd>
+                            <dt class="col-5 text-muted">Tanggal</dt>
+                            <dd class="col-7">{{ distribution.request_date|date:"d/m/Y" }}</dd>
 
-                    <dt class="col-5 text-muted">Tipe</dt>
-                    <dd class="col-7">{{ distribution.get_distribution_type_display }}</dd>
+                            <dt class="col-5 text-muted">Tipe</dt>
+                            <dd class="col-7">{{ distribution.get_distribution_type_display }}</dd>
 
-                    <dt class="col-5 text-muted">Faskes Tujuan</dt>
-                    <dd class="col-7">{{ distribution.facility.name }}</dd>
+                            <dt class="col-5 text-muted">Faskes Tujuan</dt>
+                            <dd class="col-7">{{ distribution.facility.name }}</dd>
 
-                    <dt class="col-5 text-muted">Status</dt>
-                    <dd class="col-7">
-                        <span class="badge-status badge-{{ distribution.status|lower }}">{{ distribution.get_status_display }}</span>
-                    </dd>
+                            <dt class="col-5 text-muted">Status</dt>
+                            <dd class="col-7">
+                                <span class="badge-status badge-{{ distribution.status|lower }}">{{ distribution.get_status_display }}</span>
+                            </dd>
 
-                    <dt class="col-5 text-muted">Dibuat oleh</dt>
-                    <dd class="col-7">{{ distribution.created_by }}</dd>
+                            <dt class="col-5 text-muted">Dibuat oleh</dt>
+                            <dd class="col-7">{{ distribution.created_by }}</dd>
 
-                    {% if distribution.verified_by %}
-                    <dt class="col-5 text-muted">Diverifikasi</dt>
-                    <dd class="col-7">{{ distribution.verified_by }}<br><small class="text-muted">{{
-                            distribution.verified_at|date:"d/m/Y H:i" }}</small></dd>
-                    {% endif %}
+                            {% if distribution.verified_by %}
+                            <dt class="col-5 text-muted">Diverifikasi</dt>
+                            <dd class="col-7">{{ distribution.verified_by }}<br><small class="text-muted">{{
+                                    distribution.verified_at|date:"d/m/Y H:i" }}</small></dd>
+                            {% endif %}
 
-                    {% if distribution.approved_by %}
-                    <dt class="col-5 text-muted">Didistribusikan</dt>
-                    <dd class="col-7">{{ distribution.approved_by }}<br><small class="text-muted">{{
-                            distribution.approved_at|date:"d/m/Y H:i" }}</small></dd>
-                    {% endif %}
+                            {% if distribution.approved_by %}
+                            <dt class="col-5 text-muted">Didistribusikan</dt>
+                            <dd class="col-7">{{ distribution.approved_by }}<br><small class="text-muted">{{
+                                    distribution.approved_at|date:"d/m/Y H:i" }}</small></dd>
+                            {% endif %}
 
-                    {% if distribution.distributed_date %}
-                    <dt class="col-5 text-muted">Tgl Distribusi</dt>
-                    <dd class="col-7">{{ distribution.distributed_date|date:"d/m/Y" }}</dd>
-                    {% endif %}
+                            {% if distribution.distributed_date %}
+                            <dt class="col-5 text-muted">Tgl Distribusi</dt>
+                            <dd class="col-7">{{ distribution.distributed_date|date:"d/m/Y" }}</dd>
+                            {% endif %}
 
-                    {% if distribution.notes %}
-                    <dt class="col-5 text-muted">Catatan</dt>
-                    <dd class="col-7">{{ distribution.notes }}</dd>
-                    {% endif %}
-                </dl>
+                            {% if distribution.notes %}
+                            <dt class="col-5 text-muted">Catatan</dt>
+                            <dd class="col-7">{{ distribution.notes }}</dd>
+                            {% endif %}
+                        </dl>
+                    </div>
+                    <div class="col-12 col-xl-4">
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <h6 class="mb-3">Aksi Distribusi</h6>
+                            <div class="d-grid gap-2">
+                                {% if distribution.status == 'DRAFT' %}
+                                <a href="{% url 'distribution:distribution_edit' distribution.pk %}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-pencil me-1"></i>Ubah
+                                </a>
+                                <form method="post" action="{% url 'distribution:distribution_submit' distribution.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                                        <i class="bi bi-send me-1"></i>Ajukan
+                                    </button>
+                                </form>
+                                {% elif distribution.status == 'SUBMITTED' %}
+                                <a href="{% url 'distribution:distribution_edit' distribution.pk %}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-pencil me-1"></i>Ubah
+                                </a>
+                                <form method="post" action="{% url 'distribution:distribution_verify' distribution.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-success btn-sm w-100">
+                                        <i class="bi bi-patch-check me-1"></i>Verifikasi
+                                    </button>
+                                </form>
+                                <form method="post" action="{% url 'distribution:distribution_reject' distribution.pk %}" onsubmit="return confirm('Yakin ingin menolak distribusi ini?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                                        <i class="bi bi-x-circle me-1"></i>Tolak
+                                    </button>
+                                </form>
+                                {% elif distribution.status == 'VERIFIED' %}
+                                <form method="post" action="{% url 'distribution:distribution_prepare' distribution.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-info btn-sm w-100">
+                                        <i class="bi bi-box-seam me-1"></i>Siapkan Barang
+                                    </button>
+                                </form>
+                                {% elif distribution.status == 'PREPARED' %}
+                                <form method="post" action="{% url 'distribution:distribution_distribute' distribution.pk %}" onsubmit="return confirm('Distribusikan barang? Stok akan dikurangi dan tidak dapat dibatalkan.')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-success btn-sm w-100">
+                                        <i class="bi bi-truck me-1"></i>Distribusikan
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% if distribution.status != 'DRAFT' and distribution.status != 'DISTRIBUTED' %}
+                                <form method="post" action="{% url 'distribution:distribution_reset_to_draft' distribution.pk %}" onsubmit="return confirm('Kembalikan status distribusi ke Draft?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-warning btn-sm w-100">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i>Kembalikan ke Draft
+                                    </button>
+                                </form>
+                                {% endif %}
+                                <a href="{% url 'distribution:distribution_list' %}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-arrow-left me-1"></i>Kembali
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-
-        <div class="d-flex flex-wrap gap-2 mt-3">
-            {% if distribution.status == 'DRAFT' %}
-            <a href="{% url 'distribution:distribution_edit' distribution.pk %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-pencil me-1"></i>Ubah
-            </a>
-            <form method="post" action="{% url 'distribution:distribution_submit' distribution.pk %}">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-primary btn-sm">
-                    <i class="bi bi-send me-1"></i>Ajukan
-                </button>
-            </form>
-            {% elif distribution.status == 'SUBMITTED' %}
-            <a href="{% url 'distribution:distribution_edit' distribution.pk %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-pencil me-1"></i>Ubah
-            </a>
-            <form method="post" action="{% url 'distribution:distribution_verify' distribution.pk %}">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-success btn-sm">
-                    <i class="bi bi-patch-check me-1"></i>Verifikasi
-                </button>
-            </form>
-            <form method="post" action="{% url 'distribution:distribution_reject' distribution.pk %}" onsubmit="return confirm('Yakin ingin menolak distribusi ini?')">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-outline-danger btn-sm">
-                    <i class="bi bi-x-circle me-1"></i>Tolak
-                </button>
-            </form>
-            {% elif distribution.status == 'VERIFIED' %}
-            <form method="post" action="{% url 'distribution:distribution_prepare' distribution.pk %}">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-info btn-sm">
-                    <i class="bi bi-box-seam me-1"></i>Siapkan Barang
-                </button>
-            </form>
-            {% elif distribution.status == 'PREPARED' %}
-            <form method="post" action="{% url 'distribution:distribution_distribute' distribution.pk %}" onsubmit="return confirm('Distribusikan barang? Stok akan dikurangi dan tidak dapat dibatalkan.')">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-success btn-sm">
-                    <i class="bi bi-truck me-1"></i>Distribusikan
-                </button>
-            </form>
-            {% endif %}
-            {% if distribution.status != 'DRAFT' and distribution.status != 'DISTRIBUTED' %}
-            <form method="post" action="{% url 'distribution:distribution_reset_to_draft' distribution.pk %}" onsubmit="return confirm('Kembalikan status distribusi ke Draft?')">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-outline-warning btn-sm">
-                    <i class="bi bi-arrow-counterclockwise me-1"></i>Kembalikan ke Draft
-                </button>
-            </form>
-            {% endif %}
-            <a href="{% url 'distribution:distribution_list' %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i>Kembali
-            </a>
         </div>
     </div>
 
