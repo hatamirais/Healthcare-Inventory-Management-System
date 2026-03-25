@@ -417,3 +417,48 @@ def distribution_reset_to_draft(request, pk):
         request, f"Distribusi {dist.document_number} dikembalikan ke Draft."
     )
     return redirect("distribution:distribution_detail", pk=pk)
+
+
+@login_required
+@perm_required("distribution.change_distribution")
+def distribution_step_back(request, pk):
+    dist = get_object_or_404(Distribution, pk=pk)
+    if request.method != "POST":
+        return redirect("distribution:distribution_detail", pk=pk)
+
+    previous_status_map = {
+        Distribution.Status.SUBMITTED: Distribution.Status.DRAFT,
+        Distribution.Status.VERIFIED: Distribution.Status.SUBMITTED,
+        Distribution.Status.PREPARED: Distribution.Status.VERIFIED,
+        Distribution.Status.REJECTED: Distribution.Status.SUBMITTED,
+    }
+
+    previous_status = previous_status_map.get(dist.status)
+    if previous_status is None:
+        if dist.status == Distribution.Status.DISTRIBUTED:
+            messages.error(
+                request,
+                "Distribusi yang sudah didistribusikan tidak dapat dikembalikan ke status sebelumnya.",
+            )
+        else:
+            messages.error(
+                request,
+                "Status distribusi saat ini tidak memiliki status sebelumnya.",
+            )
+        return redirect("distribution:distribution_detail", pk=pk)
+
+    dist.status = previous_status
+
+    update_fields = ["status", "updated_at"]
+
+    if previous_status in {Distribution.Status.DRAFT, Distribution.Status.SUBMITTED}:
+        dist.verified_by = None
+        dist.verified_at = None
+        update_fields.extend(["verified_by", "verified_at"])
+
+    dist.save(update_fields=update_fields)
+    messages.success(
+        request,
+        f"Distribusi {dist.document_number} dikembalikan ke status {dist.get_status_display()}.",
+    )
+    return redirect("distribution:distribution_detail", pk=pk)

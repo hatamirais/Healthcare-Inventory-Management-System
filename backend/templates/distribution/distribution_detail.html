@@ -183,6 +183,14 @@
                                     </button>
                                 </form>
                                 {% endif %}
+                                {% if distribution.status == 'SUBMITTED' or distribution.status == 'VERIFIED' or distribution.status == 'PREPARED' or distribution.status == 'REJECTED' %}
+                                <form method="post" action="{% url 'distribution:distribution_step_back' distribution.pk %}" onsubmit="return confirm('Kembalikan ke status sebelumnya?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+                                        <i class="bi bi-arrow-left-circle me-1"></i>Kembali ke status sebelumnya
+                                    </button>
+                                </form>
+                                {% endif %}
                                 {% if distribution.approved_by %}
                                 <button type="button" class="btn btn-dark btn-sm" onclick="window.print()">
                                     <i class="bi bi-printer me-1"></i>Cetak SBBK

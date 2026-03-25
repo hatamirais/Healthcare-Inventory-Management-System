@@ -13,6 +13,11 @@ urlpatterns = [
         views.distribution_reset_to_draft,
         name="distribution_reset_to_draft",
     ),
+    path(
+        "<int:pk>/step-back/",
+        views.distribution_step_back,
+        name="distribution_step_back",
+    ),
     path("<int:pk>/submit/", views.distribution_submit, name="distribution_submit"),
     path("<int:pk>/verify/", views.distribution_verify, name="distribution_verify"),
     path("<int:pk>/prepare/", views.distribution_prepare, name="distribution_prepare"),

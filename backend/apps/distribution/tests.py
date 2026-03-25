@@ -276,6 +276,60 @@ class DistributionWorkflowTest(TestCase):
         dist.refresh_from_db()
         self.assertEqual(dist.status, Distribution.Status.DISTRIBUTED)  # unchanged
 
+    # --- Step-back workflow ---
+
+    def test_step_back_submitted_to_draft(self):
+        dist = self._create_distribution(status=Distribution.Status.SUBMITTED)
+        response = self.client.post(
+            reverse("distribution:distribution_step_back", args=[dist.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        dist.refresh_from_db()
+        self.assertEqual(dist.status, Distribution.Status.DRAFT)
+
+    def test_step_back_prepared_to_verified(self):
+        dist = self._create_distribution(status=Distribution.Status.PREPARED)
+        response = self.client.post(
+            reverse("distribution:distribution_step_back", args=[dist.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        dist.refresh_from_db()
+        self.assertEqual(dist.status, Distribution.Status.VERIFIED)
+
+    def test_step_back_rejected_to_submitted(self):
+        dist = self._create_distribution(status=Distribution.Status.REJECTED)
+        response = self.client.post(
+            reverse("distribution:distribution_step_back", args=[dist.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        dist.refresh_from_db()
+        self.assertEqual(dist.status, Distribution.Status.SUBMITTED)
+
+    def test_step_back_clears_verification_when_back_to_submitted(self):
+        dist = self._create_distribution(status=Distribution.Status.VERIFIED)
+        dist.verified_by = self.user
+        dist.verified_at = timezone.now()
+        dist.save(update_fields=["verified_by", "verified_at", "updated_at"])
+
+        response = self.client.post(
+            reverse("distribution:distribution_step_back", args=[dist.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+
+        dist.refresh_from_db()
+        self.assertEqual(dist.status, Distribution.Status.SUBMITTED)
+        self.assertIsNone(dist.verified_by)
+        self.assertIsNone(dist.verified_at)
+
+    def test_step_back_blocked_for_distributed(self):
+        dist = self._create_distribution(status=Distribution.Status.DISTRIBUTED)
+        response = self.client.post(
+            reverse("distribution:distribution_step_back", args=[dist.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        dist.refresh_from_db()
+        self.assertEqual(dist.status, Distribution.Status.DISTRIBUTED)  # unchanged
+
     # --- Edit access ---
 
     def test_edit_allowed_for_draft(self):
