@@ -67,7 +67,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="row g-3 {% if distribution.approved_by %}d-print-none{% endif %}">
+<div class="row g-3 {% if distribution.status == 'VERIFIED' or distribution.status == 'PREPARED' or distribution.approved_by %}d-print-none{% endif %}">
     <div class="col-12">
         <div class="card content-card">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -215,7 +215,7 @@
                                     </button>
                                 </form>
                                 {% endif %}
-                                {% if distribution.approved_by %}
+                                {% if distribution.status == 'VERIFIED' or distribution.status == 'PREPARED' or distribution.approved_by %}
                                 <button type="button" class="btn btn-dark btn-sm" onclick="window.print()">
                                     <i class="bi bi-printer me-1"></i>Cetak SBBK
                                 </button>
@@ -277,7 +277,7 @@
     </div>
 </div>
 
-<section class="sbbk-print-sheet d-none {% if distribution.approved_by %}d-print-block{% endif %}">
+<section class="sbbk-print-sheet d-none {% if distribution.status == 'VERIFIED' or distribution.status == 'PREPARED' or distribution.approved_by %}d-print-block{% endif %}">
     <div class="sbbk-print-title">
         SURAT BUKTI BARANG KELUAR (SBBK)<br>
         INSTALASI FARMASI KABUPATEN<br>
