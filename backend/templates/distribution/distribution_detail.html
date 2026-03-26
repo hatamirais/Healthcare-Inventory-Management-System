@@ -149,6 +149,12 @@
                                 <a href="{% url 'distribution:distribution_edit' distribution.pk %}" class="btn btn-outline-secondary btn-sm">
                                     <i class="bi bi-pencil me-1"></i>Ubah
                                 </a>
+                                <form method="post" action="{% url 'distribution:distribution_delete' distribution.pk %}" onsubmit="return confirm('Hapus distribusi ini? Tindakan ini tidak dapat dibatalkan.')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                                        <i class="bi bi-trash me-1"></i>Hapus Dokumen
+                                    </button>
+                                </form>
                                 <form method="post" action="{% url 'distribution:distribution_submit' distribution.pk %}">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-primary btn-sm w-100">
@@ -169,6 +175,13 @@
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-outline-danger btn-sm w-100">
                                         <i class="bi bi-x-circle me-1"></i>Tolak
+                                    </button>
+                                </form>
+                                {% elif distribution.status == 'REJECTED' %}
+                                <form method="post" action="{% url 'distribution:distribution_delete' distribution.pk %}" onsubmit="return confirm('Hapus distribusi yang ditolak ini? Tindakan ini tidak dapat dibatalkan.')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                                        <i class="bi bi-trash me-1"></i>Hapus Dokumen
                                     </button>
                                 </form>
                                 {% elif distribution.status == 'VERIFIED' %}

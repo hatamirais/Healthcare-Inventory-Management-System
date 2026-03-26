@@ -497,3 +497,28 @@ def distribution_step_back(request, pk):
         f"Distribusi {dist.document_number} dikembalikan ke status {dist.get_status_display()}.",
     )
     return redirect("distribution:distribution_detail", pk=pk)
+
+
+@login_required
+@perm_required("distribution.delete_distribution")
+def distribution_delete(request, pk):
+    dist = get_object_or_404(Distribution, pk=pk)
+    if request.method != "POST":
+        return redirect("distribution:distribution_detail", pk=pk)
+
+    deletable_statuses = {
+        Distribution.Status.DRAFT,
+        Distribution.Status.REJECTED,
+    }
+
+    if dist.status not in deletable_statuses:
+        messages.error(
+            request,
+            "Hanya distribusi berstatus Draft atau Ditolak yang dapat dihapus.",
+        )
+        return redirect("distribution:distribution_detail", pk=pk)
+
+    document_number = dist.document_number
+    dist.delete()
+    messages.success(request, f"Distribusi {document_number} berhasil dihapus.")
+    return redirect("distribution:distribution_list")

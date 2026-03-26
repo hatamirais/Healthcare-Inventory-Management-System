@@ -8,6 +8,7 @@ urlpatterns = [
     path("create/", views.distribution_create, name="distribution_create"),
     path("<int:pk>/", views.distribution_detail, name="distribution_detail"),
     path("<int:pk>/edit/", views.distribution_edit, name="distribution_edit"),
+    path("<int:pk>/delete/", views.distribution_delete, name="distribution_delete"),
     path(
         "<int:pk>/reset-to-draft/",
         views.distribution_reset_to_draft,

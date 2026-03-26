@@ -351,6 +351,40 @@ class DistributionWorkflowTest(TestCase):
         dist.refresh_from_db()
         self.assertEqual(dist.status, Distribution.Status.DISTRIBUTED)  # unchanged
 
+    # --- Delete workflow ---
+
+    def test_delete_allowed_for_draft(self):
+        dist = self._create_distribution(status=Distribution.Status.DRAFT)
+        response = self.client.post(
+            reverse("distribution:distribution_delete", args=[dist.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Distribution.objects.filter(pk=dist.pk).exists())
+
+    def test_delete_allowed_for_rejected(self):
+        dist = self._create_distribution(status=Distribution.Status.REJECTED)
+        response = self.client.post(
+            reverse("distribution:distribution_delete", args=[dist.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Distribution.objects.filter(pk=dist.pk).exists())
+
+    def test_delete_blocked_for_submitted(self):
+        dist = self._create_distribution(status=Distribution.Status.SUBMITTED)
+        response = self.client.post(
+            reverse("distribution:distribution_delete", args=[dist.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Distribution.objects.filter(pk=dist.pk).exists())
+
+    def test_delete_blocked_for_distributed(self):
+        dist = self._create_distribution(status=Distribution.Status.DISTRIBUTED)
+        response = self.client.post(
+            reverse("distribution:distribution_delete", args=[dist.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Distribution.objects.filter(pk=dist.pk).exists())
+
     # --- Edit access ---
 
     def test_edit_allowed_for_draft(self):
