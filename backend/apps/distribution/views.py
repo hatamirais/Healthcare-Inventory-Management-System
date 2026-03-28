@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from apps.core.decorators import module_scope_required, perm_required
 from apps.stock.models import Stock, Transaction
-from apps.users.models import ModuleAccess
+from apps.users.models import ModuleAccess, User
 
 from .forms import DistributionForm, DistributionItemFormSet
 from .models import Distribution, DistributionItem, DistributionStaffAssignment
@@ -163,8 +163,8 @@ def distribution_detail(request, pk):
     items = dist.items.select_related("item", "item__satuan", "stock")
     assigned_staff = [assignment.user for assignment in dist.staff_assignments.all()]
     kepala_instalasi = (
-        ModuleAccess.user.field.model.objects.filter(
-            role=ModuleAccess.user.field.model.Role.KEPALA,
+        User.objects.filter(
+            role=User.Role.KEPALA,
             is_active=True,
         )
         .order_by("full_name", "username")
