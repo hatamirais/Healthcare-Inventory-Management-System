@@ -19,6 +19,7 @@ class User(AbstractUser):
         verbose_name="Jabatan",
     )
     full_name = models.CharField(max_length=255, blank=True)
+    nip = models.CharField(max_length=30, blank=True, verbose_name="NIP")
 
     class Meta:
         db_table = "users"

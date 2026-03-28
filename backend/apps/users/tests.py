@@ -23,6 +23,7 @@ class UserManagementViewsTest(TestCase):
             email="petugas1@example.com",
             role=User.Role.GUDANG,
             full_name="Petugas Gudang 1",
+            nip="198801012010011001",
             is_active=True,
         )
         self.client.force_login(self.admin)
@@ -107,6 +108,7 @@ class UserManagementViewsTest(TestCase):
         payload = {
             "username": "auditor01",
             "full_name": "Auditor Baru",
+            "nip": "197912312010011002",
             "email": "auditor01@example.com",
             "role": User.Role.AUDITOR,
             "is_active": "on",
@@ -118,6 +120,7 @@ class UserManagementViewsTest(TestCase):
         self.assertEqual(response.status_code, 302)
         created = User.objects.get(username="auditor01")
         self.assertEqual(created.role, User.Role.AUDITOR)
+        self.assertEqual(created.nip, "197912312010011002")
         self.assertTrue(created.check_password("VeryStrongPass123!"))
 
     def test_dashboard_blocks_admin_role_creation(self):
@@ -125,6 +128,7 @@ class UserManagementViewsTest(TestCase):
         payload = {
             "username": "sneaky_admin",
             "full_name": "Sneaky Admin",
+            "nip": "197001012010011003",
             "email": "sneaky@example.com",
             "role": User.Role.ADMIN,
             "is_active": "on",
@@ -142,6 +146,7 @@ class UserManagementViewsTest(TestCase):
         payload = {
             "username": self.target.username,
             "full_name": self.target.full_name,
+            "nip": self.target.nip,
             "email": self.target.email,
             "role": User.Role.ADMIN,
             "is_active": "on",
@@ -158,6 +163,7 @@ class UserManagementViewsTest(TestCase):
         payload = {
             "username": self.target.username,
             "full_name": "Nama Baru",
+            "nip": "198505052010011004",
             "email": "updated@example.com",
             "role": User.Role.ADMIN_UMUM,
             "is_active": "on",
@@ -169,8 +175,15 @@ class UserManagementViewsTest(TestCase):
         self.assertEqual(response.status_code, 302)
         self.target.refresh_from_db()
         self.assertEqual(self.target.full_name, "Nama Baru")
+        self.assertEqual(self.target.nip, "198505052010011004")
         self.assertEqual(self.target.email, "updated@example.com")
         self.assertEqual(self.target.role, User.Role.ADMIN_UMUM)
+
+    def test_user_list_shows_nip(self):
+        response = self.client.get(reverse("users:user_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "NIP")
+        self.assertContains(response, self.target.nip)
 
     def test_toggle_active_for_target_user(self):
         response = self.client.post(

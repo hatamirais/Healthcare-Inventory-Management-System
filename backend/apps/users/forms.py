@@ -25,13 +25,14 @@ class UserCreateForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ["username", "full_name", "email", "role", "is_active"]
+        fields = ["username", "full_name", "nip", "email", "role", "is_active"]
         labels = {
             "role": "Jabatan",
         }
         widgets = {
             "username": forms.TextInput(attrs={"class": "form-control"}),
             "full_name": forms.TextInput(attrs={"class": "form-control"}),
+            "nip": forms.TextInput(attrs={"class": "form-control"}),
             "email": forms.EmailInput(attrs={"class": "form-control"}),
             "role": forms.Select(attrs={"class": "form-select"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
@@ -107,13 +108,14 @@ class UserCreateForm(forms.ModelForm):
 class UserUpdateForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ["username", "full_name", "email", "role", "is_active"]
+        fields = ["username", "full_name", "nip", "email", "role", "is_active"]
         labels = {
             "role": "Jabatan",
         }
         widgets = {
             "username": forms.TextInput(attrs={"class": "form-control"}),
             "full_name": forms.TextInput(attrs={"class": "form-control"}),
+            "nip": forms.TextInput(attrs={"class": "form-control"}),
             "email": forms.EmailInput(attrs={"class": "form-control"}),
             "role": forms.Select(attrs={"class": "form-select"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
@@ -124,7 +126,9 @@ class UserUpdateForm(forms.ModelForm):
         # Only restrict role choices if the user is NOT already an ADMIN.
         # Existing ADMIN users can still be edited, but role cannot be
         # changed TO or FROM ADMIN via the Dashboard.
-        if not (self.instance and self.instance.pk and self.instance.role == User.Role.ADMIN):
+        if not (
+            self.instance and self.instance.pk and self.instance.role == User.Role.ADMIN
+        ):
             self.fields["role"].choices = UI_ROLE_CHOICES
         self._add_module_scope_fields()
 

@@ -9,14 +9,22 @@ from .models import ModuleAccess, User
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ("username", "full_name", "email", "role", "is_staff", "is_active")
+    list_display = (
+        "username",
+        "full_name",
+        "nip",
+        "email",
+        "role",
+        "is_staff",
+        "is_active",
+    )
     list_filter = ("role", "is_active", "is_staff")
-    search_fields = ("username", "full_name", "email")
+    search_fields = ("username", "full_name", "nip", "email")
     fieldsets = BaseUserAdmin.fieldsets + (
-        ("Additional Info", {"fields": ("role", "full_name")}),
+        ("Additional Info", {"fields": ("role", "full_name", "nip")}),
     )
     add_fieldsets = BaseUserAdmin.add_fieldsets + (
-        ("Additional Info", {"fields": ("role", "full_name")}),
+        ("Additional Info", {"fields": ("role", "full_name", "nip")}),
     )
 
     def get_form(self, request, obj=None, **kwargs):
