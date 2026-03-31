@@ -3,6 +3,7 @@ import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .access import ROLE_DEFAULT_SCOPES, get_user_module_scope, has_module_scope
@@ -78,7 +79,7 @@ def user_list(request):
     if jabatan:
         queryset = queryset.filter(role=jabatan)
 
-    active = request.GET.get("active", "")
+    active = request.GET.get("active", "1")
     if active == "1":
         queryset = queryset.filter(is_active=True)
     elif active == "0":
@@ -215,6 +216,15 @@ def user_delete(request, pk):
         return redirect("users:user_list")
 
     username = target_user.username
-    target_user.delete()
+    try:
+        target_user.delete()
+    except ProtectedError:
+        messages.error(
+            request,
+            f"User {username} tidak dapat dihapus karena masih memiliki "
+            f"data terkait di sistem (distribusi, penerimaan, dll). "
+            f"Nonaktifkan user ini sebagai gantinya.",
+        )
+        return redirect("users:user_list")
     messages.success(request, f"User {username} berhasil dihapus.")
     return redirect("users:user_list")
