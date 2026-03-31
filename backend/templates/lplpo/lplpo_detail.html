@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lplpo.document_number }} – Healthcare IMS{% endblock %}
+{% block page_title %}Detail LPLPO{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- Status Banner -->
+    <div class="alert
+        {% if lplpo.status == 'DRAFT' %}alert-secondary
+        {% elif lplpo.status == 'SUBMITTED' %}alert-warning
+        {% elif lplpo.status == 'REVIEWED' %}alert-info
+        {% elif lplpo.status == 'DISTRIBUTED' %}alert-primary
+        {% elif lplpo.status == 'CLOSED' %}alert-success
+        {% endif %} d-flex align-items-center gap-2 mb-4" role="alert" id="status-banner">
+        <i class="bi
+            {% if lplpo.status == 'DRAFT' %}bi-pencil-square
+            {% elif lplpo.status == 'SUBMITTED' %}bi-hourglass-split
+            {% elif lplpo.status == 'REVIEWED' %}bi-check-circle
+            {% elif lplpo.status == 'DISTRIBUTED' %}bi-truck
+            {% elif lplpo.status == 'CLOSED' %}bi-check-circle-fill
+            {% endif %} fs-5"></i>
+        <div>
+            <strong>{{ lplpo.get_status_display }}</strong>
+            {% if lplpo.status == 'DISTRIBUTED' and lplpo.distribution %}
+            — Distribusi <a href="{% url 'distribution:distribution_detail' lplpo.distribution.pk %}" class="alert-link">{{ lplpo.distribution.document_number }}</a> telah dibuat.
+            {% elif lplpo.status == 'CLOSED' and lplpo.distribution %}
+            — Distribusi <a href="{% url 'distribution:distribution_detail' lplpo.distribution.pk %}" class="alert-link">{{ lplpo.distribution.document_number }}</a> telah selesai.
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Main -->
+        <div class="col-12 col-lg-9">
+            <!-- Header Card -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-file-earmark-medical me-2"></i>Informasi LPLPO</h6>
+                    <span class="fw-semibold text-muted">{{ lplpo.document_number }}</span>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Puskesmas</dt>
+                        <dd class="col-sm-8">{{ lplpo.facility.name }} <span class="text-muted small">({{ lplpo.facility.code }})</span></dd>
+
+                        <dt class="col-sm-4">Periode</dt>
+                        <dd class="col-sm-8"><strong>{{ lplpo.period_display }}</strong></dd>
+
+                        <dt class="col-sm-4">Dibuat Oleh</dt>
+                        <dd class="col-sm-8">{{ lplpo.created_by }} <span class="text-muted small">{{ lplpo.created_at|date:"d M Y H:i" }}</span></dd>
+
+                        {% if lplpo.submitted_at %}
+                        <dt class="col-sm-4">Diajukan</dt>
+                        <dd class="col-sm-8">{{ lplpo.submitted_at|date:"d M Y H:i" }}</dd>
+                        {% endif %}
+
+                        {% if lplpo.reviewed_by %}
+                        <dt class="col-sm-4">Ditinjau Oleh</dt>
+                        <dd class="col-sm-8">{{ lplpo.reviewed_by }} <span class="text-muted small">{{ lplpo.reviewed_at|date:"d M Y H:i" }}</span></dd>
+                        {% endif %}
+
+                        {% if lplpo.notes %}
+                        <dt class="col-sm-4">Catatan</dt>
+                        <dd class="col-sm-8">{{ lplpo.notes }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Items Table -->
+            {% for cat_name, cat_items in grouped_items.items %}
+            <div class="card mb-3">
+                <div class="card-header py-2 bg-light">
+                    <strong>{{ cat_name }}</strong>
+                    <span class="badge text-bg-secondary ms-1">{{ cat_items|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Barang</th>
+                                    <th class="text-end">Satuan</th>
+                                    <th class="text-end">Stock Awal</th>
+                                    <th class="text-end">Penerimaan</th>
+                                    <th class="text-end">Persediaan</th>
+                                    <th class="text-end">Pemakaian</th>
+                                    <th class="text-end">Sisa Stok</th>
+                                    <th class="text-end">Stok Optimum</th>
+                                    <th class="text-end">Kebutuhan</th>
+                                    <th class="text-end">Diminta</th>
+                                    <th class="text-end">Diberikan</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for li in cat_items %}
+                                <tr>
+                                    <td class="text-muted small">{{ forloop.counter }}</td>
+                                    <td>
+                                        <strong>{{ li.item.nama_barang }}</strong>
+                                        <br><small class="text-muted">{{ li.item.kode_barang }}</small>
+                                    </td>
+                                    <td class="text-end text-muted">{{ li.item.satuan.code }}</td>
+                                    <td class="text-end">{{ li.stock_awal|floatformat:"-2" }}</td>
+                                    <td class="text-end">
+                                        {{ li.penerimaan|floatformat:"-2" }}
+                                        {% if li.penerimaan_auto_filled %}
+                                        <i class="bi bi-lightning-fill text-warning" title="Auto-filled"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end text-info fw-semibold">{{ li.persediaan|floatformat:"-2" }}</td>
+                                    <td class="text-end">{{ li.pemakaian|floatformat:"-2" }}</td>
+                                    <td class="text-end fw-semibold">{{ li.stock_keseluruhan|floatformat:"-2" }}</td>
+                                    <td class="text-end">{{ li.stock_optimum|floatformat:"-2" }}</td>
+                                    <td class="text-end">{{ li.jumlah_kebutuhan|floatformat:"-2" }}</td>
+                                    <td class="text-end">{{ li.permintaan_jumlah|floatformat:"-2" }}</td>
+                                    <td class="text-end">
+                                        {% if li.pemberian_jumlah is not None %}
+                                        <strong>{{ li.pemberian_jumlah|floatformat:"-2" }}</strong>
+                                        {% else %}
+                                        <span class="text-muted">–</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="card">
+                <div class="card-body text-center text-muted py-4">
+                    <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                    Tidak ada item dalam LPLPO ini.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Sidebar Actions -->
+        <div class="col-12 col-lg-3">
+            <div class="card">
+                <div class="card-header"><h6 class="mb-0">Aksi</h6></div>
+                <div class="card-body d-grid gap-2">
+
+                    {% if lplpo.status == 'DRAFT' %}
+                    <a href="{% url 'lplpo:lplpo_edit' lplpo.pk %}" class="btn btn-outline-primary w-100" id="edit-btn">
+                        <i class="bi bi-pencil me-1"></i>Isi Data
+                    </a>
+                    <form method="post" action="{% url 'lplpo:lplpo_submit' lplpo.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary w-100" id="submit-btn"
+                            onclick="return confirm('Ajukan LPLPO ini?')">
+                            <i class="bi bi-send me-1"></i>Ajukan
+                        </button>
+                    </form>
+
+                    {% elif lplpo.status == 'SUBMITTED' %}
+                    <a href="{% url 'lplpo:lplpo_review' lplpo.pk %}" class="btn btn-info w-100 text-white" id="review-btn">
+                        <i class="bi bi-clipboard-check me-1"></i>Tinjau & Isi Pemberian
+                    </a>
+
+                    {% elif lplpo.status == 'REVIEWED' %}
+                    <form method="post" action="{% url 'lplpo:lplpo_finalize' lplpo.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success w-100" id="finalize-btn"
+                            onclick="return confirm('Finalisasi LPLPO ini dan buat dokumen distribusi?')">
+                            <i class="bi bi-check2-all me-1"></i>Finalisasi & Buat Distribusi
+                        </button>
+                    </form>
+
+                    {% elif lplpo.status == 'DISTRIBUTED' and lplpo.distribution %}
+                    <a href="{% url 'distribution:distribution_detail' lplpo.distribution.pk %}"
+                        class="btn btn-outline-success w-100" id="view-dist-btn">
+                        <i class="bi bi-truck me-1"></i>Lihat Distribusi
+                    </a>
+                    {% endif %}
+
+                    <a href="{% url 'lplpo:lplpo_print' lplpo.pk %}" class="btn btn-outline-secondary w-100" target="_blank" id="print-btn">
+                        <i class="bi bi-printer me-1"></i>Cetak
+                    </a>
+
+                    {% if request.user.role == 'PUSKESMAS' %}
+                    <a href="{% url 'lplpo:lplpo_my_list' %}" class="btn btn-link w-100 text-muted" id="back-btn">
+                        <i class="bi bi-arrow-left me-1"></i>Kembali
+                    </a>
+                    {% else %}
+                    <a href="{% url 'lplpo:lplpo_list' %}" class="btn btn-link w-100 text-muted" id="back-btn">
+                        <i class="bi bi-arrow-left me-1"></i>Kembali
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Audit -->
+            <div class="card mt-3">
+                <div class="card-header"><h6 class="mb-0 text-muted">Riwayat</h6></div>
+                <ul class="list-group list-group-flush small">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">Dibuat</span>
+                        <span>{{ lplpo.created_at|date:"d M Y H:i" }}</span>
+                    </li>
+                    {% if lplpo.submitted_at %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">Diajukan</span>
+                        <span>{{ lplpo.submitted_at|date:"d M Y H:i" }}</span>
+                    </li>
+                    {% endif %}
+                    {% if lplpo.reviewed_at %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">Ditinjau</span>
+                        <span>{{ lplpo.reviewed_at|date:"d M Y H:i" }}</span>
+                    </li>
+                    {% endif %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">Terakhir Diubah</span>
+                        <span>{{ lplpo.updated_at|date:"d M Y H:i" }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

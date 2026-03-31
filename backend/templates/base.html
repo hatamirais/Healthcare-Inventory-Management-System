@@ -128,6 +128,11 @@
                     data-label="Permintaan Barang">
                     <i class="bi bi-file-earmark-arrow-up"></i><span>Permintaan Barang</span>
                 </a>
+                <a href="{% url 'lplpo:lplpo_list' %}"
+                    class="sidebar-link {% if request.resolver_match.app_name == 'lplpo' %}active{% endif %}"
+                    data-label="LPLPO">
+                    <i class="bi bi-file-earmark-medical"></i><span>LPLPO</span>
+                </a>
 
                 <div class="sidebar-section-title">Laporan</div>
                 <a href="{% url 'reports:index' %}"
@@ -198,6 +203,10 @@
                         {% elif request.resolver_match.app_name == 'puskesmas' and request.resolver_match.url_name != 'request_list' %}
                         <a href="{% url 'puskesmas:request_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Permintaan Puskesmas">
                             <i class="bi bi-arrow-left me-1"></i>Permintaan Puskesmas
+                        </a>
+                        {% elif request.resolver_match.app_name == 'lplpo' and request.resolver_match.url_name != 'lplpo_list' %}
+                        <a href="{% url 'lplpo:lplpo_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke LPLPO">
+                            <i class="bi bi-arrow-left me-1"></i>LPLPO
                         </a>
                         {% elif request.resolver_match.app_name == 'users' and request.resolver_match.url_name != 'user_list' %}
                         <a href="{% url 'users:user_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Manajemen Pengguna">

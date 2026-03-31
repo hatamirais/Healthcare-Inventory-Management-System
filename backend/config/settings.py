@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "apps.reports",
     "apps.stock_opname",
     "apps.puskesmas",
+    "apps.lplpo",
 ]
 
 MIDDLEWARE = [

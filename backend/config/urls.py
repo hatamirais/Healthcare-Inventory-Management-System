@@ -39,6 +39,7 @@ urlpatterns = [
     path("reports/", include("apps.reports.urls")),
     path("stock-opname/", include("apps.stock_opname.urls")),
     path("puskesmas/", include("apps.puskesmas.urls")),
+    path("lplpo/", include("apps.lplpo.urls")),
 ]
 
 if settings.DEBUG:

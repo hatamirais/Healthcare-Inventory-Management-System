@@ -25,7 +25,7 @@ class UserCreateForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ["username", "full_name", "nip", "email", "role", "is_active"]
+        fields = ["username", "full_name", "nip", "email", "role", "facility", "is_active"]
         labels = {
             "role": "Jabatan",
         }
@@ -35,6 +35,7 @@ class UserCreateForm(forms.ModelForm):
             "nip": forms.TextInput(attrs={"class": "form-control"}),
             "email": forms.EmailInput(attrs={"class": "form-control"}),
             "role": forms.Select(attrs={"class": "form-select"}),
+            "facility": forms.Select(attrs={"class": "form-select"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
@@ -108,7 +109,7 @@ class UserCreateForm(forms.ModelForm):
 class UserUpdateForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ["username", "full_name", "nip", "email", "role", "is_active"]
+        fields = ["username", "full_name", "nip", "email", "role", "facility", "is_active"]
         labels = {
             "role": "Jabatan",
         }
@@ -118,6 +119,7 @@ class UserUpdateForm(forms.ModelForm):
             "nip": forms.TextInput(attrs={"class": "form-control"}),
             "email": forms.EmailInput(attrs={"class": "form-control"}),
             "role": forms.Select(attrs={"class": "form-select"}),
+            "facility": forms.Select(attrs={"class": "form-select"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 

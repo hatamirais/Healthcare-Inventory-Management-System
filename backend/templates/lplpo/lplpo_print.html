@@ -1,0 +1,104 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>LPLPO {{ lplpo.document_number }} – Cetak</title>
+    <style>
+        @page { size: landscape; margin: 10mm; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 9px; line-height: 1.3; color: #000; }
+        h2 { text-align: center; margin-bottom: 4px; font-size: 14px; }
+        .meta { text-align: center; margin-bottom: 10px; font-size: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        th, td { border: 1px solid #333; padding: 2px 4px; }
+        th { background: #e9ecef; text-align: center; font-weight: 600; }
+        td.num { text-align: right; }
+        .cat-header td { background: #f0f0f0; font-weight: 600; }
+        .footer-row { margin-top: 20px; display: flex; justify-content: space-between; }
+        .sign-block { text-align: center; width: 30%; }
+        .sign-line { border-bottom: 1px solid #000; width: 80%; margin: 50px auto 4px; }
+        @media print {
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align:center; padding:8px;">
+        <button onclick="window.print()" style="padding:6px 20px; font-size:12px; cursor:pointer;">
+            🖨️ Cetak Halaman Ini
+        </button>
+    </div>
+
+    <h2>LAPORAN PEMAKAIAN DAN LEMBAR PERMINTAAN OBAT (LPLPO)</h2>
+    <div class="meta">
+        <strong>{{ lplpo.facility.name }}</strong> ({{ lplpo.facility.code }})<br>
+        Periode: <strong>{{ lplpo.period_display }}</strong> &nbsp;|&nbsp;
+        No. Dokumen: <strong>{{ lplpo.document_number }}</strong>
+    </div>
+
+    {% for cat_name, cat_items in grouped_items.items %}
+    <table>
+        <thead>
+            <tr>
+                <th rowspan="2" style="width:3%">No</th>
+                <th rowspan="2" style="width:18%">Nama Obat / Barang</th>
+                <th rowspan="2" style="width:4%">Satuan</th>
+                <th colspan="5">PEMAKAIAN</th>
+                <th colspan="3">PERMINTAAN</th>
+                <th colspan="2">PEMBERIAN</th>
+            </tr>
+            <tr>
+                <th>Stock Awal</th>
+                <th>Penerimaan</th>
+                <th>Persediaan</th>
+                <th>Pemakaian</th>
+                <th>Sisa Stok</th>
+                <th>Stok Optimum</th>
+                <th>Kebutuhan</th>
+                <th>Jml Diminta</th>
+                <th>Jml Diberikan</th>
+                <th>Ket</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="cat-header"><td colspan="14">{{ cat_name }}</td></tr>
+            {% for li in cat_items %}
+            <tr>
+                <td class="num">{{ forloop.counter }}</td>
+                <td>{{ li.item.nama_barang }}</td>
+                <td style="text-align:center">{{ li.item.satuan.code }}</td>
+                <td class="num">{{ li.stock_awal|floatformat:"-2" }}</td>
+                <td class="num">{{ li.penerimaan|floatformat:"-2" }}</td>
+                <td class="num">{{ li.persediaan|floatformat:"-2" }}</td>
+                <td class="num">{{ li.pemakaian|floatformat:"-2" }}</td>
+                <td class="num">{{ li.stock_keseluruhan|floatformat:"-2" }}</td>
+                <td class="num">{{ li.stock_optimum|floatformat:"-2" }}</td>
+                <td class="num">{{ li.jumlah_kebutuhan|floatformat:"-2" }}</td>
+                <td class="num">{{ li.permintaan_jumlah|floatformat:"-2" }}</td>
+                <td class="num">{% if li.pemberian_jumlah is not None %}{{ li.pemberian_jumlah|floatformat:"-2" }}{% endif %}</td>
+                <td>{{ li.pemberian_alasan }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endfor %}
+
+    <div class="footer-row">
+        <div class="sign-block">
+            <p>Yang Menyerahkan,<br><strong>Kepala Instalasi Farmasi</strong></p>
+            <div class="sign-line"></div>
+            <p>NIP: _______________</p>
+        </div>
+        <div class="sign-block">
+            <p>Yang Meminta,<br><strong>Kepala Puskesmas {{ lplpo.facility.name }}</strong></p>
+            <div class="sign-line"></div>
+            <p>NIP: _______________</p>
+        </div>
+        <div class="sign-block">
+            <p>Yang Menerima,<br><strong>Petugas Farmasi Puskesmas</strong></p>
+            <div class="sign-line"></div>
+            <p>NIP: _______________</p>
+        </div>
+    </div>
+</body>
+</html>

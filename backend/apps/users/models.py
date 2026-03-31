@@ -21,6 +21,14 @@ class User(AbstractUser):
     )
     full_name = models.CharField(max_length=255, blank=True)
     nip = models.CharField(max_length=30, blank=True, verbose_name="NIP")
+    facility = models.ForeignKey(
+        "items.Facility",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="operators",
+        help_text="For PUSKESMAS role: the facility this user belongs to",
+    )
 
     class Meta:
         db_table = "users"
@@ -44,6 +52,7 @@ class ModuleAccess(models.Model):
         REPORTS = "reports", "Laporan"
         ADMIN_PANEL = "admin_panel", "Admin Panel"
         PUSKESMAS = "puskesmas", "Permintaan Puskesmas"
+        LPLPO = "lplpo", "LPLPO"
 
     class Scope(models.IntegerChoices):
         NONE = 0, "Tidak Ada"

@@ -18,6 +18,7 @@ ROLE_DEFAULT_SCOPES: Dict[str, Dict[str, int]] = {
         ModuleAccess.Module.REPORTS: ModuleAccess.Scope.MANAGE,
         ModuleAccess.Module.ADMIN_PANEL: ModuleAccess.Scope.MANAGE,
         ModuleAccess.Module.PUSKESMAS: ModuleAccess.Scope.MANAGE,
+        ModuleAccess.Module.LPLPO: ModuleAccess.Scope.MANAGE,
     },
     User.Role.KEPALA: {
         ModuleAccess.Module.USERS: ModuleAccess.Scope.VIEW,
@@ -31,6 +32,7 @@ ROLE_DEFAULT_SCOPES: Dict[str, Dict[str, int]] = {
         ModuleAccess.Module.REPORTS: ModuleAccess.Scope.VIEW,
         ModuleAccess.Module.ADMIN_PANEL: ModuleAccess.Scope.NONE,
         ModuleAccess.Module.PUSKESMAS: ModuleAccess.Scope.APPROVE,
+        ModuleAccess.Module.LPLPO: ModuleAccess.Scope.APPROVE,
     },
     User.Role.ADMIN_UMUM: {
         ModuleAccess.Module.USERS: ModuleAccess.Scope.NONE,
@@ -44,6 +46,7 @@ ROLE_DEFAULT_SCOPES: Dict[str, Dict[str, int]] = {
         ModuleAccess.Module.REPORTS: ModuleAccess.Scope.VIEW,
         ModuleAccess.Module.ADMIN_PANEL: ModuleAccess.Scope.NONE,
         ModuleAccess.Module.PUSKESMAS: ModuleAccess.Scope.VIEW,
+        ModuleAccess.Module.LPLPO: ModuleAccess.Scope.VIEW,
     },
     User.Role.GUDANG: {
         ModuleAccess.Module.USERS: ModuleAccess.Scope.NONE,
@@ -57,6 +60,7 @@ ROLE_DEFAULT_SCOPES: Dict[str, Dict[str, int]] = {
         ModuleAccess.Module.REPORTS: ModuleAccess.Scope.VIEW,
         ModuleAccess.Module.ADMIN_PANEL: ModuleAccess.Scope.NONE,
         ModuleAccess.Module.PUSKESMAS: ModuleAccess.Scope.VIEW,
+        ModuleAccess.Module.LPLPO: ModuleAccess.Scope.OPERATE,
     },
     User.Role.AUDITOR: {
         ModuleAccess.Module.USERS: ModuleAccess.Scope.NONE,
@@ -70,6 +74,7 @@ ROLE_DEFAULT_SCOPES: Dict[str, Dict[str, int]] = {
         ModuleAccess.Module.REPORTS: ModuleAccess.Scope.VIEW,
         ModuleAccess.Module.ADMIN_PANEL: ModuleAccess.Scope.NONE,
         ModuleAccess.Module.PUSKESMAS: ModuleAccess.Scope.VIEW,
+        ModuleAccess.Module.LPLPO: ModuleAccess.Scope.VIEW,
     },
     User.Role.PUSKESMAS: {
         ModuleAccess.Module.USERS: ModuleAccess.Scope.NONE,
@@ -83,6 +88,7 @@ ROLE_DEFAULT_SCOPES: Dict[str, Dict[str, int]] = {
         ModuleAccess.Module.REPORTS: ModuleAccess.Scope.NONE,
         ModuleAccess.Module.ADMIN_PANEL: ModuleAccess.Scope.NONE,
         ModuleAccess.Module.PUSKESMAS: ModuleAccess.Scope.OPERATE,
+        ModuleAccess.Module.LPLPO: ModuleAccess.Scope.OPERATE,
     },
 }
 
