@@ -29,14 +29,33 @@
             </div>
             <div class="mb-4">
                 <label for="id_password" class="form-label fw-semibold">Kata Sandi</label>
-                <input type="password" name="password" id="id_password" class="form-control form-control-lg"
-                    placeholder="Masukkan kata sandi" required>
+                <div class="input-group input-group-lg">
+                    <input type="password" name="password" id="id_password" class="form-control form-control-lg"
+                        placeholder="Masukkan kata sandi" required>
+                    <button class="btn btn-outline-secondary" type="button" id="togglePassword" tabindex="-1">
+                        <i class="bi bi-eye-slash"></i>
+                    </button>
+                </div>
             </div>
             <button type="submit" class="btn btn-primary btn-lg w-100">
                 <i class="bi bi-box-arrow-in-right me-2"></i>Masuk
             </button>
             <input type="hidden" name="next" value="{{ next }}">
         </form>
+
+        <script>
+        document.getElementById('togglePassword').addEventListener('click', function () {
+            var input = document.getElementById('id_password');
+            var icon = this.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('bi-eye-slash', 'bi-eye');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('bi-eye', 'bi-eye-slash');
+            }
+        });
+        </script>
 
         <div class="text-center mt-3">
             <small class="text-muted">
