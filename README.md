@@ -24,6 +24,7 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 - Pengelolaan master barang dan data referensi seperti satuan, kategori, program, sumber dana, lokasi, supplier, dan fasilitas.
 - Pencatatan stok per batch dengan pendekatan FEFO agar distribusi lebih terkendali dan masa kedaluwarsa lebih mudah dipantau.
 - Alur kerja end-to-end untuk penerimaan, distribusi, recall, barang kedaluwarsa, transfer stok, dan stock opname.
+- Pelaporan LPLPO bulanan dan pengajuan permintaan barang secara ad-hoc dari Puskesmas.
 - Log `Transaction` yang imutabel untuk seluruh pergerakan stok, sehingga histori tetap terjaga.
 - Pengendalian akses melalui kombinasi permission Django dan `ModuleAccess` per pengguna.
 - Dukungan import CSV dari Django Admin, termasuk endpoint khusus untuk penerimaan barang.
@@ -39,6 +40,8 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 - `recall`: alur retur ke supplier dari draft sampai selesai.
 - `expired`: alur penanganan barang kedaluwarsa dari draft sampai disposal, termasuk halaman alert kedaluwarsa.
 - `stock_opname`: proses hitung fisik dan cetak laporan selisih.
+- `puskesmas`: pengajuan permintaan barang ad-hoc dari unit Puskesmas.
+- `lplpo`: pelaporan pemakaian dan permintaan rutin bulanan dari Puskesmas.
 - `users`: manajemen pengguna dan pengaturan cakupan akses modul.
 
 ### Modul pengembangan lanjutan
@@ -54,6 +57,8 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 - Expired: `DRAFT -> SUBMITTED -> VERIFIED -> DISPOSED`
 - Stock transfer: `DRAFT -> COMPLETED`
 - Stock opname: `DRAFT -> IN_PROGRESS -> COMPLETED`
+- LPLPO: `DRAFT -> SUBMITTED -> REVIEWED -> DISTRIBUTED -> CLOSED`
+- Puskesmas Request: `DRAFT -> SUBMITTED -> APPROVED -> REJECTED`
 
 ## Model Data Singkat
 
@@ -68,6 +73,7 @@ Rincian skema kanonis tersedia di `SYSTEM_MODEL.md`.
 ## Keamanan
 
 - Perlindungan brute-force login menggunakan `django-axes`.
+- Validasi kata sandi kuat secara real-time di antarmuka pembuatan pengguna.
 - Kombinasi pengamanan sesi dan CSRF dengan `HttpOnly` serta `SameSite=Lax`.
 - Hardening produksi aktif saat `DEBUG=False`, termasuk secure cookie dan header keamanan terkait.
 

@@ -2,7 +2,7 @@
 
 This document describes the current implemented design and the plan used to continuously audit and revise repository documentation.
 
-Last verified: 2026-03-17
+Last verified: 2026-03-31
 Verification sources: `SYSTEM_MODEL.md`, `backend/apps/*/models.py`, `backend/config/urls.py`, `backend/apps/*/urls.py`, `backend/config/settings.py`, `backend/apps/*/admin.py`, `scripts/`
 
 ## 1) Executive Summary
@@ -48,6 +48,8 @@ The implementation currently prioritizes operational correctness and traceabilit
 - Expired/disposal
 - Stock transfer
 - Stock opname
+- Puskesmas ad-hoc requests
+- LPLPO reporting
 - User management with module access scopes
 
 ### 3.2 Placeholder module

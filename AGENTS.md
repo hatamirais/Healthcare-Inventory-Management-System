@@ -64,6 +64,8 @@ If documentation conflicts with code, code is authoritative until docs are corre
 - `recall`: supplier return workflow
 - `expired`: expired/disposal workflow and alerts page
 - `stock_opname`: physical counting workflow
+- `puskesmas`: ad-hoc requests from Puskesmas
+- `lplpo`: monthly reporting and stock requests from Puskesmas
 - `reports`: currently lightweight placeholder
 
 ## Permissions Model

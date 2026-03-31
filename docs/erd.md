@@ -2,7 +2,7 @@
 
 Current-state ERD derived from Django models.
 
-Last verified: 2026-03-17
+Last verified: 2026-03-31
 Verification sources: `backend/apps/*/models.py`
 
 ```mermaid
@@ -303,6 +303,66 @@ erDiagram
         text notes
     }
 
+
+    PuskesmasRequest {
+        bigint id PK
+        string document_number
+        date request_date
+        bigint facility_id FK
+        string program
+        string status
+        bigint created_by_id FK
+        bigint approved_by_id FK
+        datetime approved_at
+        text notes
+        text rejection_reason
+        bigint distribution_id FK
+    }
+
+    PuskesmasRequestItem {
+        bigint id PK
+        bigint request_id FK
+        bigint item_id FK
+        decimal quantity_requested
+        decimal quantity_approved
+        text notes
+    }
+
+    LPLPO {
+        bigint id PK
+        bigint facility_id FK
+        int bulan
+        int tahun
+        string status
+        string document_number
+        bigint created_by_id FK
+        datetime submitted_at
+        bigint reviewed_by_id FK
+        datetime reviewed_at
+        bigint distribution_id FK
+        text notes
+    }
+
+    LPLPOItem {
+        bigint id PK
+        bigint lplpo_id FK
+        bigint item_id FK
+        decimal stock_awal
+        decimal penerimaan
+        decimal pemakaian
+        decimal stock_gudang_puskesmas
+        decimal waktu_kosong
+        decimal permintaan_jumlah
+        text permintaan_alasan
+        decimal persediaan
+        decimal stock_keseluruhan
+        decimal stock_optimum
+        decimal jumlah_kebutuhan
+        decimal pemberian_jumlah
+        text pemberian_alasan
+        bool penerimaan_auto_filled
+    }
+
     User ||--o{ ModuleAccess : has
 
     Unit ||--o{ Item : referenced_by
@@ -367,6 +427,20 @@ erDiagram
     User ||--o{ StockOpname : created_by
     StockOpname ||--o{ StockOpnameItem : lines
     Stock ||--o{ StockOpnameItem : counted_stock
+
+    Facility ||--o{ PuskesmasRequest : makes
+    User ||--o{ PuskesmasRequest : created_by
+    User ||--o{ PuskesmasRequest : approved_by
+    PuskesmasRequest ||--o| Distribution : generates
+    PuskesmasRequest ||--o{ PuskesmasRequestItem : lines
+    Item ||--o{ PuskesmasRequestItem : requests
+
+    Facility ||--o{ LPLPO : submits
+    User ||--o{ LPLPO : created_by
+    User ||--o{ LPLPO : reviewed_by
+    LPLPO ||--o| Distribution : generates
+    LPLPO ||--o{ LPLPOItem : lines
+    Item ||--o{ LPLPOItem : reported
 ```
 
 ## Notes

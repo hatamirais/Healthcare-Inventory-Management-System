@@ -2,7 +2,7 @@
 
 Canonical reference for current schema, route topology, permission model, and stock mutation behavior.
 
-Last verified: 2026-03-23
+Last verified: 2026-03-31
 Verification sources: `backend/apps/*/models.py`, `backend/config/urls.py`, `backend/apps/*/urls.py`, `backend/apps/core/decorators.py`, `backend/apps/users/access.py`, `backend/config/settings.py`, `backend/apps/receiving/admin.py`
 
 ## 1) Domain Overview
@@ -18,6 +18,8 @@ Core domains:
 - Supplier return (`recall`)
 - Expired disposal (`expired`)
 - Physical counting (`stock_opname`)
+- Puskesmas ad-hoc requests (`puskesmas`)
+- LPLPO reporting and requests (`lplpo`)
 - Access and module scope control (`users`)
 
 ## 2) Route Topology
@@ -27,7 +29,7 @@ Root route include map from `backend/config/urls.py`:
 - `/` -> dashboard (`apps.core.views.dashboard`)
 - `/admin/` -> Django admin
 - `/login/`, `/logout/`, `/password/change/`, `/password/change/done/`
-- `/users/`, `/items/`, `/stock/`, `/receiving/`, `/distribution/`, `/recall/`, `/expired/`, `/reports/`, `/stock-opname/`
+- `/users/`, `/items/`, `/stock/`, `/receiving/`, `/distribution/`, `/recall/`, `/expired/`, `/reports/`, `/stock-opname/`, `/puskesmas/`, `/lplpo/`, `/puskesmas/`, `/lplpo/`
 
 Module highlights:
 
@@ -35,6 +37,8 @@ Module highlights:
 - Stock transfer: `/stock/transfers/*`
 - Receiving plan: `/receiving/plans/*`
 - Expiry alerts: `/expired/alerts/`
+- LPLPO lists: `/lplpo/` (All), `/lplpo/my/` (Puskesmas scoped)
+- Puskesmas requests: `/puskesmas/`
 
 ## 3) Permission and Access Model
 
@@ -45,7 +49,7 @@ Hybrid authorization in `@perm_required`:
 
 `ModuleAccess.module` values:
 
-- `users`, `items`, `stock`, `receiving`, `distribution`, `recall`, `expired`, `stock_opname`, `reports`, `admin_panel`
+- `users`, `items`, `stock`, `receiving`, `distribution`, `recall`, `expired`, `stock_opname`, `reports`, `puskesmas`, `lplpo`, `admin_panel`
 
 `ModuleAccess.scope` values:
 
@@ -209,6 +213,35 @@ This section reflects model code in `backend/apps/*/models.py`.
 
 - `reports` currently has no active business model entities (placeholder `models.py`).
 
+### 4.10 Puskesmas
+
+- `puskesmas.PuskesmasRequest` (`puskesmas_requests`):
+  - Status: `DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED`
+  - Fields: `document_number` (auto-generated `REQ-YYYYMM-XXXXX` when blank), `request_date`, `notes`, `rejection_reason`
+  - FKs: `facility` (puskesmas only), `program` (nullable), `created_by`, `approved_by` (nullable), `distribution` (nullable OneToOne)
+  - Timestamps: `approved_at`
+  - Indexes: `idx_pkreq_status_date`, `idx_pkreq_facility_date`
+
+- `puskesmas.PuskesmasRequestItem` (`puskesmas_request_items`):
+  - FKs: `request`, `item`
+  - Fields: `quantity_requested`, `quantity_approved` (nullable), `notes`
+
+### 4.11 LPLPO
+
+- `lplpo.LPLPO` (`lplpos`):
+  - Status: `DRAFT`, `SUBMITTED`, `REVIEWED`, `DISTRIBUTED`, `CLOSED`
+  - Fields: `bulan`, `tahun`, `document_number` (auto-generated `LPLPO-YYYYMM-XXXXX` when blank), `notes`
+  - FKs: `facility` (puskesmas only), `created_by`, `reviewed_by` (nullable), `distribution` (nullable OneToOne)
+  - Timestamps: `submitted_at`, `reviewed_at`
+  - Constraints/Indexes: unique `(facility, bulan, tahun)`
+
+- `lplpo.LPLPOItem` (`lplpo_items`):
+  - FKs: `lplpo`, `item`
+  - Puskesmas fields: `stock_awal`, `penerimaan`, `pemakaian`, `stock_gudang_puskesmas`, `waktu_kosong`, `permintaan_jumlah`, `permintaan_alasan`
+  - Computed fields (auto): `persediaan`, `stock_keseluruhan`, `stock_optimum`, `jumlah_kebutuhan`
+  - IF fields: `pemberian_jumlah` (nullable), `pemberian_alasan`
+  - Audit: `penerimaan_auto_filled`
+
 ## 5) Stock Mutation Checkpoints
 
 Operational mutation points (from app behavior and admin import logic):
@@ -219,6 +252,7 @@ Operational mutation points (from app behavior and admin import logic):
   - `ReceivingItem`
   - `Stock` update/create
   - `Transaction(IN)`
+- LPLPO Finalize creates a Distribution document mapped 1:1.
 - Distribution (current implementation does **not** use `Stock.reserved`):
   - prepare phase updates document status only (no stock mutation and no `stock.reserved` usage)
   - distribute phase allocates from and decreases `Stock.quantity` and posts `Transaction(OUT)`; any references in other docs (e.g. `.github/copilot-instructions.md`) to FEFO allocation via `Stock.reserved` are obsolete
