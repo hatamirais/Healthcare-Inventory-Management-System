@@ -11,6 +11,7 @@ class User(AbstractUser):
         ADMIN_UMUM = "ADMIN_UMUM", "Admin Umum"
         GUDANG = "GUDANG", "Petugas Gudang"
         AUDITOR = "AUDITOR", "Auditor"
+        PUSKESMAS = "PUSKESMAS", "Operator Puskesmas"
 
     role = models.CharField(
         max_length=20,
@@ -42,6 +43,7 @@ class ModuleAccess(models.Model):
         STOCK_OPNAME = "stock_opname", "Stock Opname"
         REPORTS = "reports", "Laporan"
         ADMIN_PANEL = "admin_panel", "Admin Panel"
+        PUSKESMAS = "puskesmas", "Permintaan Puskesmas"
 
     class Scope(models.IntegerChoices):
         NONE = 0, "Tidak Ada"

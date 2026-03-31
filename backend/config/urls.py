@@ -38,6 +38,7 @@ urlpatterns = [
     path("expired/", include("apps.expired.urls")),
     path("reports/", include("apps.reports.urls")),
     path("stock-opname/", include("apps.stock_opname.urls")),
+    path("puskesmas/", include("apps.puskesmas.urls")),
 ]
 
 if settings.DEBUG:

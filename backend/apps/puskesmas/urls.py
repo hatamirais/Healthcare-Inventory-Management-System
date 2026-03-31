@@ -1,0 +1,17 @@
+from django.urls import path
+from . import views
+
+app_name = "puskesmas"
+
+urlpatterns = [
+    # Permintaan Barang
+    path("permintaan/", views.request_list, name="request_list"),
+    path("permintaan/buat/", views.request_create, name="request_create"),
+    path("permintaan/<int:pk>/", views.request_detail, name="request_detail"),
+    path("permintaan/<int:pk>/edit/", views.request_edit, name="request_edit"),
+    path("permintaan/<int:pk>/delete/", views.request_delete, name="request_delete"),
+    path("permintaan/<int:pk>/submit/", views.request_submit, name="request_submit"),
+    path("permintaan/<int:pk>/approve/", views.request_approve, name="request_approve"),
+    path("permintaan/<int:pk>/reject/", views.request_reject, name="request_reject"),
+    path("permintaan/<int:pk>/reset-draft/", views.request_reset_draft, name="request_reset_draft"),
+]

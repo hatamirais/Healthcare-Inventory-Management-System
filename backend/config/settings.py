@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "apps.expired",
     "apps.reports",
     "apps.stock_opname",
+    "apps.puskesmas",
 ]
 
 MIDDLEWARE = [
