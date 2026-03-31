@@ -28,6 +28,25 @@
                         {% if field.name == 'is_active' %}
                         {{ field }}
                         <label for="{{ field.id_for_label }}" class="form-check-label">{{ field.label }}</label>
+                        {% elif field.name == 'password1' or field.name == 'password2' %}
+                        <label for="{{ field.id_for_label }}" class="form-label fw-semibold">{{ field.label }}</label>
+                        <div class="input-group">
+                            {{ field }}
+                            <button class="btn btn-outline-secondary toggle-password" type="button" tabindex="-1">
+                                <i class="bi bi-eye-slash"></i>
+                            </button>
+                        </div>
+                        {% if field.name == 'password1' %}
+                        <div id="password-requirements" class="mt-2 p-2 border rounded bg-light d-none">
+                            <ul class="list-unstyled mb-0 small text-muted">
+                                <li id="req-length" class="mb-1"><i class="bi bi-x text-danger fw-bold me-1"></i> Minimal 10 karakter</li>
+                                <li id="req-upper" class="mb-1"><i class="bi bi-x text-danger fw-bold me-1"></i> Huruf besar (A-Z)</li>
+                                <li id="req-lower" class="mb-1"><i class="bi bi-x text-danger fw-bold me-1"></i> Huruf kecil (a-z)</li>
+                                <li id="req-number" class="mb-1"><i class="bi bi-x text-danger fw-bold me-1"></i> Angka (0-9)</li>
+                                <li id="req-special"><i class="bi bi-x text-danger fw-bold me-1"></i> Karakter spesial (!@#$...)</li>
+                            </ul>
+                        </div>
+                        {% endif %}
                         {% else %}
                         <label for="{{ field.id_for_label }}" class="form-label fw-semibold">{{ field.label }}</label>
                         {{ field }}
@@ -169,6 +188,55 @@ document.addEventListener('DOMContentLoaded', function () {
     tooltipTriggerList.forEach(function (el) {
         new bootstrap.Tooltip(el);
     });
+
+    // ── Password Visibility Toggle ──────────────────────────────────
+    document.querySelectorAll('.toggle-password').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var input = this.previousElementSibling;
+            var icon = this.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            }
+        });
+    });
+
+    // ── Password Requirements Tracking ──────────────────────────────
+    var pwdInput = document.getElementById('id_password1');
+    var pwdReqBox = document.getElementById('password-requirements');
+    if (pwdInput && pwdReqBox) {
+        pwdInput.addEventListener('focus', function() {
+            pwdReqBox.classList.remove('d-none');
+        });
+        
+        var reqs = {
+            length: { el: document.getElementById('req-length'), regex: /.{10,}/ },
+            upper: { el: document.getElementById('req-upper'), regex: /[A-Z]/ },
+            lower: { el: document.getElementById('req-lower'), regex: /[a-z]/ },
+            number: { el: document.getElementById('req-number'), regex: /\d/ },
+            special: { el: document.getElementById('req-special'), regex: /[!@#$%^&*(),.?":{}|<>_+\-=\[\]\\;'/`~]/ }
+        };
+
+        pwdInput.addEventListener('input', function() {
+            var val = this.value;
+            for (var key in reqs) {
+                var req = reqs[key];
+                var icon = req.el.querySelector('i');
+                if (req.regex.test(val)) {
+                    icon.className = 'bi bi-check text-success fw-bold me-1';
+                    req.el.classList.replace('text-muted', 'text-success');
+                } else {
+                    icon.className = 'bi bi-x text-danger fw-bold me-1';
+                    req.el.classList.replace('text-success', 'text-muted');
+                }
+            }
+        });
+    }
 
     // ── Dynamic UAC pre-selection on Jabatan change ─────────────────
     var roleDefaults = {{ role_defaults_json|safe }};
