@@ -19,6 +19,23 @@ from .forms import LPLPOCreateForm, LPLPOItemPuskesmasForm, LPLPOItemReviewForm
 from .models import LPLPO, LPLPOItem, get_penerimaan_for_facility_period, get_previous_lplpo
 
 
+def _check_facility_access(request, lplpo_obj):
+    """
+    Returns a redirect response if the current PUSKESMAS user is trying
+    to access an LPLPO that belongs to a different facility.
+    Returns None if access is allowed.
+    """
+    if request.user.role != "PUSKESMAS":
+        return None  # Non-puskesmas roles can see all
+    if not request.user.facility:
+        messages.error(request, "Akun Anda belum terhubung ke fasilitas.")
+        return redirect("lplpo:lplpo_my_list")
+    if lplpo_obj.facility_id != request.user.facility_id:
+        messages.error(request, "Anda tidak memiliki akses ke LPLPO ini.")
+        return redirect("lplpo:lplpo_my_list")
+    return None
+
+
 # ══════════════════════════ List Views ══════════════════════════
 
 
@@ -205,13 +222,9 @@ def lplpo_detail(request, pk):
     )
 
     # Enforce facility scope for PUSKESMAS role
-    if (
-        request.user.role == "PUSKESMAS"
-        and request.user.facility
-        and lplpo.facility != request.user.facility
-    ):
-        messages.error(request, "Anda tidak memiliki akses ke LPLPO ini.")
-        return redirect("lplpo:lplpo_my_list")
+    denied = _check_facility_access(request, lplpo)
+    if denied:
+        return denied
 
     items = lplpo.items.select_related(
         "item", "item__satuan", "item__kategori"
@@ -248,13 +261,9 @@ def lplpo_edit(request, pk):
         return redirect("lplpo:lplpo_detail", pk=pk)
 
     # Enforce facility scope
-    if (
-        request.user.role == "PUSKESMAS"
-        and request.user.facility
-        and lplpo_obj.facility != request.user.facility
-    ):
-        messages.error(request, "Anda tidak memiliki akses ke LPLPO ini.")
-        return redirect("lplpo:lplpo_my_list")
+    denied = _check_facility_access(request, lplpo_obj)
+    if denied:
+        return denied
 
     items_qs = lplpo_obj.items.select_related(
         "item", "item__satuan", "item__kategori"
@@ -321,6 +330,9 @@ def lplpo_edit(request, pk):
 def lplpo_submit(request, pk):
     """Transition DRAFT → SUBMITTED."""
     lplpo_obj = get_object_or_404(LPLPO, pk=pk)
+    denied = _check_facility_access(request, lplpo_obj)
+    if denied:
+        return denied
     if request.method != "POST":
         return redirect("lplpo:lplpo_detail", pk=pk)
 
@@ -517,6 +529,9 @@ def lplpo_print(request, pk):
         LPLPO.objects.select_related("facility", "created_by", "reviewed_by"),
         pk=pk,
     )
+    denied = _check_facility_access(request, lplpo_obj)
+    if denied:
+        return denied
 
     items = lplpo_obj.items.select_related(
         "item", "item__satuan", "item__kategori"
