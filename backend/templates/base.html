@@ -36,19 +36,27 @@
                     <i class="bi bi-house-door"></i><span>Dashboard</span>
                 </a>
 
+                {% if can_view_items or can_view_stock %}
                 <div class="sidebar-section-title">Master Data</div>
+                {% if can_view_items %}
                 <a href="{% url 'items:item_list' %}"
                     class="sidebar-link {% if request.resolver_match.app_name == 'items' %}active{% endif %}"
                     data-label="Barang">
                     <i class="bi bi-box-seam"></i><span>Barang</span>
                 </a>
+                {% endif %}
+                {% if can_view_stock %}
                 <a href="{% url 'stock:stock_list' %}"
                     class="sidebar-link {% if request.resolver_match.url_name == 'stock_list' %}active{% endif %}"
                     data-label="Stok">
                     <i class="bi bi-boxes"></i><span>Stok</span>
                 </a>
+                {% endif %}
+                {% endif %}
 
+                {% if can_view_receiving or can_view_distribution or can_view_recall or can_view_expired %}
                 <div class="sidebar-section-title">Transaksi</div>
+                {% if can_view_receiving %}
                 <button class="sidebar-link sidebar-dropdown-toggle {% if request.resolver_match.app_name == 'receiving' %}active{% endif %}"
                     data-bs-toggle="collapse"
                     data-bs-target="#sidebar-receiving"
@@ -69,6 +77,8 @@
                         <i class="bi bi-clipboard-check"></i><span>Rencana Penerimaan</span>
                     </a>
                 </div>
+                {% endif %}
+                {% if can_view_distribution or can_view_recall or can_view_expired %}
                 <button class="sidebar-link sidebar-dropdown-toggle {% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' %}active{% endif %}"
                     data-bs-toggle="collapse"
                     data-bs-target="#sidebar-pengeluaran"
@@ -78,16 +88,21 @@
                     <i class="bi bi-chevron-down chevron"></i>
                 </button>
                 <div class="collapse sidebar-submenu {% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' %}show{% endif %}" id="sidebar-pengeluaran">
+                    {% if can_view_distribution %}
                     <a href="{% url 'distribution:distribution_list' %}"
                         class="sidebar-link {% if request.resolver_match.app_name == 'distribution' %}active{% endif %}"
                         data-label="Distribusi">
                         <i class="bi bi-send"></i><span>Distribusi</span>
                     </a>
+                    {% endif %}
+                    {% if can_view_recall %}
                     <a href="{% url 'recall:recall_list' %}"
                         class="sidebar-link {% if request.resolver_match.app_name == 'recall' %}active{% endif %}"
                         data-label="Recall / Retur">
                         <i class="bi bi-arrow-return-left"></i><span>Recall / Retur</span>
                     </a>
+                    {% endif %}
+                    {% if can_view_expired %}
                     <a href="{% url 'expired:expired_list' %}"
                         class="sidebar-link {% if request.resolver_match.app_name == 'expired' and request.resolver_match.url_name != 'expired_alerts' %}active{% endif %}"
                         data-label="Kedaluwarsa">
@@ -98,8 +113,12 @@
                         data-label="Pemantauan Kedaluwarsa">
                         <i class="bi bi-exclamation-triangle"></i><span>Pemantauan Kedaluwarsa</span>
                     </a>
+                    {% endif %}
                 </div>
+                {% endif %}
+                {% endif %}
 
+                {% if can_view_stock %}
                 <div class="sidebar-section-title">Transaksi Stok</div>
                 <a href="{% url 'stock:stock_card_select' %}"
                     class="sidebar-link {% if request.resolver_match.url_name == 'stock_card_select' or request.resolver_match.url_name == 'stock_card_detail' %}active{% endif %}"
@@ -116,30 +135,41 @@
                     data-label="Mutasi Lokasi">
                     <i class="bi bi-arrow-left-right"></i><span>Mutasi Lokasi</span>
                 </a>
+                {% if can_view_stock_opname %}
                 <a href="{% url 'stock_opname:opname_list' %}"
                     class="sidebar-link {% if request.resolver_match.app_name == 'stock_opname' %}active{% endif %}"
                     data-label="Stock Opname">
                     <i class="bi bi-clipboard-check"></i><span>Stock Opname</span>
                 </a>
+                {% endif %}
+                {% endif %}
 
+                {% if can_view_puskesmas or can_view_lplpo %}
                 <div class="sidebar-section-title">Puskesmas</div>
+                {% if can_view_puskesmas %}
                 <a href="{% url 'puskesmas:request_list' %}"
                     class="sidebar-link {% if request.resolver_match.app_name == 'puskesmas' and 'lplpo' not in request.resolver_match.url_name %}active{% endif %}"
                     data-label="Permintaan Barang">
                     <i class="bi bi-file-earmark-arrow-up"></i><span>Permintaan Barang</span>
                 </a>
+                {% endif %}
+                {% if can_view_lplpo %}
                 <a href="{% url 'lplpo:lplpo_list' %}"
                     class="sidebar-link {% if request.resolver_match.app_name == 'lplpo' %}active{% endif %}"
                     data-label="LPLPO">
                     <i class="bi bi-file-earmark-medical"></i><span>LPLPO</span>
                 </a>
+                {% endif %}
+                {% endif %}
 
+                {% if can_view_reports %}
                 <div class="sidebar-section-title">Laporan</div>
                 <a href="{% url 'reports:index' %}"
                     class="sidebar-link {% if request.resolver_match.app_name == 'reports' %}active{% endif %}"
                     data-label="Laporan">
                     <i class="bi bi-bar-chart-line"></i><span>Laporan</span>
                 </a>
+                {% endif %}
 
                 {% if can_view_user_management or can_open_admin_panel %}
                 <div class="sidebar-section-title">Administrasi</div>
