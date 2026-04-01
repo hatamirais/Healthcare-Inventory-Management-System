@@ -6,7 +6,7 @@ Run with: python manage.py setup_puskesmas_group
 Permissions granted:
 - puskesmas.*  (full CRUD on PuskesmasRequest + PuskesmasRequestItem)
 - items: view_item, view_unit, view_category, view_program, view_facility
-- distribution: view_distribution, view_distributionitem
+- lplpo: full CRUD on LPLPO + LPLPOItem
 """
 
 from django.core.management.base import BaseCommand
@@ -52,17 +52,13 @@ class Command(BaseCommand):
             f"  Added items (view): {list(items_view_perms.values_list('codename', flat=True))}"
         ))
 
-        # ── 3. Distribution: view-only so they can see linked distributions ──
-        dist_view_perms = Permission.objects.filter(
-            content_type__app_label="distribution",
-            codename__in=[
-                "view_distribution",
-                "view_distributionitem",
-            ],
+        # ── 3. LPLPO: full CRUD for monthly usage and request workflow ──
+        lplpo_perms = Permission.objects.filter(
+            content_type__app_label="lplpo",
         )
-        group.permissions.add(*dist_view_perms)
+        group.permissions.add(*lplpo_perms)
         self.stdout.write(self.style.SUCCESS(
-            f"  Added distribution (view): {list(dist_view_perms.values_list('codename', flat=True))}"
+            f"  Added lplpo: {list(lplpo_perms.values_list('codename', flat=True))}"
         ))
 
         total = group.permissions.count()

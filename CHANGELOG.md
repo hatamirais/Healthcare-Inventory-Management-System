@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.4.5] - 2026-04-01
+
+### Added
+
+- LPLPO test coverage for facility isolation, penerimaan prefill, stock carry-forward, finalize flow, and distribution auto-close behavior.
+
+### Changed
+
+- LPLPO access control now consistently enforces facility-scoped visibility for Puskesmas users across read and edit flows.
+- LPLPO review stock display now uses available stock instead of total stock quantity.
+- Puskesmas group provisioning now grants LPLPO permissions instead of distribution visibility.
+
 ## [1.0.4] - 2026-03-23
 
 ### Added

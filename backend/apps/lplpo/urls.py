@@ -7,6 +7,11 @@ urlpatterns = [
     path("", views.lplpo_list, name="lplpo_list"),
     path("my/", views.lplpo_my_list, name="lplpo_my_list"),
     path("create/", views.lplpo_create, name="lplpo_create"),
+    path(
+        "api/prefill-penerimaan/",
+        views.api_prefill_penerimaan,
+        name="api_prefill_penerimaan",
+    ),
     path("<int:pk>/", views.lplpo_detail, name="lplpo_detail"),
     path("<int:pk>/edit/", views.lplpo_edit, name="lplpo_edit"),
     path("<int:pk>/submit/", views.lplpo_submit, name="lplpo_submit"),

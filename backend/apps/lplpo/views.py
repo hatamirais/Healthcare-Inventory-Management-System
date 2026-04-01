@@ -5,7 +5,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import DecimalField, ExpressionWrapper, F, Q, Sum
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -40,6 +41,7 @@ def _check_facility_access(request, lplpo_obj):
 
 
 @login_required
+@perm_required("lplpo.view_lplpo")
 def lplpo_list(request):
     """All LPLPOs — for Instalasi Farmasi staff."""
     if getattr(request.user, "role", "") == "PUSKESMAS":
@@ -81,6 +83,7 @@ def lplpo_list(request):
 
 
 @login_required
+@perm_required("lplpo.view_lplpo")
 def lplpo_my_list(request):
     """Own-facility LPLPOs — for Puskesmas operators."""
     if not request.user.facility:
@@ -125,7 +128,7 @@ def lplpo_my_list(request):
 def lplpo_create(request):
     """Create a new LPLPO for a given period. Auto-generates all item lines."""
     if request.method == "POST":
-        form = LPLPOCreateForm(request.POST)
+        form = LPLPOCreateForm(request.POST, user=request.user)
         if form.is_valid():
             bulan = int(form.cleaned_data["bulan"])
             tahun = int(form.cleaned_data["tahun"])
@@ -193,6 +196,7 @@ def lplpo_create(request):
                         penerimaan_auto_filled=has_auto_fill,
                     )
                     li.compute_fields()
+                    li.pemberian_jumlah = li.jumlah_kebutuhan
                     lplpo_items.append(li)
 
                 LPLPOItem.objects.bulk_create(lplpo_items)
@@ -203,15 +207,62 @@ def lplpo_create(request):
             )
             return redirect("lplpo:lplpo_detail", pk=lplpo.pk)
     else:
-        form = LPLPOCreateForm()
+        form = LPLPOCreateForm(user=request.user)
 
     return render(request, "lplpo/lplpo_create.html", {"form": form})
+
+
+@login_required
+@perm_required("lplpo.view_lplpo")
+def api_prefill_penerimaan(request):
+    """AJAX helper returning penerimaan totals for a facility and period."""
+    if request.method != "GET":
+        return JsonResponse({"detail": "Method not allowed."}, status=405)
+
+    facility = request.user.facility
+    if request.user.role != "PUSKESMAS":
+        facility_id = request.GET.get("facility")
+        if facility_id:
+            from apps.items.models import Facility
+
+            facility = get_object_or_404(
+                Facility,
+                pk=facility_id,
+                facility_type="PUSKESMAS",
+                is_active=True,
+            )
+
+    if not facility:
+        return JsonResponse(
+            {"detail": "Facility is required for penerimaan prefill."},
+            status=400,
+        )
+
+    try:
+        bulan = int(request.GET.get("bulan", ""))
+        tahun = int(request.GET.get("tahun", ""))
+    except ValueError:
+        return JsonResponse({"detail": "Invalid bulan or tahun."}, status=400)
+
+    if bulan < 1 or bulan > 12:
+        return JsonResponse({"detail": "Bulan harus antara 1 dan 12."}, status=400)
+
+    data = get_penerimaan_for_facility_period(facility, bulan, tahun)
+    return JsonResponse(
+        {
+            "facility_id": facility.pk,
+            "bulan": bulan,
+            "tahun": tahun,
+            "items": {str(item_id): str(total) for item_id, total in data.items()},
+        }
+    )
 
 
 # ══════════════════════════ Detail ══════════════════════════
 
 
 @login_required
+@perm_required("lplpo.view_lplpo")
 def lplpo_detail(request, pk):
     """Read-only full view of an LPLPO."""
     lplpo = get_object_or_404(
@@ -340,6 +391,13 @@ def lplpo_submit(request, pk):
         messages.error(request, "Hanya LPLPO berstatus Draft yang dapat diajukan.")
         return redirect("lplpo:lplpo_detail", pk=pk)
 
+    zero_pemakaian_count = lplpo_obj.items.filter(pemakaian=0).count()
+    if zero_pemakaian_count:
+        messages.warning(
+            request,
+            f"{zero_pemakaian_count} item memiliki pemakaian 0. Pastikan data sudah benar sebelum diajukan.",
+        )
+
     lplpo_obj.status = LPLPO.Status.SUBMITTED
     lplpo_obj.submitted_at = timezone.now()
     lplpo_obj.save(update_fields=["status", "submitted_at", "updated_at"])
@@ -372,8 +430,14 @@ def lplpo_review(request, pk):
     warehouse_stock = {}
     stock_entries = (
         Stock.objects.filter(item__in=[li.item for li in items_qs])
+        .annotate(
+            available_quantity=ExpressionWrapper(
+                F("quantity") - F("reserved"),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            )
+        )
         .values("item_id")
-        .annotate(total_qty=Sum("quantity"))
+        .annotate(total_qty=Sum("available_quantity"))
     )
     for entry in stock_entries:
         warehouse_stock[entry["item_id"]] = entry["total_qty"] or Decimal("0")
@@ -516,13 +580,14 @@ def lplpo_finalize(request, pk):
         f"LPLPO {lplpo_obj.document_number} difinalisasi. "
         f"Distribusi {dist.document_number} telah dibuat sebagai Draft.",
     )
-    return redirect("lplpo:lplpo_detail", pk=pk)
+    return redirect("distribution:distribution_detail", pk=dist.pk)
 
 
 # ══════════════════════════ Print ══════════════════════════
 
 
 @login_required
+@perm_required("lplpo.view_lplpo")
 def lplpo_print(request, pk):
     """Print-friendly HTML version of the LPLPO."""
     lplpo_obj = get_object_or_404(

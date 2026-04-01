@@ -3,6 +3,8 @@ import calendar
 from django import forms
 from django.utils import timezone
 
+from apps.users.models import User
+
 from .models import LPLPOItem
 
 
@@ -35,11 +37,16 @@ class LPLPOCreateForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         from apps.items.models import Facility
+
         self.fields["facility"].queryset = Facility.objects.filter(
             facility_type="PUSKESMAS", is_active=True
         )
+        if user and getattr(user, "role", None) == User.Role.PUSKESMAS:
+            self.fields["facility"].widget = forms.HiddenInput()
+            self.fields["facility"].required = False
 
 
 class LPLPOItemPuskesmasForm(forms.ModelForm):
