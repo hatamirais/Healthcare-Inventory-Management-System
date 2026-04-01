@@ -243,6 +243,23 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertEqual(response.status_code, 302)
 		self.assertRedirects(response, reverse("lplpo:lplpo_my_list"))
 
+	def test_puskesmas_cannot_access_review(self):
+		lplpo = self.create_lplpo(status=LPLPO.Status.SUBMITTED)
+
+		self.client.force_login(self.puskesmas_user)
+		response = self.client.get(reverse("lplpo:lplpo_review", args=[lplpo.pk]))
+
+		self.assertEqual(response.status_code, 302)
+		self.assertRedirects(response, reverse("lplpo:lplpo_my_list"))
+
+	def test_puskesmas_cannot_access_finalize(self):
+		lplpo = self.create_lplpo(status=LPLPO.Status.REVIEWED)
+
+		self.client.force_login(self.puskesmas_user)
+		response = self.client.post(reverse("lplpo:lplpo_finalize", args=[lplpo.pk]))
+
+		self.assertEqual(response.status_code, 403)
+
 	def test_finalize_creates_distribution(self):
 		lplpo = self.create_lplpo(status=LPLPO.Status.REVIEWED, created_by=self.staff_user)
 		LPLPOItem.objects.create(

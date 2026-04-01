@@ -37,6 +37,17 @@ def _check_facility_access(request, lplpo_obj):
     return None
 
 
+def _check_instalasi_farmasi_access(request):
+    """Reject PUSKESMAS users from review/finalize workflow steps."""
+    if request.user.role == "PUSKESMAS":
+        messages.error(
+            request,
+            "Aksi ini hanya tersedia untuk petugas Instalasi Farmasi.",
+        )
+        return redirect("lplpo:lplpo_my_list")
+    return None
+
+
 # ══════════════════════════ List Views ══════════════════════════
 
 
@@ -414,6 +425,10 @@ def lplpo_submit(request, pk):
 @module_scope_required(ModuleAccess.Module.LPLPO, ModuleAccess.Scope.OPERATE)
 def lplpo_review(request, pk):
     """Instalasi Farmasi fills pemberian columns. SUBMITTED → REVIEWED."""
+    denied = _check_instalasi_farmasi_access(request)
+    if denied:
+        return denied
+
     lplpo_obj = get_object_or_404(
         LPLPO.objects.select_related("facility"), pk=pk
     )
@@ -517,6 +532,10 @@ def lplpo_review(request, pk):
 @module_scope_required(ModuleAccess.Module.LPLPO, ModuleAccess.Scope.APPROVE)
 def lplpo_finalize(request, pk):
     """Create Distribution from REVIEWED LPLPO. REVIEWED → DISTRIBUTED."""
+    denied = _check_instalasi_farmasi_access(request)
+    if denied:
+        return denied
+
     lplpo_obj = get_object_or_404(
         LPLPO.objects.select_related("facility"), pk=pk
     )

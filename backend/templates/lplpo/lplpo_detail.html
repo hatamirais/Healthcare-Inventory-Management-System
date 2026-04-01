@@ -166,12 +166,12 @@
                         </button>
                     </form>
 
-                    {% elif lplpo.status == 'SUBMITTED' %}
+                    {% elif lplpo.status == 'SUBMITTED' and request.user.role != 'PUSKESMAS' %}
                     <a href="{% url 'lplpo:lplpo_review' lplpo.pk %}" class="btn btn-info w-100 text-white" id="review-btn">
                         <i class="bi bi-clipboard-check me-1"></i>Tinjau & Isi Pemberian
                     </a>
 
-                    {% elif lplpo.status == 'REVIEWED' %}
+                    {% elif lplpo.status == 'REVIEWED' and request.user.role != 'PUSKESMAS' %}
                     <form method="post" action="{% url 'lplpo:lplpo_finalize' lplpo.pk %}">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-success w-100" id="finalize-btn"
