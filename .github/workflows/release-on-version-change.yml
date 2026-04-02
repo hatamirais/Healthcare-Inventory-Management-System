@@ -15,9 +15,28 @@ jobs:
   verify-versioning:
     name: Verify version command and tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: healthcare_ims
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d healthcare_ims"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       DJANGO_SECRET_KEY: ci-release-placeholder-secret
       DEBUG: "False"
+      DB_NAME: healthcare_ims
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
     defaults:
       run:
         working-directory: backend
