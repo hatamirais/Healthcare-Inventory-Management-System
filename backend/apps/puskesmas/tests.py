@@ -3,7 +3,7 @@ from django.urls import reverse
 
 from apps.items.models import Category, Facility, Item, Unit
 from apps.puskesmas.forms import PuskesmasRequestForm, PuskesmasRequestItemForm
-from apps.puskesmas.models import PuskesmasRequest
+from apps.puskesmas.models import PuskesmasRequest, PuskesmasRequestItem
 from apps.users.models import User
 
 
@@ -119,3 +119,51 @@ class PuskesmasRequestCreateViewTests(TestCase):
 		req = PuskesmasRequest.objects.get()
 		self.assertEqual(req.facility, self.facility)
 		self.assertEqual(req.created_by, self.user)
+
+	def test_edit_shows_operator_facility_as_readonly(self):
+		req = PuskesmasRequest.objects.create(
+			facility=self.facility,
+			created_by=self.user,
+		)
+
+		self.client.force_login(self.user)
+		response = self.client.get(reverse("puskesmas:request_edit", args=[req.pk]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, self.facility.name)
+		self.assertContains(response, 'type="hidden"', html=False)
+
+	def test_edit_keeps_operator_facility_even_if_post_tampered(self):
+		req = PuskesmasRequest.objects.create(
+			facility=self.facility,
+			created_by=self.user,
+		)
+		item_line = PuskesmasRequestItem.objects.create(
+			request=req,
+			item=self.item,
+			quantity_requested=5,
+		)
+
+		self.client.force_login(self.user)
+		response = self.client.post(
+			reverse("puskesmas:request_edit", args=[req.pk]),
+			{
+				"document_number": req.document_number,
+				"facility": self.other_facility.pk,
+				"request_date": "2026-04-02",
+				"program": "",
+				"notes": "Permintaan edit",
+				"items-TOTAL_FORMS": "1",
+				"items-INITIAL_FORMS": "1",
+				"items-MIN_NUM_FORMS": "1",
+				"items-MAX_NUM_FORMS": "1000",
+				"items-0-id": str(item_line.pk),
+				"items-0-item": str(self.item.pk),
+				"items-0-quantity_requested": "5",
+				"items-0-notes": "",
+			},
+		)
+
+		self.assertEqual(response.status_code, 302)
+		req.refresh_from_db()
+		self.assertEqual(req.facility, self.facility)
