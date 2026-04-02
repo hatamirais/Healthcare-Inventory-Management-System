@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.5.1] - 2026-04-02
+
+### Changed
+
+- Release workflow now provisions PostgreSQL for Django test execution during version verification.
+
 ## [1.5.0] - 2026-04-02
 
 ### Changed
