@@ -74,8 +74,8 @@ This section reflects model code in `backend/apps/*/models.py`.
 
 - `users.User` (`db_table=users`)
   - Extends `AbstractUser`
-  - Extra fields: `role`, `full_name`
-  - Role enum: `ADMIN`, `KEPALA`, `ADMIN_UMUM`, `GUDANG`, `AUDITOR`
+  - Extra fields: `role`, `full_name`, `nip`, `facility` (nullable FK)
+  - Role enum: `ADMIN`, `KEPALA`, `ADMIN_UMUM`, `GUDANG`, `AUDITOR`, `PUSKESMAS`
 
 - `users.ModuleAccess` (`db_table=user_module_accesses`)
   - `user` FK -> `users.User`
@@ -305,8 +305,9 @@ If model fields, routes, settings, permission logic, or import behavior change:
 
 1. Update this file first.
 2. Update `README.md` and `AGENTS.md` to keep onboarding and operational docs aligned.
-3. Update related drafts in `requirements_draft/`.
-4. Verify references against Context7 primary IDs:
+3. Update `docs/developer_guide.md` when developer workflow, release, or documentation-process guidance changes.
+4. Update `backend/seed/README.md` when CSV import behavior, columns, or ordering changes.
+5. Verify references against Context7 primary IDs:
    - `/django/django`
    - `/websites/django-import-export_readthedocs_io_en`
    - `/jazzband/django-axes`

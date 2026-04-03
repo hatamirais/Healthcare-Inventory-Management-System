@@ -1,3 +1,5 @@
+# Pull Request
+
 ## Summary
 
 -
@@ -8,5 +10,5 @@
 
 ## Documentation and release checklist
 
-- [ ] Docs updated when models/routes/settings/scripts changed (`README.md`, `AGENTS.md`, `SYSTEM_MODEL.md`, `requirements_draft/*`, `backend/seed/README.md` as needed)
+- [ ] Docs updated when models/routes/settings/scripts changed (`README.md`, `AGENTS.md`, `SYSTEM_MODEL.md`, `docs/developer_guide.md`, `backend/seed/README.md` as needed)
 - [ ] If release-impacting, `VERSION` and `CHANGELOG.md` are updated in this PR

@@ -83,8 +83,6 @@ Rincian skema kanonis tersedia di `SYSTEM_MODEL.md`.
 - `SYSTEM_MODEL.md`: referensi skema data dan peta workflow.
 - `CHANGELOG.md`: riwayat perubahan dan rilis.
 - `backend/seed/README.md`: spesifikasi template CSV seed.
-- `docs/README.md`: catatan workflow import dan migrasi.
-- `docs/system_design_renew.md`: narasi desain fungsional dan arsitektur.
 - `docs/erd.md`: referensi ERD.
 - `docs/infrastructure_plan.md`: rencana infrastruktur dan deployment.
 

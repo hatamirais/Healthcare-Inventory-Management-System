@@ -37,7 +37,6 @@ This project is a Django-based healthcare inventory system used by internal gove
 |  |- static/
 |  |- seed/
 |  `- tests/
-|- requirements_draft/
 `- scripts/
 ```
 
@@ -97,7 +96,7 @@ When code changes affect schema, routes, permissions, settings, or scripts, upda
 - `README.md`
 - `AGENTS.md`
 - `SYSTEM_MODEL.md`
-- Relevant files in `requirements_draft/`
+- `docs/developer_guide.md` when setup, testing, release, or documentation process guidance changes
 - `backend/seed/README.md` (if CSV schema/semantics changed)
 
 ## Context7 Reference Policy

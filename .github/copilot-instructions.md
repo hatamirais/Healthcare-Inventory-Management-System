@@ -54,25 +54,28 @@ All Django apps live under `backend/apps/`. Each app is a self-contained module 
 
 | App            | Responsibility                                              |
 |----------------|-------------------------------------------------------------|
-| `core`         | `TimeStampedModel` base class, `role_required` decorator, dashboard view |
-| `users`        | Custom `User` model extending `AbstractUser` with `role` field |
+| `core`         | `TimeStampedModel` base class, permission decorators, dashboard view |
+| `users`        | Custom `User` model, `ModuleAccess` scopes, and role defaults |
 | `items`        | Item master (Master Barang) + all lookup tables (Unit, Category, Location, FundingSource, Program, Supplier, Facility) |
 | `stock`        | `Stock` (live inventory per batch/location) + `Transaction` (immutable audit trail) |
-| `receiving`    | Incoming stock documents (procurement/grants) with DRAFT → SUBMITTED → VERIFIED workflow |
+| `receiving`    | Incoming stock documents, planned receiving flows, and custom receiving type options |
 | `distribution` | Outgoing stock to facilities with DRAFT → SUBMITTED → VERIFIED → PREPARED → DISTRIBUTED workflow (non-distributed docs can be reset to DRAFT) |
 | `recall`       | Return/recall documents to supplier with DRAFT → SUBMITTED → VERIFIED → COMPLETED workflow |
 | `expired`      | Expired/disposal documents with DRAFT → SUBMITTED → VERIFIED → DISPOSED workflow |
 | `stock_opname` | Physical inventory counting (stock opname), discrepancy reports |
+| `puskesmas`    | Ad-hoc requests from Puskesmas that can create special-request distributions |
+| `lplpo`        | Monthly reporting and request workflows linked to distribution |
 | `reports`      | Reporting (in progress)                                     |
 
 ### Key Data Flow
 
 1. **Receiving** creates `ReceivingItem` line items → on VERIFIED, creates/updates `Stock` entries and writes `Transaction(type=IN)` records.
-2. **Distribution** allocates stock batches (FEFO order) → sets `Stock.reserved` → on DISTRIBUTED, decrements `Stock.quantity` and writes `Transaction(type=OUT)` records.
+2. **Distribution** decrements `Stock.quantity` and writes `Transaction(type=OUT)` only when the document reaches DISTRIBUTED; PREPARED is non-stock-impacting.
 3. **Recall** verifies return batches → decrements `Stock.quantity` and writes `Transaction(type=OUT, reference_type=RECALL)`.
 4. **Expired** verifies disposal batches → decrements `Stock.quantity` and writes `Transaction(type=OUT, reference_type=EXPIRED)`.
 5. **Stock Opname** compares physical counts against system stock, generates discrepancy reports for investigation.
-6. `Transaction` is the immutable audit trail — never update or delete records in this table.
+6. **LPLPO** links 1:1 to Distribution and auto-closes when the linked Distribution reaches DISTRIBUTED.
+7. `Transaction` is the immutable audit trail — never update or delete records in this table.
 
 ### Stock Model Uniqueness
 
@@ -86,16 +89,16 @@ All models (except `Transaction` and inline line-item models) inherit from `apps
 
 ### RBAC
 
-Views use `@login_required` + `@role_required(...)` from `apps.core.decorators`. Always apply `@login_required` first, then `@role_required`. Superusers bypass all role checks.
+Newer views should use `@login_required` + `@perm_required(...)` from `apps.core.decorators`. Always apply `@login_required` first, then `@perm_required`. Superusers bypass permission checks. `@role_required` remains for backward compatibility only.
 
 ```python
 @login_required
-@role_required('ADMIN', 'ADMIN_UMUM', 'KEPALA')
+@perm_required('items.view_item', 'items.add_item')
 def my_view(request):
     ...
 ```
 
-Roles: `ADMIN`, `KEPALA`, `ADMIN_UMUM`, `GUDANG`, `KEUANGAN`
+Roles: `ADMIN`, `KEPALA`, `ADMIN_UMUM`, `GUDANG`, `AUDITOR`, `PUSKESMAS`
 
 ### Soft Deletes
 
@@ -103,7 +106,7 @@ Roles: `ADMIN`, `KEPALA`, `ADMIN_UMUM`, `GUDANG`, `KEUANGAN`
 
 ### Item Codes
 
-`Item.kode_barang` is auto-generated on save as `ITM-00001`, `ITM-00002`, etc. Do not set it manually.
+`Item.kode_barang` is auto-generated on save as `ITM-YYYY-NNNNN`. Do not set it manually.
 
 ### Program Item Rules
 
@@ -153,7 +156,7 @@ Several fields on `Item` and related models use Indonesian names (`kode_barang`,
 
 ### Admin & CSV Import
 
-All models are registered in their respective `admin.py`. CSV import/export is provided by `django-import-export`. Seed data imports follow order: `units → categories → funding_sources → programs → locations → suppliers → facilities → items → stock`.
+All models are registered in their respective `admin.py`. CSV import/export is provided by `django-import-export`. Seed data imports follow order: `units → categories → funding_sources → programs → locations → suppliers → facilities → items → receiving`. Use `receiving.csv` for initial stock so inbound transactions are recorded consistently.
 
 ### Settings & Environment
 

@@ -24,7 +24,6 @@ Healthcare-Inventory-Management-System/
 |  |- static/
 |  |- seed/
 |  `- tests/
-|- requirements_draft/
 `- scripts/
 ```
 
@@ -141,14 +140,14 @@ Saat file `VERSION` berubah di branch `main`, GitHub Actions menjalankan `.githu
 Dokumen terkait:
 
 - `backend/seed/README.md`
-- `requirements_draft/README.md`
-- `docs/README.md`
+- `README.md`
+- `SYSTEM_MODEL.md`
 
 ## Tata Kelola Dokumentasi
 
 Gunakan siklus berikut agar dokumentasi tetap sinkron dengan kode:
 
-1. Inventaris seluruh file dokumentasi di root repositori, `requirements_draft/`, `docs/`, dan `backend/seed/`.
+1. Inventaris seluruh file dokumentasi di root repositori, `docs/`, dan `backend/seed/`.
 2. Petakan setiap klaim ke source of truth:
    - model ke `backend/apps/*/models.py`
    - route ke `backend/config/urls.py` dan `backend/apps/*/urls.py`
@@ -162,7 +161,7 @@ Gunakan siklus berikut agar dokumentasi tetap sinkron dengan kode:
    - Critical: skema, workflow, otorisasi, atau perilaku keamanan tidak sesuai
    - Major: command, route, atau environment variable sudah usang
    - Minor: istilah, redaksi, atau format tidak konsisten
-5. Perbarui dokumen kanonis terlebih dahulu, lalu dokumen turunan.
+5. Perbarui dokumen kanonis terlebih dahulu: `SYSTEM_MODEL.md`, `AGENTS.md`, `README.md`, lalu `backend/seed/README.md` atau dokumen `docs/` yang relevan.
 6. Tambahkan metadata verifikasi terakhir dan sumber verifikasinya jika relevan.
 7. Lakukan QA dokumentasi sebelum merge:
    - tidak ada route mismatch
