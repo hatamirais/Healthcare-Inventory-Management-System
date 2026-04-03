@@ -34,6 +34,12 @@ def receiving_list(request):
         .order_by("-receiving_date")
     )
 
+    regular_statuses = [
+        Receiving.Status.DRAFT,
+        Receiving.Status.SUBMITTED,
+        Receiving.Status.VERIFIED,
+    ]
+
     search = request.GET.get("q", "").strip()
     if search:
         queryset = queryset.filter(
@@ -59,11 +65,15 @@ def receiving_list(request):
             "search": search,
             "selected_status": status or "",
             "selected_type": r_type or "",
-            "status_draft": "selected" if status == "DRAFT" else "",
-            "status_submitted": "selected" if status == "SUBMITTED" else "",
-            "status_verified": "selected"
-            if status == Receiving.Status.VERIFIED
-            else "",
+            "status_options": [
+                {
+                    "value": value,
+                    "label": label,
+                    "selected": "selected" if status == value else "",
+                }
+                for value, label in Receiving.Status.choices
+                if value in regular_statuses
+            ],
             "type_procurement": "selected" if r_type == "PROCUREMENT" else "",
             "type_grant": "selected" if r_type == "GRANT" else "",
         },

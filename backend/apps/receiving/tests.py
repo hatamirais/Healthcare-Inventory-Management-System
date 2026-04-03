@@ -267,6 +267,27 @@ class ReceivingWorkflowCleanupTest(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_regular_receiving_list_uses_model_status_labels_in_filter_and_legend(self):
+        Receiving.objects.create(
+            document_number="RCV-2026-99994",
+            receiving_type=Receiving.ReceivingType.GRANT,
+            receiving_date=date(2026, 3, 16),
+            sumber_dana=self.funding,
+            status=Receiving.Status.VERIFIED,
+            is_planned=False,
+            created_by=self.user,
+            verified_by=self.user,
+        )
+
+        response = self.client.get(reverse("receiving:receiving_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '>Diajukan</option>', html=False)
+        self.assertContains(response, '>Terverifikasi</option>', html=False)
+        self.assertContains(response, '<span class="badge-status badge-verified">Terverifikasi</span>', html=False)
+        self.assertNotContains(response, '>Verified</option>', html=False)
+        self.assertNotContains(response, '>Submitted</option>', html=False)
+
     def test_plan_receive_page_uses_fixed_rows_without_delete_control(self):
         receiving = Receiving.objects.create(
             document_number="RCV-2026-99997",

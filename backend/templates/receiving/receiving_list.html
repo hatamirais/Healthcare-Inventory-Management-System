@@ -17,9 +17,9 @@
             <input type="text" name="q" class="form-control" placeholder="Cari no. dokumen / supplier..." value="{{ search }}">
             <select name="status" class="form-select">
                 <option value="">Semua Status</option>
-                <option value="DRAFT" {{ status_draft }}>Draft</option>
-                <option value="SUBMITTED" {{ status_submitted }}>Submitted</option>
-                <option value="VERIFIED" {{ status_verified }}>Verified</option>
+                {% for option in status_options %}
+                <option value="{{ option.value }}" {{ option.selected }}>{{ option.label }}</option>
+                {% endfor %}
             </select>
             <select name="type" class="form-select">
                 <option value="">Semua Tipe</option>
@@ -35,9 +35,9 @@
         </form>
         <div class="mt-2 status-legend">
             <span class="label">Status:</span>
-            <span class="badge-status badge-draft">Draft</span>
-            <span class="badge-status badge-submitted">Submitted</span>
-            <span class="badge-status badge-verified">Verified</span>
+            {% for option in status_options %}
+            <span class="badge-status badge-{{ option.value|lower }}">{{ option.label }}</span>
+            {% endfor %}
         </div>
     </div>
 
