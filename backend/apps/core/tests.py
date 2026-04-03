@@ -13,7 +13,7 @@ from apps.items.models import Facility, FundingSource
 from apps.lplpo.models import LPLPO
 from apps.puskesmas.models import PuskesmasRequest
 from apps.receiving.models import Receiving
-from apps.users.models import User
+from apps.users.models import ModuleAccess, User
 
 
 class SemanticVersionTests(SimpleTestCase):
@@ -126,6 +126,13 @@ class NavNotificationsContextProcessorTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
 
+    def _set_scope(self, user, module, scope):
+        ModuleAccess.objects.update_or_create(
+            user=user,
+            module=module,
+            defaults={"scope": scope},
+        )
+
     def test_unauthenticated_user_gets_zero_notification_count(self):
         request = self.factory.get("/")
         request.user = type("AnonymousUser", (), {"is_authenticated": False})()
@@ -159,12 +166,16 @@ class NavNotificationsContextProcessorTests(TestCase):
             password="TestPassword123!",
             role=User.Role.ADMIN,
         )
+        self._set_scope(
+            admin_user, ModuleAccess.Module.RECEIVING, ModuleAccess.Scope.MANAGE
+        )
         funding_source = FundingSource.objects.create(code="DAK-NAV", name="DAK NAV")
         Receiving.objects.create(
             receiving_type=Receiving.ReceivingType.PROCUREMENT,
             receiving_date="2026-04-03",
             sumber_dana=funding_source,
             status=Receiving.Status.SUBMITTED,
+            is_planned=True,
             created_by=admin_user,
         )
 
@@ -173,6 +184,119 @@ class NavNotificationsContextProcessorTests(TestCase):
         context = nav_notifications(request)
 
         self.assertGreaterEqual(context["nav_notification_count"], 1)
+
+    def test_receiving_notifications_for_approve_scope_only_include_submitted(self):
+        kepala_user = User.objects.create_user(
+            username="nav-kepala",
+            password="TestPassword123!",
+            role=User.Role.KEPALA,
+        )
+        self._set_scope(
+            kepala_user, ModuleAccess.Module.RECEIVING, ModuleAccess.Scope.APPROVE
+        )
+        funding_source = FundingSource.objects.create(
+            code="DAK-APPROVE", name="DAK Approve"
+        )
+        Receiving.objects.create(
+            receiving_type=Receiving.ReceivingType.PROCUREMENT,
+            receiving_date="2026-04-03",
+            sumber_dana=funding_source,
+            status=Receiving.Status.SUBMITTED,
+            is_planned=True,
+            created_by=kepala_user,
+        )
+        Receiving.objects.create(
+            receiving_type=Receiving.ReceivingType.PROCUREMENT,
+            receiving_date="2026-04-03",
+            sumber_dana=funding_source,
+            status=Receiving.Status.APPROVED,
+            is_planned=True,
+            created_by=kepala_user,
+        )
+
+        request = self.factory.get("/")
+        request.user = kepala_user
+        context = nav_notifications(request)
+
+        self.assertEqual(context["nav_notification_count"], 1)
+
+    def test_receiving_notifications_for_operate_scope_exclude_submitted(self):
+        operator_user = User.objects.create_user(
+            username="nav-operator",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        self._set_scope(
+            operator_user, ModuleAccess.Module.RECEIVING, ModuleAccess.Scope.OPERATE
+        )
+        funding_source = FundingSource.objects.create(
+            code="DAK-OPERATE", name="DAK Operate"
+        )
+        Receiving.objects.create(
+            receiving_type=Receiving.ReceivingType.PROCUREMENT,
+            receiving_date="2026-04-03",
+            sumber_dana=funding_source,
+            status=Receiving.Status.SUBMITTED,
+            is_planned=True,
+            created_by=operator_user,
+        )
+        Receiving.objects.create(
+            receiving_type=Receiving.ReceivingType.PROCUREMENT,
+            receiving_date="2026-04-03",
+            sumber_dana=funding_source,
+            status=Receiving.Status.APPROVED,
+            is_planned=True,
+            created_by=operator_user,
+        )
+
+        request = self.factory.get("/")
+        request.user = operator_user
+        context = nav_notifications(request)
+
+        self.assertEqual(context["nav_notification_count"], 1)
+
+    def test_verified_regular_receiving_does_not_show_when_only_plan_is_actionable(self):
+        operator_user = User.objects.create_user(
+            username="nav-operator-plan",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        self._set_scope(
+            operator_user, ModuleAccess.Module.RECEIVING, ModuleAccess.Scope.OPERATE
+        )
+        funding_source = FundingSource.objects.create(
+            code="DAK-PLANONLY", name="DAK Plan Only"
+        )
+        Receiving.objects.create(
+            receiving_type=Receiving.ReceivingType.GRANT,
+            receiving_date="2026-04-03",
+            sumber_dana=funding_source,
+            status=Receiving.Status.VERIFIED,
+            is_planned=False,
+            created_by=operator_user,
+        )
+        Receiving.objects.create(
+            receiving_type=Receiving.ReceivingType.PROCUREMENT,
+            receiving_date="2026-04-03",
+            sumber_dana=funding_source,
+            status=Receiving.Status.APPROVED,
+            is_planned=True,
+            created_by=operator_user,
+        )
+
+        request = self.factory.get("/")
+        request.user = operator_user
+        context = nav_notifications(request)
+
+        self.assertTrue(
+            any(
+                item["label"] == "Rencana Penerimaan" and item["count"] == 1
+                for item in context["nav_notification_items"]
+            )
+        )
+        self.assertFalse(
+            any(item["label"] == "Penerimaan" for item in context["nav_notification_items"])
+        )
 
     def test_admin_user_gets_module_summary_items(self):
         admin_user = User.objects.create_user(

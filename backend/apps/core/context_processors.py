@@ -15,7 +15,7 @@ def nav_notifications(request):
     if not user or not user.is_authenticated:
         return {"nav_notification_count": 0, "nav_notification_items": []}
 
-    from apps.users.access import has_module_scope
+    from apps.users.access import get_user_module_scope
     from apps.users.models import ModuleAccess, User
 
     if user.role == User.Role.PUSKESMAS:
@@ -34,35 +34,60 @@ def nav_notifications(request):
                 }
             )
 
-    if has_module_scope(user, ModuleAccess.Module.RECEIVING, ModuleAccess.Scope.VIEW):
+    receiving_scope = get_user_module_scope(user, ModuleAccess.Module.RECEIVING)
+    distribution_scope = get_user_module_scope(user, ModuleAccess.Module.DISTRIBUTION)
+    recall_scope = get_user_module_scope(user, ModuleAccess.Module.RECALL)
+    expired_scope = get_user_module_scope(user, ModuleAccess.Module.EXPIRED)
+    stock_opname_scope = get_user_module_scope(user, ModuleAccess.Module.STOCK_OPNAME)
+    puskesmas_scope = get_user_module_scope(user, ModuleAccess.Module.PUSKESMAS)
+    lplpo_scope = get_user_module_scope(user, ModuleAccess.Module.LPLPO)
+
+    if receiving_scope >= ModuleAccess.Scope.OPERATE:
         from apps.receiving.models import Receiving
 
-        count = Receiving.objects.filter(
-            status__in=[
-                Receiving.Status.SUBMITTED,
-                Receiving.Status.APPROVED,
-                Receiving.Status.PARTIAL,
-            ]
-        ).count()
-        add_notification_item(
-            "Penerimaan",
-            count,
-            reverse("receiving:receiving_list"),
-            "bi-inbox-fill",
-        )
+        receiving_statuses = []
+        if receiving_scope >= ModuleAccess.Scope.APPROVE:
+            receiving_statuses.append(Receiving.Status.SUBMITTED)
+        if receiving_scope in (ModuleAccess.Scope.OPERATE, ModuleAccess.Scope.MANAGE):
+            receiving_statuses.extend(
+                [Receiving.Status.APPROVED, Receiving.Status.PARTIAL]
+            )
 
-    if has_module_scope(
-        user, ModuleAccess.Module.DISTRIBUTION, ModuleAccess.Scope.VIEW
-    ):
+        if receiving_statuses:
+            planned_count = Receiving.objects.filter(
+                is_planned=True,
+                status__in=receiving_statuses,
+            ).count()
+            add_notification_item(
+                "Rencana Penerimaan",
+                planned_count,
+                reverse("receiving:receiving_plan_list"),
+                "bi-clipboard-check",
+            )
+
+            regular_count = Receiving.objects.filter(
+                is_planned=False,
+                status__in=receiving_statuses,
+            ).count()
+            add_notification_item(
+                "Penerimaan",
+                regular_count,
+                reverse("receiving:receiving_list"),
+                "bi-inbox-fill",
+            )
+
+    if distribution_scope >= ModuleAccess.Scope.OPERATE:
         from apps.distribution.models import Distribution
 
-        base_qs = Distribution.objects.filter(
-            status__in=[
-                Distribution.Status.SUBMITTED,
-                Distribution.Status.VERIFIED,
-                Distribution.Status.PREPARED,
-            ]
-        )
+        distribution_statuses = []
+        if distribution_scope >= ModuleAccess.Scope.APPROVE:
+            distribution_statuses.append(Distribution.Status.SUBMITTED)
+        if distribution_scope in (ModuleAccess.Scope.OPERATE, ModuleAccess.Scope.MANAGE):
+            distribution_statuses.extend(
+                [Distribution.Status.VERIFIED, Distribution.Status.PREPARED]
+            )
+
+        base_qs = Distribution.objects.filter(status__in=distribution_statuses)
         add_notification_item(
             "Distribusi dari LPLPO",
             base_qs.filter(
@@ -88,7 +113,7 @@ def nav_notifications(request):
             "bi-box-arrow-up-right",
         )
 
-    if has_module_scope(user, ModuleAccess.Module.RECALL, ModuleAccess.Scope.VIEW):
+    if recall_scope >= ModuleAccess.Scope.APPROVE:
         from apps.recall.models import Recall
 
         count = Recall.objects.filter(
@@ -101,7 +126,7 @@ def nav_notifications(request):
             "bi-arrow-return-left",
         )
 
-    if has_module_scope(user, ModuleAccess.Module.EXPIRED, ModuleAccess.Scope.VIEW):
+    if expired_scope >= ModuleAccess.Scope.APPROVE:
         from apps.expired.models import Expired
 
         count = Expired.objects.filter(
@@ -114,9 +139,7 @@ def nav_notifications(request):
             "bi-trash",
         )
 
-    if has_module_scope(
-        user, ModuleAccess.Module.STOCK_OPNAME, ModuleAccess.Scope.VIEW
-    ):
+    if stock_opname_scope >= ModuleAccess.Scope.OPERATE:
         from apps.stock_opname.models import StockOpname
 
         count = StockOpname.objects.filter(
@@ -129,7 +152,7 @@ def nav_notifications(request):
             "bi-clipboard-check",
         )
 
-    if has_module_scope(user, ModuleAccess.Module.PUSKESMAS, ModuleAccess.Scope.VIEW):
+    if puskesmas_scope >= ModuleAccess.Scope.APPROVE:
         from apps.puskesmas.models import PuskesmasRequest
 
         count = PuskesmasRequest.objects.filter(
@@ -142,18 +165,17 @@ def nav_notifications(request):
             "bi-file-earmark-arrow-up",
         )
 
-    if has_module_scope(user, ModuleAccess.Module.LPLPO, ModuleAccess.Scope.VIEW):
+    if lplpo_scope >= ModuleAccess.Scope.OPERATE:
         from apps.lplpo.models import LPLPO
 
-        count = LPLPO.objects.filter(
-            status__in=[LPLPO.Status.SUBMITTED, LPLPO.Status.REVIEWED]
-        ).count()
-        add_notification_item(
-            "LPLPO",
-            count,
-            reverse("lplpo:lplpo_list"),
-            "bi-file-earmark-medical",
-        )
+        lplpo_statuses = []
+        if lplpo_scope in (ModuleAccess.Scope.OPERATE, ModuleAccess.Scope.MANAGE):
+            lplpo_statuses.append(LPLPO.Status.SUBMITTED)
+        if lplpo_scope >= ModuleAccess.Scope.APPROVE:
+            lplpo_statuses.append(LPLPO.Status.REVIEWED)
+
+        count = LPLPO.objects.filter(status__in=lplpo_statuses).count() if lplpo_statuses else 0
+        add_notification_item("LPLPO", count, reverse("lplpo:lplpo_list"), "bi-file-earmark-medical")
 
     total = sum(item["count"] for item in notification_items)
     return {
