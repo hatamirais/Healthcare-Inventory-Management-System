@@ -37,6 +37,7 @@
                     <table class="table table-hover table-bordered align-middle">
                         <thead class="table-light text-center">
                             <tr>
+                                <th style="width: 50px;">No</th>
                                 <th>Item Name</th>
                                 <th>Unit</th>
                                 <th>Batch</th>
@@ -51,28 +52,37 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for row in report_data %}
+                            {% if report_data %}
+                                {% regroup report_data by item__kategori__name as category_list %}
+                                {% for category in category_list %}
+                                <tr class="table-secondary fw-bold">
+                                    <td colspan="12">{{ category.grouper|default:"KATEGORI TIDAK DIKETAHUI" }}</td>
+                                </tr>
+                                {% for row in category.list %}
+                                <tr>
+                                    <td class="text-center">{{ forloop.counter }}</td>
+                                    <td>{{ row.item__nama_barang }}</td>
+                                    <td>{{ row.item__satuan__name }}</td>
+                                    <td>{{ row.batch_lot }}</td>
+                                    <td>{% if row.expiry_date %}{{ row.expiry_date|date:"d M Y" }}{% else %}-{% endif %}</td>
+                                    <td>{{ row.sumber_dana__name }}</td>
+                                    <td class="text-end">{{ row.unit_price|floatformat:2 }}</td>
+                                    <td class="text-end">{{ row.initial_stock|floatformat:2 }}</td>
+                                    <td class="text-end">{{ row.received|floatformat:2 }}</td>
+                                    <td class="text-end">{{ row.distributed|floatformat:2 }}</td>
+                                    <td class="text-end">{{ row.expired|floatformat:2 }}</td>
+                                    <td class="text-end fw-bold">{{ row.ending_stock|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% endfor %}
+                            {% else %}
                             <tr>
-                                <td>{{ row.item__nama_barang }}</td>
-                                <td>{{ row.item__satuan__name }}</td>
-                                <td>{{ row.batch_lot }}</td>
-                                <td>{% if row.expiry_date %}{{ row.expiry_date|date:"d M Y" }}{% else %}-{% endif %}</td>
-                                <td>{{ row.sumber_dana__name }}</td>
-                                <td class="text-end">{{ row.unit_price|floatformat:2 }}</td>
-                                <td class="text-end">{{ row.initial_stock|floatformat:2 }}</td>
-                                <td class="text-end">{{ row.received|floatformat:2 }}</td>
-                                <td class="text-end">{{ row.distributed|floatformat:2 }}</td>
-                                <td class="text-end">{{ row.expired|floatformat:2 }}</td>
-                                <td class="text-end fw-bold">{{ row.ending_stock|floatformat:2 }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="11" class="text-center text-muted py-4">
+                                <td colspan="12" class="text-center text-muted py-4">
                                     <i class="bi bi-inbox d-block mb-2" style="font-size: 2rem;"></i>
                                     Tidak ada data untuk periode ini.
                                 </td>
                             </tr>
-                            {% endfor %}
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>

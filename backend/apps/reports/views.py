@@ -27,6 +27,8 @@ def reports_index(request):
 
         # First level query to annotate initial balances and period flows
         qs = Transaction.objects.values(
+            'item__kategori__name',
+            'item__kategori__sort_order',
             'item__nama_barang',
             'item__satuan__name',
             'batch_lot',
@@ -90,7 +92,7 @@ def reports_index(request):
                 ),
                 0, output_field=models.DecimalField()
             )
-        ).order_by('item__nama_barang', 'batch_lot')
+        ).order_by('item__kategori__sort_order', 'item__kategori__name', 'item__nama_barang', 'batch_lot')
         
         # We need a second annotate step (or list comprehension) to properly add ending_stock safely.
         # F-expressions mapped over coalesced outputs in annotate chaining sometimes act up on PostgreSQL.
