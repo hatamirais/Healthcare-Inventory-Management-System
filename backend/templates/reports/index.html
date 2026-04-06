@@ -3,8 +3,109 @@
 {% block title %}Laporan — Healthcare IMS{% endblock %}
 {% block page_title %}Laporan Persediaan/Stok{% endblock %}
 
+{% block extra_css %}
+<style>
+    .report-print-sheet {
+        color: #111;
+        font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .report-print-header {
+        display: flex;
+        align-items: center;
+        border-bottom: 3px double #111;
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+    }
+    .report-print-logo {
+        width: 80px;
+        height: 100px;
+        background-color: #f8f9fa;
+        border: 2px dashed #ccc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 11px;
+        color: #666;
+        margin-right: 20px;
+        font-weight: bold;
+    }
+    .report-print-title {
+        flex-grow: 1;
+        text-align: center;
+        line-height: 1.35;
+    }
+    .report-print-title h4 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 18px;
+    }
+    .report-print-title h5 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 20px;
+    }
+    .report-print-title p {
+        margin: 0;
+        font-size: 13px;
+    }
+    .report-print-meta {
+        text-align: center;
+        margin-bottom: 20px;
+        font-weight: 700;
+        font-size: 16px;
+    }
+    .report-signatures {
+        margin-top: 50px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+    }
+    .report-sign-box {
+        width: 250px;
+        text-align: center;
+    }
+    .report-sign-name {
+        margin-top: 80px;
+        font-weight: 700;
+        text-decoration: underline;
+    }
+    
+    @media print {
+        .main-content {
+            padding: 0 !important;
+        }
+        .report-print-sheet {
+            max-width: none;
+            padding: 0 5mm;
+        }
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+        .card-body {
+            padding: 0 !important;
+        }
+        /* Make table headers print correctly */
+        .table-light th {
+            background-color: #f8f9fa !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+        .table-secondary td {
+            background-color: #e2e3e5 !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+        @page {
+            size: landscape;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row mb-4">
+<div class="row mb-4 d-print-none">
     <div class="col-12">
         <div class="card shadow-sm border-0">
             <div class="card-body bg-light">
@@ -17,15 +118,37 @@
                         {{ form.end_date.label_tag }}
                         {{ form.end_date }}
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-6">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-filter"></i> Terapkan Filter
                         </button>
                         <a href="{% url 'reports:index' %}" class="btn btn-outline-secondary">Reset</a>
+                        <button type="button" class="btn btn-dark ms-2" onclick="window.print()">
+                            <i class="bi bi-printer"></i> Cetak Laporan
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
+    </div>
+</div>
+
+<div class="d-none d-print-block report-print-sheet">
+    <div class="report-print-header">
+        <div class="report-print-logo">
+            [LOGO<br>INSTANSI]
+        </div>
+        <div class="report-print-title">
+            <h4>[NAMA PEMERINTAH DAERAH / KOTA]</h4>
+            <h5>[NAMA FASILITAS KESEHATAN / INSTALASI FARMASI]</h5>
+            <p>[Alamat Instansi / Kop Surat]</p>
+        </div>
+        <div style="width: 100px;"></div> <!-- Spacer for balancing logo visually -->
+    </div>
+    
+    <div class="report-print-meta">
+        LAPORAN PERSEDIAAN OBAT DAN PERBEKALAN KESEHATAN<br>
+        PERIODE: {{ form.start_date.value|default:"-" }} s/d {{ form.end_date.value|default:"-" }}
     </div>
 </div>
 
@@ -88,6 +211,21 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<div class="d-none d-print-flex report-print-sheet justify-content-between mt-5" style="page-break-inside: avoid;">
+    <div class="report-sign-box">
+        Mengetahui,<br>
+        Kepala Instalasi Farmasi
+        <div class="report-sign-name">[Nama Kepala Instalasi]</div>
+        <div>NIP. ........................................</div>
+    </div>
+    <div class="report-sign-box">
+        <br>
+        Petugas Pengelola Obat
+        <div class="report-sign-name">[Nama Petugas]</div>
+        <div>NIP. ........................................</div>
     </div>
 </div>
 {% endblock %}
