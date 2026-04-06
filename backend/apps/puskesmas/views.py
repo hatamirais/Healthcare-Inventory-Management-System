@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from apps.core.decorators import module_scope_required, perm_required
 from apps.distribution.models import Distribution, DistributionItem
+from apps.distribution.services import assign_default_distribution_staff
 from apps.users.models import ModuleAccess
 
 from .forms import (
@@ -265,12 +266,14 @@ def request_approve(request, pk):
                     DistributionItem(
                         distribution=dist,
                         item=item_obj.item,
-                        quantity_requested=qty,
+                        quantity_requested=item_obj.quantity_requested,
+                        quantity_approved=qty,
                         notes=item_obj.notes,
                     )
                     for item_obj, qty in valid_items
                 ]
             )
+            assign_default_distribution_staff(dist, request.user)
 
             req.status = PuskesmasRequest.Status.APPROVED
             req.approved_by = request.user

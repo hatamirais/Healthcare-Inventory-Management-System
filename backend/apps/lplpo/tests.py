@@ -335,6 +335,7 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertEqual(distribution.distribution_type, Distribution.DistributionType.LPLPO)
 		self.assertEqual(distribution.status, Distribution.Status.DRAFT)
 		self.assertEqual(distribution.items.count(), 1)
+		self.assertTrue(distribution.staff_assignments.filter(user=self.superuser).exists())
 
 		line = distribution.items.get()
 		self.assertEqual(line.item, self.item_a)

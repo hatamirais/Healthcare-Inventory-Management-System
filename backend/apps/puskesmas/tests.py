@@ -1,10 +1,13 @@
+from decimal import Decimal
+
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.distribution.models import Distribution
 from apps.items.models import Category, Facility, Item, Unit
 from apps.puskesmas.forms import PuskesmasRequestForm, PuskesmasRequestItemForm
 from apps.puskesmas.models import PuskesmasRequest, PuskesmasRequestItem
-from apps.users.models import User
+from apps.users.models import ModuleAccess, User
 
 
 class PuskesmasRequestFormTests(TestCase):
@@ -167,3 +170,71 @@ class PuskesmasRequestCreateViewTests(TestCase):
 		self.assertEqual(response.status_code, 302)
 		req.refresh_from_db()
 		self.assertEqual(req.facility, self.facility)
+
+
+class PuskesmasRequestApprovalTests(TestCase):
+	def setUp(self):
+		self.unit = Unit.objects.create(code="TAB", name="Tablet")
+		self.category = Category.objects.create(code="OBT", name="Obat", sort_order=1)
+		self.facility = Facility.objects.create(
+			code="PKM-01",
+			name="Puskesmas Satu",
+			facility_type=Facility.FacilityType.PUSKESMAS,
+		)
+		self.item = Item.objects.create(
+			nama_barang="Haloperidol 5 mg",
+			satuan=self.unit,
+			kategori=self.category,
+			is_active=True,
+		)
+		self.requester = User.objects.create_user(
+			username="operator-submit",
+			password="TestPassword123!",
+			role=User.Role.PUSKESMAS,
+			facility=self.facility,
+		)
+		self.approver = User.objects.create_superuser(
+			username="approver-root",
+			email="approver@example.com",
+			password="TestPassword123!",
+		)
+		ModuleAccess.objects.update_or_create(
+			user=self.approver,
+			module=ModuleAccess.Module.PUSKESMAS,
+			defaults={"scope": ModuleAccess.Scope.APPROVE},
+		)
+
+	def test_approve_creates_distribution_with_requested_and_approved_quantities(self):
+		req = PuskesmasRequest.objects.create(
+			facility=self.facility,
+			request_date="2026-04-02",
+			status=PuskesmasRequest.Status.SUBMITTED,
+			created_by=self.requester,
+		)
+		item_line = PuskesmasRequestItem.objects.create(
+			request=req,
+			item=self.item,
+			quantity_requested=Decimal("8.00"),
+		)
+
+		self.client.force_login(self.approver)
+		response = self.client.post(
+			reverse("puskesmas:request_approve", args=[req.pk]),
+			{
+				f"approve_{item_line.pk}-quantity_approved": "5.00",
+			},
+		)
+
+		self.assertEqual(response.status_code, 302)
+		req.refresh_from_db()
+		distribution = req.distribution
+		self.assertIsNotNone(distribution)
+		self.assertEqual(
+			distribution.distribution_type,
+			Distribution.DistributionType.SPECIAL_REQUEST,
+		)
+		self.assertTrue(distribution.staff_assignments.filter(user=self.approver).exists())
+
+		line = distribution.items.get()
+		self.assertEqual(line.quantity_requested, Decimal("8.00"))
+		self.assertEqual(line.quantity_approved, Decimal("5.00"))

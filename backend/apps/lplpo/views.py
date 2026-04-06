@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from apps.core.decorators import module_scope_required, perm_required
 from apps.distribution.models import Distribution, DistributionItem
+from apps.distribution.services import assign_default_distribution_staff
 from apps.items.models import Item
 from apps.stock.models import Stock
 from apps.users.models import ModuleAccess
@@ -581,6 +582,7 @@ def lplpo_finalize(request, pk):
                     for li in items_with_pemberian
                 ]
             )
+            assign_default_distribution_staff(dist, request.user)
 
             lplpo_obj.distribution = dist
             lplpo_obj.status = LPLPO.Status.DISTRIBUTED
