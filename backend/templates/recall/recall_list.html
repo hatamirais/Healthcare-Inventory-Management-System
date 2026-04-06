@@ -17,10 +17,9 @@
             <input type="text" name="q" class="form-control" placeholder="Cari no. dokumen / supplier..." value="{{ search }}">
             <select name="status" class="form-select">
                 <option value="">Semua Status</option>
-                <option value="DRAFT" {{ status_draft }}>Draft</option>
-                <option value="SUBMITTED" {{ status_submitted }}>Diajukan</option>
-                <option value="VERIFIED" {{ status_verified }}>Terverifikasi</option>
-                <option value="COMPLETED" {{ status_completed }}>Selesai</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
             </select>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-search"></i></button>
@@ -31,10 +30,9 @@
         </form>
         <div class="mt-2 status-legend">
             <span class="label">Status:</span>
-            <span class="badge-status badge-draft">Draft</span>
-            <span class="badge-status badge-submitted">Diajukan</span>
-            <span class="badge-status badge-verified">Terverifikasi</span>
-            <span class="badge-status badge-distributed">Selesai</span>
+            {% for value, label in status_choices %}
+            <span class="badge-status badge-{{ value|lower }}{% if value == 'COMPLETED' %} badge-distributed{% endif %}">{{ label }}</span>
+            {% endfor %}
         </div>
     </div>
 

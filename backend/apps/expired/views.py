@@ -38,12 +38,7 @@ def expired_list(request):
             "expired_items": items,
             "search": search,
             "selected_status": status or "",
-            "status_draft": "selected" if status == Expired.Status.DRAFT else "",
-            "status_submitted": "selected"
-            if status == Expired.Status.SUBMITTED
-            else "",
-            "status_verified": "selected" if status == Expired.Status.VERIFIED else "",
-            "status_disposed": "selected" if status == Expired.Status.DISPOSED else "",
+            "status_choices": Expired.Status.choices,
         },
     )
 
@@ -429,6 +424,70 @@ def expired_dispose(request, pk):
     )
     messages.success(
         request, f"Dokumen {expired_doc.document_number} ditandai dimusnahkan."
+    )
+    return redirect("expired:expired_detail", pk=pk)
+
+
+@login_required
+@perm_required("expired.change_expired")
+def expired_reset_to_draft(request, pk):
+    expired_doc = get_object_or_404(Expired, pk=pk)
+    if request.method != "POST":
+        return redirect("expired:expired_detail", pk=pk)
+
+    if expired_doc.status == Expired.Status.SUBMITTED:
+        expired_doc.status = Expired.Status.DRAFT
+        expired_doc.save(update_fields=["status", "updated_at"])
+        messages.success(
+            request,
+            f"Dokumen {expired_doc.document_number} dikembalikan ke Draft.",
+        )
+        return redirect("expired:expired_detail", pk=pk)
+
+    if expired_doc.status in {Expired.Status.VERIFIED, Expired.Status.DISPOSED}:
+        messages.error(
+            request,
+            "Dokumen yang sudah memotong stok tidak dapat dikembalikan ke Draft.",
+        )
+        return redirect("expired:expired_detail", pk=pk)
+
+    messages.error(request, "Status dokumen saat ini tidak dapat dikembalikan ke Draft.")
+    return redirect("expired:expired_detail", pk=pk)
+
+
+@login_required
+@perm_required("expired.change_expired")
+def expired_step_back(request, pk):
+    expired_doc = get_object_or_404(Expired, pk=pk)
+    if request.method != "POST":
+        return redirect("expired:expired_detail", pk=pk)
+
+    if expired_doc.status == Expired.Status.SUBMITTED:
+        expired_doc.status = Expired.Status.DRAFT
+        expired_doc.save(update_fields=["status", "updated_at"])
+    elif expired_doc.status == Expired.Status.DISPOSED:
+        expired_doc.status = Expired.Status.VERIFIED
+        expired_doc.disposed_by = None
+        expired_doc.disposed_at = None
+        expired_doc.save(
+            update_fields=["status", "disposed_by", "disposed_at", "updated_at"]
+        )
+    else:
+        if expired_doc.status == Expired.Status.VERIFIED:
+            messages.error(
+                request,
+                "Dokumen terverifikasi tidak dapat dikembalikan ke status sebelumnya karena stok sudah diperbarui.",
+            )
+        else:
+            messages.error(
+                request,
+                "Status dokumen saat ini tidak memiliki status sebelumnya.",
+            )
+        return redirect("expired:expired_detail", pk=pk)
+
+    messages.success(
+        request,
+        f"Dokumen {expired_doc.document_number} dikembalikan ke status {expired_doc.get_status_display()}.",
     )
     return redirect("expired:expired_detail", pk=pk)
 

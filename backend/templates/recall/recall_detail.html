@@ -70,11 +70,32 @@
                     <i class="bi bi-patch-check me-1"></i>Verifikasi
                 </button>
             </form>
+            <form method="post" action="{% url 'recall:recall_reset_to_draft' recall.pk %}" onsubmit="return confirm('Kembalikan recall ini ke Draft?')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-warning btn-sm">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Kembalikan ke Draft
+                </button>
+            </form>
             {% elif recall.status == 'VERIFIED' %}
             <form method="post" action="{% url 'recall:recall_complete' recall.pk %}" onsubmit="return confirm('Tandai recall ini selesai?')">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-success btn-sm">
                     <i class="bi bi-check2-circle me-1"></i>Tandai Selesai
+                </button>
+            </form>
+            {% elif recall.status == 'COMPLETED' %}
+            <form method="post" action="{% url 'recall:recall_step_back' recall.pk %}" onsubmit="return confirm('Kembalikan status recall ke Terverifikasi?')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left-circle me-1"></i>Kembali ke Terverifikasi
+                </button>
+            </form>
+            {% endif %}
+            {% if recall.status == 'SUBMITTED' %}
+            <form method="post" action="{% url 'recall:recall_step_back' recall.pk %}" onsubmit="return confirm('Kembalikan recall ini ke status sebelumnya?')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left-circle me-1"></i>Kembali ke status sebelumnya
                 </button>
             </form>
             {% endif %}

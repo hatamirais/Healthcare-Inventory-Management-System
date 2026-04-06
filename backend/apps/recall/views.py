@@ -40,10 +40,7 @@ def recall_list(request):
             "recalls": recalls,
             "search": search,
             "selected_status": status or "",
-            "status_draft": "selected" if status == Recall.Status.DRAFT else "",
-            "status_submitted": "selected" if status == Recall.Status.SUBMITTED else "",
-            "status_verified": "selected" if status == Recall.Status.VERIFIED else "",
-            "status_completed": "selected" if status == Recall.Status.COMPLETED else "",
+            "status_choices": Recall.Status.choices,
         },
     )
 
@@ -254,6 +251,67 @@ def recall_complete(request, pk):
     recall.completed_at = timezone.now()
     recall.save(update_fields=["status", "completed_by", "completed_at", "updated_at"])
     messages.success(request, f"Recall {recall.document_number} ditandai selesai.")
+    return redirect("recall:recall_detail", pk=pk)
+
+
+@login_required
+@perm_required("recall.change_recall")
+def recall_reset_to_draft(request, pk):
+    recall = get_object_or_404(Recall, pk=pk)
+    if request.method != "POST":
+        return redirect("recall:recall_detail", pk=pk)
+
+    if recall.status == Recall.Status.SUBMITTED:
+        recall.status = Recall.Status.DRAFT
+        recall.save(update_fields=["status", "updated_at"])
+        messages.success(request, f"Recall {recall.document_number} dikembalikan ke Draft.")
+        return redirect("recall:recall_detail", pk=pk)
+
+    if recall.status in {Recall.Status.VERIFIED, Recall.Status.COMPLETED}:
+        messages.error(
+            request,
+            "Recall yang sudah memotong stok tidak dapat dikembalikan ke Draft.",
+        )
+        return redirect("recall:recall_detail", pk=pk)
+
+    messages.error(request, "Status recall saat ini tidak dapat dikembalikan ke Draft.")
+    return redirect("recall:recall_detail", pk=pk)
+
+
+@login_required
+@perm_required("recall.change_recall")
+def recall_step_back(request, pk):
+    recall = get_object_or_404(Recall, pk=pk)
+    if request.method != "POST":
+        return redirect("recall:recall_detail", pk=pk)
+
+    if recall.status == Recall.Status.SUBMITTED:
+        recall.status = Recall.Status.DRAFT
+        recall.save(update_fields=["status", "updated_at"])
+    elif recall.status == Recall.Status.COMPLETED:
+        recall.status = Recall.Status.VERIFIED
+        recall.completed_by = None
+        recall.completed_at = None
+        recall.save(
+            update_fields=["status", "completed_by", "completed_at", "updated_at"]
+        )
+    else:
+        if recall.status == Recall.Status.VERIFIED:
+            messages.error(
+                request,
+                "Recall terverifikasi tidak dapat dikembalikan ke status sebelumnya karena stok sudah diperbarui.",
+            )
+        else:
+            messages.error(
+                request,
+                "Status recall saat ini tidak memiliki status sebelumnya.",
+            )
+        return redirect("recall:recall_detail", pk=pk)
+
+    messages.success(
+        request,
+        f"Recall {recall.document_number} dikembalikan ke status {recall.get_status_display()}.",
+    )
     return redirect("recall:recall_detail", pk=pk)
 
 

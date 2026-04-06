@@ -170,6 +170,44 @@ class RecallWorkflowTest(TestCase):
         recall.refresh_from_db()
         self.assertEqual(recall.status, Recall.Status.SUBMITTED)  # unchanged
 
+    def test_reset_to_draft_from_submitted(self):
+        recall = self._create_recall(status=Recall.Status.SUBMITTED)
+        response = self.client.post(
+            reverse("recall:recall_reset_to_draft", args=[recall.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        recall.refresh_from_db()
+        self.assertEqual(recall.status, Recall.Status.DRAFT)
+
+    def test_reset_to_draft_blocked_for_verified(self):
+        recall = self._create_recall(status=Recall.Status.VERIFIED)
+        response = self.client.post(
+            reverse("recall:recall_reset_to_draft", args=[recall.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        recall.refresh_from_db()
+        self.assertEqual(recall.status, Recall.Status.VERIFIED)
+
+    def test_step_back_completed_to_verified(self):
+        recall = self._create_recall(status=Recall.Status.COMPLETED)
+        recall.completed_by = self.user
+        recall.completed_at = timezone.now()
+        recall.save(update_fields=["completed_by", "completed_at", "updated_at"])
+
+        response = self.client.post(reverse("recall:recall_step_back", args=[recall.pk]))
+        self.assertEqual(response.status_code, 302)
+        recall.refresh_from_db()
+        self.assertEqual(recall.status, Recall.Status.VERIFIED)
+        self.assertIsNone(recall.completed_by)
+        self.assertIsNone(recall.completed_at)
+
+    def test_step_back_blocked_for_verified(self):
+        recall = self._create_recall(status=Recall.Status.VERIFIED)
+        response = self.client.post(reverse("recall:recall_step_back", args=[recall.pk]))
+        self.assertEqual(response.status_code, 302)
+        recall.refresh_from_db()
+        self.assertEqual(recall.status, Recall.Status.VERIFIED)
+
     # --- Edit access ---
 
     def test_edit_allowed_for_draft(self):

@@ -186,6 +186,48 @@ class ExpiredWorkflowTest(TestCase):
         expired_doc.refresh_from_db()
         self.assertEqual(expired_doc.status, Expired.Status.SUBMITTED)  # unchanged
 
+    def test_reset_to_draft_from_submitted(self):
+        expired_doc = self._create_expired(status=Expired.Status.SUBMITTED)
+        response = self.client.post(
+            reverse("expired:expired_reset_to_draft", args=[expired_doc.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        expired_doc.refresh_from_db()
+        self.assertEqual(expired_doc.status, Expired.Status.DRAFT)
+
+    def test_reset_to_draft_blocked_for_verified(self):
+        expired_doc = self._create_expired(status=Expired.Status.VERIFIED)
+        response = self.client.post(
+            reverse("expired:expired_reset_to_draft", args=[expired_doc.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        expired_doc.refresh_from_db()
+        self.assertEqual(expired_doc.status, Expired.Status.VERIFIED)
+
+    def test_step_back_disposed_to_verified(self):
+        expired_doc = self._create_expired(status=Expired.Status.DISPOSED)
+        expired_doc.disposed_by = self.user
+        expired_doc.disposed_at = timezone.now()
+        expired_doc.save(update_fields=["disposed_by", "disposed_at", "updated_at"])
+
+        response = self.client.post(
+            reverse("expired:expired_step_back", args=[expired_doc.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        expired_doc.refresh_from_db()
+        self.assertEqual(expired_doc.status, Expired.Status.VERIFIED)
+        self.assertIsNone(expired_doc.disposed_by)
+        self.assertIsNone(expired_doc.disposed_at)
+
+    def test_step_back_blocked_for_verified(self):
+        expired_doc = self._create_expired(status=Expired.Status.VERIFIED)
+        response = self.client.post(
+            reverse("expired:expired_step_back", args=[expired_doc.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        expired_doc.refresh_from_db()
+        self.assertEqual(expired_doc.status, Expired.Status.VERIFIED)
+
     # --- Edit access ---
 
     def test_edit_allowed_for_draft(self):
