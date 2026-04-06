@@ -1,12 +1,29 @@
 param(
-    [string]$Target = "apps.items",
-    [switch]$NoActivate
+    [string[]]$Target = @("apps.items"),
+    [switch]$NoActivate,
+    [switch]$KeepDb
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Push-Location $repoRoot
+
+function Normalize-TestLabel {
+    param(
+        [string]$Label
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Label)) {
+        return $null
+    }
+
+    if ($Label -match '^apps\.[^.]+$') {
+        return "$Label.tests"
+    }
+
+    return $Label
+}
 
 try {
     if (-not $NoActivate) {
@@ -29,8 +46,26 @@ try {
         exit 1
     }
 
-    python manage.py test $Target
-    exit $LASTEXITCODE
+    $normalizedTargets = @($Target | ForEach-Object { Normalize-TestLabel $_ } | Where-Object { $_ })
+    if ($normalizedTargets.Count -eq 0) {
+        Write-Error "No valid test targets were provided."
+    }
+
+    foreach ($testTarget in $normalizedTargets) {
+        Write-Host "Running tests for $testTarget" -ForegroundColor Cyan
+        $args = @("manage.py", "test", "--noinput")
+        if ($KeepDb) {
+            $args += "--keepdb"
+        }
+        $args += $testTarget
+
+        python @args
+        if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+        }
+    }
+
+    exit 0
 }
 finally {
     Pop-Location
