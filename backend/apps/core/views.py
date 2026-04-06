@@ -4,7 +4,8 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Sum, Q, F, DecimalField, ExpressionWrapper
+from django.db.models import Count, Sum, Q, F, DecimalField, ExpressionWrapper, Value
+from django.db.models.functions import Coalesce
 
 from apps.items.models import Item
 from apps.lplpo.models import LPLPO
@@ -38,16 +39,15 @@ def dashboard(request):
         request_queryset = PuskesmasRequest.objects.filter(
             facility=facility
         ).select_related("program")
+        lplpo_counts = lplpo_queryset.aggregate(
+            draft_lplpo_count=Count("pk", filter=Q(status=LPLPO.Status.DRAFT)),
+            submitted_lplpo_count=Count(
+                "pk", filter=Q(status=LPLPO.Status.SUBMITTED)
+            ),
+            reviewed_lplpo_count=Count("pk", filter=Q(status=LPLPO.Status.REVIEWED)),
+        )
 
         latest_lplpo = lplpo_queryset.order_by("-tahun", "-bulan", "-created_at").first()
-        draft_lplpo_count = lplpo_queryset.filter(status=LPLPO.Status.DRAFT).count()
-        submitted_lplpo_count = lplpo_queryset.filter(
-            status=LPLPO.Status.SUBMITTED
-        ).count()
-        reviewed_lplpo_count = lplpo_queryset.filter(
-            status=LPLPO.Status.REVIEWED
-        ).count()
-
         recent_lplpos = lplpo_queryset.order_by("-tahun", "-bulan", "-created_at")[:5]
         recent_requests = request_queryset.order_by("-request_date", "-created_at")[:5]
 
@@ -56,9 +56,7 @@ def dashboard(request):
             "dashboard_puskesmas.html",
             {
                 "facility": facility,
-                "draft_lplpo_count": draft_lplpo_count,
-                "submitted_lplpo_count": submitted_lplpo_count,
-                "reviewed_lplpo_count": reviewed_lplpo_count,
+                **lplpo_counts,
                 "recent_lplpos": recent_lplpos,
                 "recent_requests": recent_requests,
                 "latest_lplpo": latest_lplpo,
@@ -68,21 +66,27 @@ def dashboard(request):
     today = timezone.now().date()
     three_months_later = today + timedelta(days=90)
     thirty_days_ago = today - timedelta(days=29)
+    zero_decimal = Value(Decimal("0"), output_field=DecimalField(max_digits=18, decimal_places=2))
+    stock_queryset = Stock.objects.filter(quantity__gt=0)
+    stock_totals = stock_queryset.aggregate(
+        total_stock_entries=Count("pk"),
+        total_stock_quantity=Coalesce(Sum("quantity"), zero_decimal),
+        total_stock_value=Coalesce(
+            Sum(
+                ExpressionWrapper(
+                    F("quantity") * F("unit_price"),
+                    output_field=DecimalField(max_digits=18, decimal_places=2),
+                )
+            ),
+            zero_decimal,
+        ),
+    )
 
     # Stats
     total_items = Item.objects.filter(is_active=True).count()
-    total_stock_entries = Stock.objects.filter(quantity__gt=0).count()
-    total_stock_quantity = Stock.objects.filter(quantity__gt=0).aggregate(
-        total=Sum("quantity")
-    )["total"] or Decimal("0")
-    total_stock_value = Stock.objects.filter(quantity__gt=0).aggregate(
-        total=Sum(
-            ExpressionWrapper(
-                F("quantity") * F("unit_price"),
-                output_field=DecimalField(max_digits=18, decimal_places=2),
-            )
-        )
-    ).get("total") or Decimal("0")
+    total_stock_entries = stock_totals["total_stock_entries"]
+    total_stock_quantity = stock_totals["total_stock_quantity"]
+    total_stock_value = stock_totals["total_stock_value"]
 
     # Low stock: items where total stock quantity is below minimum_stock
     low_stock_items = (
@@ -96,27 +100,32 @@ def dashboard(request):
     low_stock_count = low_stock_items.count()
 
     # Expiring soon: stock entries expiring within 3 months
-    expiring_soon = (
-        Stock.objects.filter(
-            quantity__gt=0,
-            expiry_date__lte=three_months_later,
-        )
-        .select_related("item")
-        .order_by("expiry_date")[:10]
-    )
-    expiring_soon_count = Stock.objects.filter(
-        quantity__gt=0,
-        expiry_date__lte=three_months_later,
-    ).count()
+    expiring_soon_queryset = stock_queryset.filter(expiry_date__lte=three_months_later)
+    expiring_soon = expiring_soon_queryset.select_related("item").order_by(
+        "expiry_date"
+    )[:10]
+    expiring_soon_count = expiring_soon_queryset.count()
 
     today_transaction_count = Transaction.objects.filter(created_at__date=today).count()
     tx_last_30_days = Transaction.objects.filter(created_at__date__gte=thirty_days_ago)
-    inbound_30_days = tx_last_30_days.filter(
-        transaction_type=Transaction.TransactionType.IN
-    ).aggregate(total=Sum("quantity"))["total"] or Decimal("0")
-    outbound_30_days = tx_last_30_days.filter(
-        transaction_type=Transaction.TransactionType.OUT
-    ).aggregate(total=Sum("quantity"))["total"] or Decimal("0")
+    tx_summary = tx_last_30_days.aggregate(
+        inbound_30_days=Coalesce(
+            Sum(
+                "quantity",
+                filter=Q(transaction_type=Transaction.TransactionType.IN),
+            ),
+            zero_decimal,
+        ),
+        outbound_30_days=Coalesce(
+            Sum(
+                "quantity",
+                filter=Q(transaction_type=Transaction.TransactionType.OUT),
+            ),
+            zero_decimal,
+        ),
+    )
+    inbound_30_days = tx_summary["inbound_30_days"]
+    outbound_30_days = tx_summary["outbound_30_days"]
     movement_total_30_days = inbound_30_days + outbound_30_days
     if movement_total_30_days > 0:
         inbound_percent_30_days = int((inbound_30_days / movement_total_30_days) * 100)

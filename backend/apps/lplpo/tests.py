@@ -13,67 +13,68 @@ from apps.lplpo.models import LPLPO, LPLPOItem
 
 
 class LPLPOTestCase(TestCase):
-	def setUp(self):
-		self.unit = Unit.objects.create(code="TAB", name="Tablet")
-		self.category = Category.objects.create(code="OBT", name="Obat", sort_order=1)
-		self.funding_source = FundingSource.objects.create(code="DAK", name="DAK")
-		self.location = Location.objects.create(code="GUD", name="Gudang")
-		self.facility = Facility.objects.create(
+	@classmethod
+	def setUpTestData(cls):
+		cls.unit = Unit.objects.create(code="TAB", name="Tablet")
+		cls.category = Category.objects.create(code="OBT", name="Obat", sort_order=1)
+		cls.funding_source = FundingSource.objects.create(code="DAK", name="DAK")
+		cls.location = Location.objects.create(code="GUD", name="Gudang")
+		cls.facility = Facility.objects.create(
 			code="PKM-01",
 			name="Puskesmas Satu",
 			facility_type=Facility.FacilityType.PUSKESMAS,
 		)
-		self.other_facility = Facility.objects.create(
+		cls.other_facility = Facility.objects.create(
 			code="PKM-02",
 			name="Puskesmas Dua",
 			facility_type=Facility.FacilityType.PUSKESMAS,
 		)
-		self.item_a = Item.objects.create(
+		cls.item_a = Item.objects.create(
 			nama_barang="Paracetamol",
-			satuan=self.unit,
-			kategori=self.category,
+			satuan=cls.unit,
+			kategori=cls.category,
 			is_active=True,
 		)
-		self.item_b = Item.objects.create(
+		cls.item_b = Item.objects.create(
 			nama_barang="Amoxicillin",
-			satuan=self.unit,
-			kategori=self.category,
+			satuan=cls.unit,
+			kategori=cls.category,
 			is_active=True,
 		)
-		self.inactive_item = Item.objects.create(
+		cls.inactive_item = Item.objects.create(
 			nama_barang="Item Nonaktif",
-			satuan=self.unit,
-			kategori=self.category,
+			satuan=cls.unit,
+			kategori=cls.category,
 			is_active=False,
 		)
 
-		self.puskesmas_user = User.objects.create_user(
+		cls.puskesmas_user = User.objects.create_user(
 			username="puskesmas",
 			password="TestPassword123!",
 			role=User.Role.PUSKESMAS,
-			facility=self.facility,
+			facility=cls.facility,
 		)
-		self.other_puskesmas_user = User.objects.create_user(
+		cls.other_puskesmas_user = User.objects.create_user(
 			username="puskesmas2",
 			password="TestPassword123!",
 			role=User.Role.PUSKESMAS,
-			facility=self.other_facility,
+			facility=cls.other_facility,
 		)
-		self.staff_user = User.objects.create_user(
+		cls.staff_user = User.objects.create_user(
 			username="staff",
 			password="TestPassword123!",
 			role=User.Role.ADMIN,
 		)
-		self.superuser = User.objects.create_superuser(
+		cls.superuser = User.objects.create_superuser(
 			username="root",
 			email="root@example.com",
 			password="TestPassword123!",
 		)
 
 		for user, scope in (
-			(self.puskesmas_user, ModuleAccess.Scope.OPERATE),
-			(self.other_puskesmas_user, ModuleAccess.Scope.OPERATE),
-			(self.staff_user, ModuleAccess.Scope.MANAGE),
+			(cls.puskesmas_user, ModuleAccess.Scope.OPERATE),
+			(cls.other_puskesmas_user, ModuleAccess.Scope.OPERATE),
+			(cls.staff_user, ModuleAccess.Scope.MANAGE),
 		):
 			ModuleAccess.objects.update_or_create(
 				user=user,

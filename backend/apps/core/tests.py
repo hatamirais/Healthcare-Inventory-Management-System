@@ -49,22 +49,23 @@ class SemanticVersionTests(SimpleTestCase):
 
 
 class DashboardViewTests(TestCase):
-    def setUp(self):
-        self.facility = Facility.objects.create(
+    @classmethod
+    def setUpTestData(cls):
+        cls.facility = Facility.objects.create(
             code="PKM-A",
             name="Puskesmas A",
             facility_type=Facility.FacilityType.PUSKESMAS,
         )
-        self.other_facility = Facility.objects.create(
+        cls.other_facility = Facility.objects.create(
             code="PKM-B",
             name="Puskesmas B",
             facility_type=Facility.FacilityType.PUSKESMAS,
         )
-        self.puskesmas_user = User.objects.create_user(
+        cls.puskesmas_user = User.objects.create_user(
             username="operator-a",
             password="TestPassword123!",
             role=User.Role.PUSKESMAS,
-            facility=self.facility,
+            facility=cls.facility,
         )
 
     def test_puskesmas_dashboard_uses_facility_scoped_template(self):
@@ -100,6 +101,9 @@ class DashboardViewTests(TestCase):
         self.assertTemplateUsed(response, "dashboard_puskesmas.html")
         self.assertEqual(response.context["facility"], self.facility)
         self.assertEqual(response.context["latest_lplpo"], own_lplpo)
+        self.assertEqual(response.context["draft_lplpo_count"], 1)
+        self.assertEqual(response.context["submitted_lplpo_count"], 0)
+        self.assertEqual(response.context["reviewed_lplpo_count"], 0)
         self.assertEqual(list(response.context["recent_lplpos"]), [own_lplpo])
         self.assertEqual(list(response.context["recent_requests"]), [own_request])
         self.assertNotIn(other_lplpo, response.context["recent_lplpos"])
