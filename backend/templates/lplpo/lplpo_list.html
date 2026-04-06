@@ -16,9 +16,11 @@
             <p class="text-muted mb-0">Laporan Pemakaian & Lembar Permintaan Obat fasilitas Anda</p>
             {% endif %}
         </div>
+        {% if request.user.role == 'PUSKESMAS' %}
         <a href="{% url 'lplpo:lplpo_create' %}" class="btn btn-primary" id="create-lplpo-btn">
             <i class="bi bi-plus-lg me-1"></i> Buat LPLPO Baru
         </a>
+        {% endif %}
     </div>
 
     <!-- Filters -->

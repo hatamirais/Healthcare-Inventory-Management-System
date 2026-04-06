@@ -86,6 +86,15 @@ def _check_request_facility_access(request, req):
     return None
 
 
+def _check_puskesmas_request_creator_access(request):
+    if getattr(request.user, "role", None) != "PUSKESMAS":
+        return HttpResponseForbidden(
+            "<h1>403 Forbidden</h1>"
+            "<p>Hanya operator Puskesmas yang dapat membuat permintaan khusus.</p>"
+        )
+    return None
+
+
 # ──────────────────────────── List ────────────────────────────
 
 
@@ -141,6 +150,10 @@ def request_list(request):
 @login_required
 @perm_required("puskesmas.add_puskesmasrequest")
 def request_create(request):
+    denied = _check_puskesmas_request_creator_access(request)
+    if denied:
+        return denied
+
     if request.method == "POST":
         form = PuskesmasRequestForm(request.POST, user=request.user)
         formset = PuskesmasRequestItemFormSet(request.POST, prefix="items")

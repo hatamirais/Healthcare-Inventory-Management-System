@@ -90,6 +90,11 @@ class PuskesmasRequestCreateViewTests(TestCase):
 			role=User.Role.PUSKESMAS,
 			facility=self.facility,
 		)
+		self.staff_user = User.objects.create_user(
+			username="instalasi-admin",
+			password="TestPassword123!",
+			role=User.Role.ADMIN,
+		)
 		self.other_user = User.objects.create_user(
 			username="operator-other",
 			password="TestPassword123!",
@@ -128,6 +133,21 @@ class PuskesmasRequestCreateViewTests(TestCase):
 		req = PuskesmasRequest.objects.get()
 		self.assertEqual(req.facility, self.facility)
 		self.assertEqual(req.created_by, self.user)
+
+	def test_instalasi_farmasi_cannot_create_request(self):
+		self.client.force_login(self.staff_user)
+
+		response = self.client.get(reverse("puskesmas:request_create"))
+
+		self.assertEqual(response.status_code, 403)
+
+	def test_instalasi_farmasi_list_hides_create_button(self):
+		self.client.force_login(self.staff_user)
+
+		response = self.client.get(reverse("puskesmas:request_list"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertNotContains(response, 'Buat Permintaan')
 
 	def test_edit_shows_operator_facility_as_readonly(self):
 		req = PuskesmasRequest.objects.create(

@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import DecimalField, ExpressionWrapper, F, Q, Sum
+from django.http import HttpResponseForbidden
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -46,6 +47,16 @@ def _check_instalasi_farmasi_access(request):
             "Aksi ini hanya tersedia untuk petugas Instalasi Farmasi.",
         )
         return redirect("lplpo:lplpo_my_list")
+    return None
+
+
+def _check_puskesmas_creator_access(request):
+    """Restrict create flow to PUSKESMAS operators only."""
+    if request.user.role != "PUSKESMAS":
+        return HttpResponseForbidden(
+            "<h1>403 Forbidden</h1>"
+            "<p>Hanya operator Puskesmas yang dapat membuat LPLPO.</p>"
+        )
     return None
 
 
@@ -139,6 +150,10 @@ def lplpo_my_list(request):
 @perm_required("lplpo.add_lplpo")
 def lplpo_create(request):
     """Create a new LPLPO for a given period. Auto-generates all item lines."""
+    denied = _check_puskesmas_creator_access(request)
+    if denied:
+        return denied
+
     if request.method == "POST":
         form = LPLPOCreateForm(request.POST, user=request.user)
         if form.is_valid():

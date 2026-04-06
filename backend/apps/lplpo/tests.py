@@ -145,6 +145,21 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 			all(item.pemberian_jumlah == item.jumlah_kebutuhan for item in items)
 		)
 
+	def test_instalasi_farmasi_cannot_create_lplpo(self):
+		self.client.force_login(self.staff_user)
+
+		response = self.client.get(reverse("lplpo:lplpo_create"))
+
+		self.assertEqual(response.status_code, 403)
+
+	def test_instalasi_farmasi_list_hides_create_button(self):
+		self.client.force_login(self.staff_user)
+
+		response = self.client.get(reverse("lplpo:lplpo_list"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertNotContains(response, 'id="create-lplpo-btn"')
+
 	def test_penerimaan_auto_fill(self):
 		self.create_distribution(
 			facility=self.facility,
