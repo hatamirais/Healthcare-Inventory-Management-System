@@ -180,6 +180,19 @@ class DistributionWorkflowTest(TestCase):
         dist.refresh_from_db()
         self.assertEqual(dist.status, Distribution.Status.SUBMITTED)  # unchanged
 
+    def test_verify_insufficient_stock_fails(self):
+        self.stock.quantity = Decimal("10")
+        self.stock.save(update_fields=["quantity", "updated_at"])
+        dist = self._create_distribution(status=Distribution.Status.SUBMITTED)
+
+        response = self.client.post(
+            reverse("distribution:distribution_verify", args=[dist.pk])
+        )
+
+        self.assertEqual(response.status_code, 302)
+        dist.refresh_from_db()
+        self.assertEqual(dist.status, Distribution.Status.SUBMITTED)
+
     # --- Prepare workflow ---
 
     def test_prepare_verified_to_prepared(self):

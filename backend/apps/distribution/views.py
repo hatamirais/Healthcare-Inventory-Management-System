@@ -5,14 +5,17 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 
 from apps.core.decorators import module_scope_required, perm_required
 from apps.users.models import ModuleAccess, User
 
 from .forms import DistributionForm, DistributionItemFormSet
 from .models import Distribution, DistributionItem, DistributionStaffAssignment
-from .services import DistributionWorkflowError, execute_stock_distribution
+from .services import (
+    DistributionWorkflowError,
+    execute_distribution_verification,
+    execute_stock_distribution,
+)
 
 
 def sync_distribution_staff_assignments(distribution, staff_users):
@@ -261,38 +264,12 @@ def distribution_verify(request, pk):
         )
         return redirect("distribution:distribution_detail", pk=pk)
 
-    dist_items = list(dist.items.select_related("item", "stock"))
-    if not dist_items:
-        messages.error(request, "Distribusi tidak memiliki item untuk diverifikasi.")
+    try:
+        execute_distribution_verification(dist, request.user)
+    except DistributionWorkflowError as exc:
+        messages.error(request, str(exc))
         return redirect("distribution:distribution_detail", pk=pk)
 
-    # Validate every item has quantity_approved and stock assigned
-    for di in dist_items:
-        if di.quantity_approved is None or di.quantity_approved <= 0:
-            messages.error(
-                request,
-                f"Item {di.item.nama_barang}: jumlah disetujui harus diisi dan lebih dari 0.",
-            )
-            return redirect("distribution:distribution_detail", pk=pk)
-        if di.stock is None:
-            messages.error(
-                request,
-                f"Item {di.item.nama_barang}: batch stok harus dipilih sebelum verifikasi.",
-            )
-            return redirect("distribution:distribution_detail", pk=pk)
-        # Check stock availability (no deduction yet)
-        if di.quantity_approved > di.stock.available_quantity:
-            messages.error(
-                request,
-                f"Stok tidak cukup untuk {di.item.nama_barang}. "
-                f"Tersedia {di.stock.available_quantity}, disetujui {di.quantity_approved}.",
-            )
-            return redirect("distribution:distribution_detail", pk=pk)
-
-    dist.status = Distribution.Status.VERIFIED
-    dist.verified_by = request.user
-    dist.verified_at = timezone.now()
-    dist.save(update_fields=["status", "verified_by", "verified_at", "updated_at"])
     messages.success(
         request, f"Distribusi {dist.document_number} berhasil diverifikasi."
     )
