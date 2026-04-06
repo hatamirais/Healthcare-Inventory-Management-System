@@ -10,6 +10,10 @@ class DistributionWorkflowError(ValueError):
     pass
 
 
+def _save_distribution(distribution, update_fields):
+    distribution.save(update_fields=[*update_fields, "updated_at"])
+
+
 def _get_distribution_items(distribution, action_label):
     distribution_items = list(distribution.items.select_related("item", "stock"))
     if not distribution_items:
@@ -47,6 +51,21 @@ def assign_default_distribution_staff(distribution, user):
     )
 
 
+def execute_distribution_submission(distribution):
+    if not distribution.items.exists():
+        raise DistributionWorkflowError(
+            "Tambahkan minimal 1 item sebelum mengajukan distribusi."
+        )
+
+    if not distribution.staff_assignments.exists():
+        raise DistributionWorkflowError(
+            "Pilih minimal 1 staf terlibat sebelum mengajukan distribusi."
+        )
+
+    distribution.status = Distribution.Status.SUBMITTED
+    _save_distribution(distribution, ["status"])
+
+
 def execute_distribution_verification(distribution, user):
     distribution_items = _get_distribution_items(distribution, "diverifikasi")
 
@@ -59,7 +78,12 @@ def execute_distribution_verification(distribution, user):
     distribution.status = Distribution.Status.VERIFIED
     distribution.verified_by = user
     distribution.verified_at = timezone.now()
-    distribution.save(update_fields=["status", "verified_by", "verified_at", "updated_at"])
+    _save_distribution(distribution, ["status", "verified_by", "verified_at"])
+
+
+def execute_distribution_preparation(distribution):
+    distribution.status = Distribution.Status.PREPARED
+    _save_distribution(distribution, ["status"])
 
 
 def execute_stock_distribution(distribution, user):
@@ -113,12 +137,65 @@ def execute_stock_distribution(distribution, user):
         distribution.approved_by = user
         distribution.approved_at = processed_at
         distribution.distributed_date = processed_at.date()
-        distribution.save(
-            update_fields=[
+        _save_distribution(
+            distribution,
+            [
                 "status",
                 "approved_by",
                 "approved_at",
                 "distributed_date",
-                "updated_at",
-            ]
+            ],
         )
+
+
+def execute_distribution_rejection(distribution):
+    distribution.status = Distribution.Status.REJECTED
+    _save_distribution(distribution, ["status"])
+
+
+def execute_distribution_reset_to_draft(distribution):
+    distribution.status = Distribution.Status.DRAFT
+    distribution.verified_by = None
+    distribution.verified_at = None
+    distribution.approved_by = None
+    distribution.approved_at = None
+    distribution.distributed_date = None
+    _save_distribution(
+        distribution,
+        [
+            "status",
+            "verified_by",
+            "verified_at",
+            "approved_by",
+            "approved_at",
+            "distributed_date",
+        ],
+    )
+
+
+def get_distribution_step_back_target(distribution):
+    previous_status_map = {
+        Distribution.Status.SUBMITTED: Distribution.Status.DRAFT,
+        Distribution.Status.VERIFIED: Distribution.Status.SUBMITTED,
+        Distribution.Status.PREPARED: Distribution.Status.VERIFIED,
+        Distribution.Status.REJECTED: Distribution.Status.SUBMITTED,
+    }
+    return previous_status_map.get(distribution.status)
+
+
+def execute_distribution_step_back(distribution):
+    previous_status = get_distribution_step_back_target(distribution)
+    if previous_status is None:
+        raise DistributionWorkflowError(
+            "Status distribusi saat ini tidak memiliki status sebelumnya."
+        )
+
+    distribution.status = previous_status
+    update_fields = ["status"]
+
+    if previous_status in {Distribution.Status.DRAFT, Distribution.Status.SUBMITTED}:
+        distribution.verified_by = None
+        distribution.verified_at = None
+        update_fields.extend(["verified_by", "verified_at"])
+
+    _save_distribution(distribution, update_fields)

@@ -13,9 +13,19 @@ from .forms import DistributionForm, DistributionItemFormSet
 from .models import Distribution, DistributionItem, DistributionStaffAssignment
 from .services import (
     DistributionWorkflowError,
+    execute_distribution_preparation,
+    execute_distribution_rejection,
+    execute_distribution_reset_to_draft,
+    execute_distribution_step_back,
+    execute_distribution_submission,
     execute_distribution_verification,
     execute_stock_distribution,
+    get_distribution_step_back_target,
 )
+
+
+def _redirect_distribution_detail(pk):
+    return redirect("distribution:distribution_detail", pk=pk)
 
 
 def sync_distribution_staff_assignments(distribution, staff_users):
@@ -226,28 +236,20 @@ def distribution_detail(request, pk):
 def distribution_submit(request, pk):
     dist = get_object_or_404(Distribution, pk=pk)
     if request.method != "POST":
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
     if dist.status != Distribution.Status.DRAFT:
         messages.error(request, "Hanya distribusi Draft yang dapat diajukan.")
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
-    if not dist.items.exists():
-        messages.error(
-            request, "Tambahkan minimal 1 item sebelum mengajukan distribusi."
-        )
-        return redirect("distribution:distribution_detail", pk=pk)
+    try:
+        execute_distribution_submission(dist)
+    except DistributionWorkflowError as exc:
+        messages.error(request, str(exc))
+        return _redirect_distribution_detail(pk)
 
-    if not dist.staff_assignments.exists():
-        messages.error(
-            request, "Pilih minimal 1 staf terlibat sebelum mengajukan distribusi."
-        )
-        return redirect("distribution:distribution_detail", pk=pk)
-
-    dist.status = Distribution.Status.SUBMITTED
-    dist.save(update_fields=["status", "updated_at"])
     messages.success(request, f"Distribusi {dist.document_number} berhasil diajukan.")
-    return redirect("distribution:distribution_detail", pk=pk)
+    return _redirect_distribution_detail(pk)
 
 
 @login_required
@@ -256,24 +258,24 @@ def distribution_submit(request, pk):
 def distribution_verify(request, pk):
     dist = get_object_or_404(Distribution, pk=pk)
     if request.method != "POST":
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
     if dist.status != Distribution.Status.SUBMITTED:
         messages.error(
             request, "Hanya distribusi berstatus Diajukan yang dapat diverifikasi."
         )
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
     try:
         execute_distribution_verification(dist, request.user)
     except DistributionWorkflowError as exc:
         messages.error(request, str(exc))
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
     messages.success(
         request, f"Distribusi {dist.document_number} berhasil diverifikasi."
     )
-    return redirect("distribution:distribution_detail", pk=pk)
+    return _redirect_distribution_detail(pk)
 
 
 @login_required
@@ -281,16 +283,15 @@ def distribution_verify(request, pk):
 def distribution_prepare(request, pk):
     dist = get_object_or_404(Distribution, pk=pk)
     if request.method != "POST":
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
     if dist.status != Distribution.Status.VERIFIED:
         messages.error(request, "Hanya distribusi terverifikasi yang dapat disiapkan.")
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
-    dist.status = Distribution.Status.PREPARED
-    dist.save(update_fields=["status", "updated_at"])
+    execute_distribution_preparation(dist)
     messages.success(request, f"Distribusi {dist.document_number} ditandai disiapkan.")
-    return redirect("distribution:distribution_detail", pk=pk)
+    return _redirect_distribution_detail(pk)
 
 
 @login_required
@@ -299,25 +300,25 @@ def distribution_distribute(request, pk):
     """Final step: deduct stock and create Transaction(OUT) records."""
     dist = get_object_or_404(Distribution, pk=pk)
     if request.method != "POST":
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
     if dist.status != Distribution.Status.PREPARED:
         messages.error(
             request, "Hanya distribusi berstatus Disiapkan yang dapat didistribusikan."
         )
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
     try:
         execute_stock_distribution(dist, request.user)
     except DistributionWorkflowError as exc:
         messages.error(request, str(exc))
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
     messages.success(
         request,
         f"Distribusi {dist.document_number} berhasil didistribusikan dan stok diperbarui.",
     )
-    return redirect("distribution:distribution_detail", pk=pk)
+    return _redirect_distribution_detail(pk)
 
 
 @login_required
@@ -326,18 +327,17 @@ def distribution_distribute(request, pk):
 def distribution_reject(request, pk):
     dist = get_object_or_404(Distribution, pk=pk)
     if request.method != "POST":
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
     if dist.status != Distribution.Status.SUBMITTED:
         messages.error(
             request, "Hanya distribusi berstatus Diajukan yang dapat ditolak."
         )
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
-    dist.status = Distribution.Status.REJECTED
-    dist.save(update_fields=["status", "updated_at"])
+    execute_distribution_rejection(dist)
     messages.success(request, f"Distribusi {dist.document_number} ditolak.")
-    return redirect("distribution:distribution_detail", pk=pk)
+    return _redirect_distribution_detail(pk)
 
 
 @login_required
@@ -345,7 +345,7 @@ def distribution_reject(request, pk):
 def distribution_reset_to_draft(request, pk):
     dist = get_object_or_404(Distribution, pk=pk)
     if request.method != "POST":
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
     resettable_statuses = {
         Distribution.Status.SUBMITTED,
@@ -365,29 +365,13 @@ def distribution_reset_to_draft(request, pk):
                 request,
                 "Status distribusi saat ini tidak dapat dikembalikan ke Draft.",
             )
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
-    dist.status = Distribution.Status.DRAFT
-    dist.verified_by = None
-    dist.verified_at = None
-    dist.approved_by = None
-    dist.approved_at = None
-    dist.distributed_date = None
-    dist.save(
-        update_fields=[
-            "status",
-            "verified_by",
-            "verified_at",
-            "approved_by",
-            "approved_at",
-            "distributed_date",
-            "updated_at",
-        ]
-    )
+    execute_distribution_reset_to_draft(dist)
     messages.success(
         request, f"Distribusi {dist.document_number} dikembalikan ke Draft."
     )
-    return redirect("distribution:distribution_detail", pk=pk)
+    return _redirect_distribution_detail(pk)
 
 
 @login_required
@@ -395,16 +379,9 @@ def distribution_reset_to_draft(request, pk):
 def distribution_step_back(request, pk):
     dist = get_object_or_404(Distribution, pk=pk)
     if request.method != "POST":
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
-    previous_status_map = {
-        Distribution.Status.SUBMITTED: Distribution.Status.DRAFT,
-        Distribution.Status.VERIFIED: Distribution.Status.SUBMITTED,
-        Distribution.Status.PREPARED: Distribution.Status.VERIFIED,
-        Distribution.Status.REJECTED: Distribution.Status.SUBMITTED,
-    }
-
-    previous_status = previous_status_map.get(dist.status)
+    previous_status = get_distribution_step_back_target(dist)
     if previous_status is None:
         if dist.status == Distribution.Status.DISTRIBUTED:
             messages.error(
@@ -416,23 +393,14 @@ def distribution_step_back(request, pk):
                 request,
                 "Status distribusi saat ini tidak memiliki status sebelumnya.",
             )
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
-    dist.status = previous_status
-
-    update_fields = ["status", "updated_at"]
-
-    if previous_status in {Distribution.Status.DRAFT, Distribution.Status.SUBMITTED}:
-        dist.verified_by = None
-        dist.verified_at = None
-        update_fields.extend(["verified_by", "verified_at"])
-
-    dist.save(update_fields=update_fields)
+    execute_distribution_step_back(dist)
     messages.success(
         request,
         f"Distribusi {dist.document_number} dikembalikan ke status {dist.get_status_display()}.",
     )
-    return redirect("distribution:distribution_detail", pk=pk)
+    return _redirect_distribution_detail(pk)
 
 
 @login_required
@@ -440,7 +408,7 @@ def distribution_step_back(request, pk):
 def distribution_delete(request, pk):
     dist = get_object_or_404(Distribution, pk=pk)
     if request.method != "POST":
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
     deletable_statuses = {
         Distribution.Status.DRAFT,
@@ -452,7 +420,7 @@ def distribution_delete(request, pk):
             request,
             "Hanya distribusi berstatus Draft atau Ditolak yang dapat dihapus.",
         )
-        return redirect("distribution:distribution_detail", pk=pk)
+        return _redirect_distribution_detail(pk)
 
     document_number = dist.document_number
     dist.delete()
