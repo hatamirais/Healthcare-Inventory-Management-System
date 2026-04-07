@@ -24,6 +24,15 @@ erDiagram
         int scope
     }
 
+    SystemSettings {
+        bigint id PK
+        string facility_name
+        text facility_address
+        string facility_phone
+        string header_title
+        string logo
+    }
+
     Unit {
         bigint id PK
         string code

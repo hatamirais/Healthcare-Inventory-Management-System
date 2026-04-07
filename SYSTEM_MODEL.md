@@ -29,7 +29,8 @@ Root route include map from `backend/config/urls.py`:
 - `/` -> dashboard (`apps.core.views.dashboard`)
 - `/admin/` -> Django admin
 - `/login/`, `/logout/`, `/password/change/`, `/password/change/done/`
-- `/users/`, `/items/`, `/stock/`, `/receiving/`, `/distribution/`, `/recall/`, `/expired/`, `/reports/`, `/stock-opname/`, `/puskesmas/`, `/lplpo/`, `/puskesmas/`, `/lplpo/`
+- `/settings/` -> system settings (`apps.core.views.SystemSettingsUpdateView`)
+- `/users/`, `/items/`, `/stock/`, `/receiving/`, `/distribution/`, `/recall/`, `/expired/`, `/reports/`, `/stock-opname/`, `/puskesmas/`, `/lplpo/`
 
 Module highlights:
 
@@ -65,10 +66,14 @@ Role default scopes are seeded in `backend/apps/users/access.py` via `ROLE_DEFAU
 
 This section reflects model code in `backend/apps/*/models.py`.
 
-### 4.1 Shared base
+### 4.1 Shared base & Settings
 
 - `TimeStampedModel` (`apps.core.models`)
   - `created_at`, `updated_at`
+
+- `core.SystemSettings` (`system_settings`)
+  - Singleton model (forced `id=1`) for global dynamic settings.
+  - Fields: `facility_name`, `facility_address`, `facility_phone`, `header_title`, `logo`
 
 ### 4.2 Users and authorization
 

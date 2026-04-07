@@ -54,7 +54,7 @@ If documentation conflicts with code, code is authoritative until docs are corre
 
 ## Active Django Apps
 
-- `core`: shared abstractions and dashboard
+- `core`: shared abstractions, dashboard, and dynamic system settings (logo/headers)
 - `users`: custom user and `ModuleAccess` scope model
 - `items`: master data and item catalog
 - `stock`: stock entries, immutable transactions, stock transfer
