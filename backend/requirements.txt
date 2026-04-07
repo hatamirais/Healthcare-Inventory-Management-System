@@ -18,6 +18,7 @@ gunicorn==25.1.0
 kombu==5.6.2
 openpyxl==3.1.5
 packaging==26.0
+Pillow==11.1.0
 prompt_toolkit==3.0.52
 psycopg2-binary==2.9.11
 python-dateutil==2.9.0.post0

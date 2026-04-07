@@ -35,7 +35,16 @@
     </div>
 
     <h1>LAPORAN SELISIH STOCK OPNAME</h1>
-    <div class="subtitle">Healthcare Inventory Management System</div>
+    <div class="subtitle">
+        {% if system_settings and system_settings.header_title %}
+            {{ system_settings.header_title }}
+        {% endif %}
+        {% if system_settings and system_settings.facility_name %}
+            <br>{{ system_settings.facility_name }}
+        {% else %}
+            Healthcare Inventory Management System
+        {% endif %}
+    </div>
 
     <div class="meta">
         <div>

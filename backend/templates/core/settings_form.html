@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Pengaturan Sistem - {{ system_settings.facility_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Pengaturan Sistem</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Simpan Pengaturan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Informasi</h5>
+            </div>
+            <div class="card-body text-muted small">
+                <p>Pengaturan ini akan digunakan di seluruh aplikasi, termasuk saat mencetak dokumen (Stock Opname, LPLPO, dll).</p>
+                <p><strong>Logo Navbar:</strong> Logo akan diskala otomatis ke tinggi maksimal 32px.</p>
+                <p><strong>Header Laporan:</strong> Digunakan sebagai baris paling atas di kop surat cetak.</p>
+            </div>
+        </div>
+        
+        {% if system_settings.logo %}
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Logo Saat Ini</h5>
+            </div>
+            <div class="card-body text-center">
+                <img src="{{ system_settings.logo.url }}" alt="Logo" class="img-fluid rounded" style="max-height: 150px;">
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

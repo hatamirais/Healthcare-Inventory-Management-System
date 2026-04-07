@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.9.0] - 2026-04-07
+
+### Added
+
+- **Dynamic System Settings**: Introduced a centralized configuration module (`SystemSettings`) allowing administrators to personalize the application profile.
+- **Personalized Dashboard & Headers**: Support for custom facility names, logos, and document header titles that automatically propagate to all printable reports (Stock Opname, LPLPO, and Inventory Reports).
+- **Global Context Integration**: Implemented a global context processor ensuring consistent branding across the entire UI lifecycle.
+
+### Changed
+
+- Refactored all report templates to utilize dynamic system settings instead of hardcoded placeholders.
+- Updated sidebar to include "Pengaturan" module for Admin users.
+
 ## [1.6.1] - 2026-04-03
 
 ### Changed

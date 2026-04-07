@@ -6,6 +6,14 @@ def app_version(_request):
     return {"app_version": settings.APP_VERSION}
 
 
+def system_settings_processor(_request):
+    try:
+        from apps.core.models import SystemSettings
+        return {"system_settings": SystemSettings.get_settings()}
+    except Exception:
+        return {"system_settings": None}
+
+
 def nav_notifications(request):
     """
     Provides notification summary data for the navbar bell dropdown.

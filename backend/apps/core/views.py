@@ -12,7 +12,12 @@ from apps.lplpo.models import LPLPO
 from apps.puskesmas.models import PuskesmasRequest
 from apps.stock.models import Stock, Transaction
 from apps.users.models import User
-
+from django.urls import reverse_lazy
+from django.views.generic.edit import UpdateView
+from django.contrib.auth.mixins import UserPassesTestMixin
+from django.contrib import messages
+from apps.core.models import SystemSettings
+from apps.core.forms import SystemSettingsForm
 
 @login_required
 def dashboard(request):
@@ -160,3 +165,20 @@ def dashboard(request):
             "recent_transactions": recent_transactions,
         },
     )
+
+
+class SystemSettingsUpdateView(UserPassesTestMixin, UpdateView):
+    model = SystemSettings
+    form_class = SystemSettingsForm
+    template_name = "core/settings_form.html"
+    success_url = reverse_lazy('dashboard')
+
+    def test_func(self):
+        return self.request.user.role == User.Role.ADMIN
+
+    def get_object(self, queryset=None):
+        return SystemSettings.get_settings()
+
+    def form_valid(self, form):
+        messages.success(self.request, "Pengaturan sistem berhasil diperbarui.")
+        return super().form_valid(form)

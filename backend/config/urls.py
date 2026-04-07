@@ -4,12 +4,13 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 
-from apps.core.views import dashboard
+from apps.core.views import dashboard, SystemSettingsUpdateView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     # Dashboard (root)
     path("", dashboard, name="dashboard"),
+    path("settings/", SystemSettingsUpdateView.as_view(), name="settings"),
     # Auth
     path("login/", auth_views.LoginView.as_view(), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),

@@ -92,11 +92,17 @@
 <!-- Print Header -->
 <div class="d-none d-print-block report-print-sheet">
     <div class="report-print-header">
-        <div class="report-print-logo">[LOGO<br>INSTANSI]</div>
+        <div class="report-print-logo" style="border: none; background: transparent;">
+            {% if system_settings and system_settings.logo %}
+                <img src="{{ system_settings.logo.url }}" alt="Logo" style="max-width: 100%; max-height: 100%;">
+            {% else %}
+                <div style="border: 2px dashed #ccc; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">[LOGO<br>INSTANSI]</div>
+            {% endif %}
+        </div>
         <div class="report-print-title">
-            <h4>[NAMA PEMERINTAH DAERAH / KOTA]</h4>
-            <h5>[NAMA FASILITAS KESEHATAN / INSTALASI FARMASI]</h5>
-            <p>[Alamat Instansi / Kop Surat]</p>
+            <h4>{{ system_settings.header_title|default:"[NAMA PEMERINTAH DAERAH / KOTA]" }}</h4>
+            <h5>{{ system_settings.facility_name|default:"[NAMA FASILITAS KESEHATAN / INSTALASI FARMASI]" }}</h5>
+            <p>{{ system_settings.facility_address|default:"[Alamat Instansi / Kop Surat]" }}</p>
         </div>
         <div style="width: 100px;"></div>
     </div>

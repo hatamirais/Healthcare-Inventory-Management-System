@@ -20,8 +20,12 @@
         <nav id="sidebar" class="sidebar">
             <div class="sidebar-header">
                 <a href="{% url 'dashboard' %}" class="sidebar-brand">
-                    <i class="bi bi-hospital"></i>
-                    <span>Healthcare IMS</span>
+                    {% if system_settings and system_settings.logo %}
+                        <img src="{{ system_settings.logo.url }}" alt="Logo" style="height: 32px; width: auto;" class="me-2">
+                    {% else %}
+                        <i class="bi bi-hospital"></i>
+                    {% endif %}
+                    <span>{{ system_settings.facility_name|default:"Healthcare IMS" }}</span>
                 </a>
                 <button class="btn btn-link sidebar-toggle d-lg-none" id="sidebarToggle">
                     <i class="bi bi-x-lg"></i>
@@ -220,6 +224,13 @@
                     <i class="bi bi-gear"></i><span>Admin Panel</span>
                 </a>
                 {% endif %}
+                {% endif %}
+
+                {% if user.role == 'ADMIN' %}
+                <div class="sidebar-section-title">Konfigurasi</div>
+                <a href="{% url 'settings' %}" class="sidebar-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}" data-label="Pengaturan">
+                    <i class="bi bi-sliders"></i><span>Pengaturan</span>
+                </a>
                 {% endif %}
             </div>
         </nav>
