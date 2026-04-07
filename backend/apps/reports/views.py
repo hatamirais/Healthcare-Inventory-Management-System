@@ -450,4 +450,59 @@ def reports_kadaluarsa(request):
 
 @login_required
 def reports_pengeluaran(request):
-    return render(request, 'reports/pengeluaran.html')
+    from apps.distribution.models import DistributionItem
+    from .forms import PengeluaranReportFilterForm
+    from .exports import export_pengeluaran_excel
+
+    form = PengeluaranReportFilterForm(request.GET or PengeluaranReportFilterForm.get_default_initial())
+    report_data = []
+
+    if form.is_valid():
+        start_date = form.cleaned_data.get('start_date')
+        end_date = form.cleaned_data.get('end_date')
+        facility = form.cleaned_data.get('facility')
+
+        qs = DistributionItem.objects.filter(
+            distribution__status='DISTRIBUTED',
+            distribution__request_date__range=[start_date, end_date],
+        ).select_related(
+            'distribution', 'distribution__facility',
+            'item', 'item__satuan', 'stock', 'stock__sumber_dana',
+        ).order_by(
+            'distribution__request_date', 'distribution__document_number', 'item__nama_barang',
+        )
+
+        if facility:
+            qs = qs.filter(distribution__facility=facility)
+
+        for di in qs:
+            qty = di.quantity_approved if di.quantity_approved is not None else di.quantity_requested
+            unit_price = di.stock.unit_price if di.stock else 0
+            report_data.append({
+                'document_number': di.distribution.document_number,
+                'request_date': di.distribution.request_date,
+                'facility_name': di.distribution.facility.name if di.distribution.facility else '-',
+                'nama_barang': di.item.nama_barang,
+                'satuan': di.item.satuan.name if di.item.satuan else '-',
+                'batch_lot': di.stock.batch_lot if di.stock else '-',
+                'expiry_date': di.stock.expiry_date if di.stock else None,
+                'sumber_dana': di.stock.sumber_dana.name if di.stock and di.stock.sumber_dana else '-',
+                'unit_price': unit_price,
+                'quantity': qty,
+                'total_price': qty * unit_price,
+            })
+
+        if request.GET.get('format') == 'excel' and report_data:
+            selected_facility_name = facility.name if facility else 'Semua Fasilitas'
+            return export_pengeluaran_excel(report_data, start_date, end_date, selected_facility_name)
+
+    total_quantity = sum(r['quantity'] for r in report_data)
+    total_value = sum(r['total_price'] for r in report_data)
+
+    context = {
+        'form': form,
+        'report_data': report_data,
+        'total_quantity': total_quantity,
+        'total_value': total_value,
+    }
+    return render(request, 'reports/pengeluaran.html', context)

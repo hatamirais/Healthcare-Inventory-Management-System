@@ -385,3 +385,84 @@ def export_kadaluarsa_excel(report_data, start_date, end_date):
         "Laporan_Kadaluarsa",
         headers, col_widths, row_builder,
     )
+
+
+def export_pengeluaran_excel(report_data, start_date, end_date, facility_name='Semua Fasilitas'):
+    """Export the Pengeluaran (distribution) report to Excel."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Laporan Pengeluaran"
+
+    headers = [
+        "No", "No. Dokumen", "Fasilitas", "Nama Barang", "Satuan", "Batch",
+        "Kedaluwarsa", "Sumber Dana", "Harga Satuan (Rp)", "Jumlah", "Total Nilai (Rp)"
+    ]
+    col_widths = [6, 22, 24, 30, 10, 15, 14, 18, 20, 14, 22]
+    col_count = len(headers)
+    last_col = get_column_letter(col_count)
+
+    # Title rows
+    ws.merge_cells(f"A1:{last_col}1")
+    title_cell = ws.cell(row=1, column=1, value="LAPORAN PENGELUARAN / DISTRIBUSI")
+    title_cell.font = Font(bold=True, size=14)
+    title_cell.alignment = Alignment(horizontal="center")
+
+    ws.merge_cells(f"A2:{last_col}2")
+    period_cell = ws.cell(row=2, column=1,
+                          value=f"Periode: {start_date} s/d {end_date} | Fasilitas: {facility_name}")
+    period_cell.font = Font(bold=True, size=11)
+    period_cell.alignment = Alignment(horizontal="center")
+
+    _apply_header_row(ws, 4, headers, col_widths)
+
+    row_num = 5
+    total_qty = 0
+    total_value = 0
+
+    for idx, row in enumerate(report_data, 1):
+        expiry = row.get('expiry_date')
+        if expiry and hasattr(expiry, 'strftime'):
+            expiry = expiry.strftime("%d/%m/%Y")
+        else:
+            expiry = "-"
+        values = [
+            idx,
+            row.get('document_number', ''),
+            row.get('facility_name', ''),
+            row.get('nama_barang', ''),
+            row.get('satuan', ''),
+            row.get('batch_lot', ''),
+            expiry,
+            row.get('sumber_dana', ''),
+            float(row.get('unit_price', 0)),
+            float(row.get('quantity', 0)),
+            float(row.get('total_price', 0)),
+        ]
+        for col_idx, val in enumerate(values, 1):
+            cell = ws.cell(row=row_num, column=col_idx, value=val)
+            cell.border = THIN_BORDER
+            if col_idx >= col_count - 2:
+                cell.number_format = IDR_FORMAT
+                cell.alignment = Alignment(horizontal="right")
+            elif col_idx == 1:
+                cell.alignment = Alignment(horizontal="center")
+        total_qty += float(row.get('quantity', 0))
+        total_value += float(row.get('total_price', 0))
+        row_num += 1
+
+    # Total row
+    for col_idx in range(1, col_count + 1):
+        cell = ws.cell(row=row_num, column=col_idx)
+        cell.font = Font(bold=True)
+        cell.fill = TOTAL_FILL
+        cell.border = THIN_BORDER
+    ws.cell(row=row_num, column=2, value="TOTAL").font = Font(bold=True)
+    qty_cell = ws.cell(row=row_num, column=col_count - 1, value=total_qty)
+    qty_cell.number_format = IDR_FORMAT
+    qty_cell.alignment = Alignment(horizontal="right")
+    val_cell = ws.cell(row=row_num, column=col_count, value=total_value)
+    val_cell.number_format = IDR_FORMAT
+    val_cell.alignment = Alignment(horizontal="right")
+
+    filename = f"Laporan_Pengeluaran_{start_date}_{end_date}.xlsx"
+    return _make_response(wb, filename)

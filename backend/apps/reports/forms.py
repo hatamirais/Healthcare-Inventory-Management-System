@@ -30,3 +30,18 @@ class InventoryReportFilterForm(forms.Form):
             'start_date': start_date,
             'end_date': now
         }
+
+
+class PengeluaranReportFilterForm(InventoryReportFilterForm):
+    facility = forms.ModelChoiceField(
+        label='Fasilitas',
+        queryset=None,
+        required=False,
+        empty_label='Semua Fasilitas',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.items.models import Facility
+        self.fields['facility'].queryset = Facility.objects.filter(is_active=True).order_by('name')
