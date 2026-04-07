@@ -292,11 +292,110 @@ def reports_rekap(request):
 
 @login_required
 def reports_penerimaan_hibah(request):
-    return render(request, 'reports/penerimaan_hibah.html')
+    from apps.receiving.models import ReceivingItem
+    from .exports import export_penerimaan_hibah_excel
+
+    form = InventoryReportFilterForm(request.GET or InventoryReportFilterForm.get_default_initial())
+    report_data = []
+
+    if form.is_valid():
+        start_date = form.cleaned_data.get('start_date')
+        end_date = form.cleaned_data.get('end_date')
+
+        completed_statuses = ['RECEIVED', 'CLOSED', 'VERIFIED']
+
+        qs = ReceivingItem.objects.filter(
+            receiving__receiving_type='GRANT',
+            receiving__receiving_date__range=[start_date, end_date],
+            receiving__status__in=completed_statuses,
+        ).select_related(
+            'receiving', 'receiving__sumber_dana', 'item', 'item__satuan',
+        ).order_by(
+            'receiving__receiving_date', 'receiving__document_number', 'item__nama_barang',
+        )
+
+        for ri in qs:
+            report_data.append({
+                'document_number': ri.receiving.document_number,
+                'receiving_date': ri.receiving.receiving_date,
+                'grant_origin': ri.receiving.grant_origin,
+                'sumber_dana': ri.receiving.sumber_dana.name if ri.receiving.sumber_dana else '-',
+                'nama_barang': ri.item.nama_barang,
+                'satuan': ri.item.satuan.name if ri.item.satuan else '-',
+                'batch_lot': ri.batch_lot,
+                'expiry_date': ri.expiry_date,
+                'unit_price': ri.unit_price,
+                'quantity': ri.quantity,
+                'total_price': ri.quantity * ri.unit_price,
+            })
+
+        if request.GET.get('format') == 'excel' and report_data:
+            return export_penerimaan_hibah_excel(report_data, start_date, end_date)
+
+    total_quantity = sum(r['quantity'] for r in report_data)
+    total_value = sum(r['total_price'] for r in report_data)
+
+    context = {
+        'form': form,
+        'report_data': report_data,
+        'total_quantity': total_quantity,
+        'total_value': total_value,
+    }
+    return render(request, 'reports/penerimaan_hibah.html', context)
 
 @login_required
 def reports_pengadaan(request):
-    return render(request, 'reports/pengadaan.html')
+    from apps.receiving.models import ReceivingItem
+    from .exports import export_pengadaan_excel
+
+    form = InventoryReportFilterForm(request.GET or InventoryReportFilterForm.get_default_initial())
+    report_data = []
+
+    if form.is_valid():
+        start_date = form.cleaned_data.get('start_date')
+        end_date = form.cleaned_data.get('end_date')
+
+        completed_statuses = ['RECEIVED', 'CLOSED', 'VERIFIED']
+
+        qs = ReceivingItem.objects.filter(
+            receiving__receiving_type='PROCUREMENT',
+            receiving__receiving_date__range=[start_date, end_date],
+            receiving__status__in=completed_statuses,
+        ).select_related(
+            'receiving', 'receiving__supplier', 'receiving__sumber_dana',
+            'item', 'item__satuan',
+        ).order_by(
+            'receiving__receiving_date', 'receiving__document_number', 'item__nama_barang',
+        )
+
+        for ri in qs:
+            report_data.append({
+                'document_number': ri.receiving.document_number,
+                'receiving_date': ri.receiving.receiving_date,
+                'supplier': ri.receiving.supplier.name if ri.receiving.supplier else '-',
+                'sumber_dana': ri.receiving.sumber_dana.name if ri.receiving.sumber_dana else '-',
+                'nama_barang': ri.item.nama_barang,
+                'satuan': ri.item.satuan.name if ri.item.satuan else '-',
+                'batch_lot': ri.batch_lot,
+                'expiry_date': ri.expiry_date,
+                'unit_price': ri.unit_price,
+                'quantity': ri.quantity,
+                'total_price': ri.quantity * ri.unit_price,
+            })
+
+        if request.GET.get('format') == 'excel' and report_data:
+            return export_pengadaan_excel(report_data, start_date, end_date)
+
+    total_quantity = sum(r['quantity'] for r in report_data)
+    total_value = sum(r['total_price'] for r in report_data)
+
+    context = {
+        'form': form,
+        'report_data': report_data,
+        'total_quantity': total_quantity,
+        'total_value': total_value,
+    }
+    return render(request, 'reports/pengadaan.html', context)
 
 @login_required
 def reports_kadaluarsa(request):

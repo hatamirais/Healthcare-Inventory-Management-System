@@ -219,3 +219,134 @@ def export_rekap_excel(rekap_data, grand_totals, start_date, end_date):
 
     filename = f"Laporan_Rekap_{start_date}_{end_date}.xlsx"
     return _make_response(wb, filename)
+
+
+def _export_penerimaan_excel(report_data, start_date, end_date, title, filename_prefix,
+                              headers, col_widths, row_builder):
+    """Shared export logic for Penerimaan Hibah and Pengadaan reports."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = title[:31]  # Excel sheet name max 31 chars
+
+    col_count = len(headers)
+    last_col = get_column_letter(col_count)
+
+    # Title rows
+    ws.merge_cells(f"A1:{last_col}1")
+    title_cell = ws.cell(row=1, column=1, value=title)
+    title_cell.font = Font(bold=True, size=14)
+    title_cell.alignment = Alignment(horizontal="center")
+
+    ws.merge_cells(f"A2:{last_col}2")
+    period_cell = ws.cell(row=2, column=1, value=f"Periode: {start_date} s/d {end_date}")
+    period_cell.font = Font(bold=True, size=11)
+    period_cell.alignment = Alignment(horizontal="center")
+
+    _apply_header_row(ws, 4, headers, col_widths)
+
+    row_num = 5
+    total_qty = 0
+    total_value = 0
+
+    for idx, row in enumerate(report_data, 1):
+        values = row_builder(idx, row)
+        for col_idx, val in enumerate(values, 1):
+            cell = ws.cell(row=row_num, column=col_idx, value=val)
+            cell.border = THIN_BORDER
+            # Last two cols are numeric (qty + total Rp), unit_price is third-to-last
+            if col_idx >= col_count - 2:
+                cell.number_format = IDR_FORMAT
+                cell.alignment = Alignment(horizontal="right")
+            elif col_idx == 1:
+                cell.alignment = Alignment(horizontal="center")
+        total_qty += float(row.get('quantity', 0))
+        total_value += float(row.get('total_price', 0))
+        row_num += 1
+
+    # Total row
+    for col_idx in range(1, col_count + 1):
+        cell = ws.cell(row=row_num, column=col_idx)
+        cell.font = Font(bold=True)
+        cell.fill = TOTAL_FILL
+        cell.border = THIN_BORDER
+    ws.cell(row=row_num, column=1, value="").font = Font(bold=True)
+    ws.cell(row=row_num, column=2, value="TOTAL").font = Font(bold=True)
+    qty_cell = ws.cell(row=row_num, column=col_count - 1, value=total_qty)
+    qty_cell.number_format = IDR_FORMAT
+    qty_cell.alignment = Alignment(horizontal="right")
+    val_cell = ws.cell(row=row_num, column=col_count, value=total_value)
+    val_cell.number_format = IDR_FORMAT
+    val_cell.alignment = Alignment(horizontal="right")
+
+    filename = f"{filename_prefix}_{start_date}_{end_date}.xlsx"
+    return _make_response(wb, filename)
+
+
+def export_penerimaan_hibah_excel(report_data, start_date, end_date):
+    """Export the Penerimaan Hibah report to Excel."""
+    headers = [
+        "No", "No. Dokumen", "Nama Barang", "Satuan", "Batch",
+        "Kedaluwarsa", "Harga Satuan (Rp)", "Jumlah Diterima", "Total Nilai (Rp)"
+    ]
+    col_widths = [6, 22, 30, 10, 15, 14, 20, 16, 22]
+
+    def row_builder(idx, row):
+        expiry = row.get('expiry_date')
+        if expiry and hasattr(expiry, 'strftime'):
+            expiry = expiry.strftime("%d/%m/%Y")
+        else:
+            expiry = "-"
+        return [
+            idx,
+            row.get('document_number', ''),
+            row.get('nama_barang', ''),
+            row.get('satuan', ''),
+            row.get('batch_lot', ''),
+            expiry,
+            float(row.get('unit_price', 0)),
+            float(row.get('quantity', 0)),
+            float(row.get('total_price', 0)),
+        ]
+
+    return _export_penerimaan_excel(
+        report_data, start_date, end_date,
+        "LAPORAN PENERIMAAN HIBAH PROVINSI",
+        "Laporan_Penerimaan_Hibah",
+        headers, col_widths, row_builder,
+    )
+
+
+def export_pengadaan_excel(report_data, start_date, end_date):
+    """Export the Penerimaan Pengadaan report to Excel."""
+    headers = [
+        "No", "No. Dokumen", "Supplier", "Nama Barang", "Satuan", "Batch",
+        "Kedaluwarsa", "Harga Satuan (Rp)", "Jumlah Diterima", "Total Nilai (Rp)"
+    ]
+    col_widths = [6, 22, 24, 30, 10, 15, 14, 20, 16, 22]
+
+    def row_builder(idx, row):
+        expiry = row.get('expiry_date')
+        if expiry and hasattr(expiry, 'strftime'):
+            expiry = expiry.strftime("%d/%m/%Y")
+        else:
+            expiry = "-"
+        return [
+            idx,
+            row.get('document_number', ''),
+            row.get('supplier', ''),
+            row.get('nama_barang', ''),
+            row.get('satuan', ''),
+            row.get('batch_lot', ''),
+            expiry,
+            float(row.get('unit_price', 0)),
+            float(row.get('quantity', 0)),
+            float(row.get('total_price', 0)),
+        ]
+
+    return _export_penerimaan_excel(
+        report_data, start_date, end_date,
+        "LAPORAN PENERIMAAN PENGADAAN",
+        "Laporan_Penerimaan_Pengadaan",
+        headers, col_widths, row_builder,
+    )
+
