@@ -115,3 +115,23 @@ def reports_index(request):
         'report_data': report_data
     }
     return render(request, 'reports/index.html', context)
+
+@login_required
+def reports_rekap(request):
+    return render(request, 'reports/rekap.html')
+
+@login_required
+def reports_penerimaan_hibah(request):
+    return render(request, 'reports/penerimaan_hibah.html')
+
+@login_required
+def reports_pengadaan(request):
+    return render(request, 'reports/pengadaan.html')
+
+@login_required
+def reports_kadaluarsa(request):
+    return render(request, 'reports/kadaluarsa.html')
+
+@login_required
+def reports_pengeluaran(request):
+    return render(request, 'reports/pengeluaran.html')

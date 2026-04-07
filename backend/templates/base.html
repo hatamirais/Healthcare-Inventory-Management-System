@@ -164,11 +164,46 @@
 
                 {% if can_view_reports %}
                 <div class="sidebar-section-title">Laporan</div>
-                <a href="{% url 'reports:index' %}"
-                    class="sidebar-link {% if request.resolver_match.app_name == 'reports' %}active{% endif %}"
-                    data-label="Laporan">
+                <button class="sidebar-link sidebar-dropdown-toggle {% if request.resolver_match.app_name == 'reports' %}active{% endif %}"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#sidebar-reports"
+                    aria-expanded="{% if request.resolver_match.app_name == 'reports' %}true{% else %}false{% endif %}"
+                    type="button">
                     <i class="bi bi-bar-chart-line"></i><span>Laporan</span>
-                </a>
+                    <i class="bi bi-chevron-down chevron"></i>
+                </button>
+                <div class="collapse sidebar-submenu {% if request.resolver_match.app_name == 'reports' %}show{% endif %}" id="sidebar-reports">
+                    <a href="{% url 'reports:index' %}"
+                        class="sidebar-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}"
+                        data-label="Persediaan (Rincian)">
+                        <i class="bi bi-card-list"></i><span>Persediaan (Rincian)</span>
+                    </a>
+                    <a href="{% url 'reports:rekap' %}"
+                        class="sidebar-link {% if request.resolver_match.url_name == 'rekap' %}active{% endif %}"
+                        data-label="Persediaan (Rekap)">
+                        <i class="bi bi-journal-check"></i><span>Persediaan (Rekap)</span>
+                    </a>
+                    <a href="{% url 'reports:penerimaan_hibah' %}"
+                        class="sidebar-link {% if request.resolver_match.url_name == 'penerimaan_hibah' %}active{% endif %}"
+                        data-label="Penerimaan Hibah">
+                        <i class="bi bi-box-arrow-in-down"></i><span>Penerimaan Hibah</span>
+                    </a>
+                    <a href="{% url 'reports:pengadaan' %}"
+                        class="sidebar-link {% if request.resolver_match.url_name == 'pengadaan' %}active{% endif %}"
+                        data-label="Pengadaan">
+                        <i class="bi bi-cart-check"></i><span>Pengadaan</span>
+                    </a>
+                    <a href="{% url 'reports:kadaluarsa' %}"
+                        class="sidebar-link {% if request.resolver_match.url_name == 'kadaluarsa' %}active{% endif %}"
+                        data-label="Kadaluarsa">
+                        <i class="bi bi-exclamation-triangle"></i><span>Kadaluarsa</span>
+                    </a>
+                    <a href="{% url 'reports:pengeluaran' %}"
+                        class="sidebar-link {% if request.resolver_match.url_name == 'pengeluaran' %}active{% endif %}"
+                        data-label="Pengeluaran">
+                        <i class="bi bi-box-arrow-up-right"></i><span>Pengeluaran</span>
+                    </a>
+                </div>
                 {% endif %}
 
                 {% if can_view_user_management or can_open_admin_panel %}
