@@ -163,7 +163,7 @@
                         <button type="button" class="btn btn-dark" onclick="window.print()">
                             <i class="bi bi-printer"></i> Cetak Laporan
                         </button>
-                        <button type="button" class="btn btn-success" onclick="exportExcel()">
+                        <button type="submit" name="format" value="excel" class="btn btn-success">
                             <i class="bi bi-file-earmark-excel"></i> Export Excel
                         </button>
                     </div>
@@ -374,11 +374,5 @@ document.addEventListener('DOMContentLoaded', function() {
         filterForm.submit();
     });
 });
-
-function exportExcel() {
-    const params = new URLSearchParams(window.location.search);
-    params.set('format', 'excel');
-    window.location.href = '{% url "reports:rekap" %}?' + params.toString();
-}
 </script>
 {% endblock %}

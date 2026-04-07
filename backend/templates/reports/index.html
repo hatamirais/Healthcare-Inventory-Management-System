@@ -109,7 +109,7 @@
     <div class="col-12">
         <div class="card shadow-sm border-0">
             <div class="card-body bg-light">
-                <form method="get" class="row g-3 align-items-end">
+                <form method="get" id="rincianFilterForm" class="row g-3 align-items-end">
                     <div class="col-md-auto">
                         {{ form.start_date.label_tag }}
                         {{ form.start_date }}
@@ -126,7 +126,7 @@
                         <button type="button" class="btn btn-dark" onclick="window.print()">
                             <i class="bi bi-printer"></i> Cetak Laporan
                         </button>
-                        <button type="button" class="btn btn-success" onclick="exportExcel()">
+                        <button type="submit" name="format" value="excel" class="btn btn-success">
                             <i class="bi bi-file-earmark-excel"></i> Export Excel
                         </button>
                     </div>
@@ -231,14 +231,4 @@
         <div>NIP. ........................................</div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-function exportExcel() {
-    const params = new URLSearchParams(window.location.search);
-    params.set('format', 'excel');
-    window.location.href = '{% url "reports:index" %}?' + params.toString();
-}
-</script>
 {% endblock %}
