@@ -73,6 +73,25 @@ class DistributionForm(forms.ModelForm):
         elif user is not None:
             self.fields["assigned_staff"].initial = [user.pk]
 
+    def clean(self):
+        cleaned_data = super().clean()
+        distribution_type = cleaned_data.get("distribution_type")
+        facility = cleaned_data.get("facility")
+
+        if distribution_type in {
+            Distribution.DistributionType.BORROW_RS,
+            Distribution.DistributionType.SWAP_RS,
+        }:
+            if facility is None:
+                self.add_error("facility", "Rumah sakit tujuan wajib dipilih.")
+            elif facility.facility_type != facility.FacilityType.RS:
+                self.add_error(
+                    "facility",
+                    "Tipe Pinjam RS dan Tukar RS hanya dapat ditujukan ke fasilitas Rumah Sakit.",
+                )
+
+        return cleaned_data
+
 
 class DistributionItemForm(forms.ModelForm):
     class Meta:

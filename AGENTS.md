@@ -58,8 +58,8 @@ If documentation conflicts with code, code is authoritative until docs are corre
 - `users`: custom user and `ModuleAccess` scope model
 - `items`: master data and item catalog
 - `stock`: stock entries, immutable transactions, stock transfer
-- `receiving`: regular and planned receiving flows, plus custom CSV import endpoint in admin
-- `distribution`: outbound distribution workflow
+- `receiving`: regular and planned receiving flows, custom CSV import endpoint in admin, and RS return settlement links via `ReceivingItem.settlement_distribution_item`
+- `distribution`: outbound distribution workflow, including `BORROW_RS` and `SWAP_RS` document types with issued batch/value snapshots on `DistributionItem`
 - `recall`: supplier return workflow
 - `expired`: expired/disposal workflow and alerts page
 - `stock_opname`: physical counting workflow
@@ -92,6 +92,7 @@ Default scopes per role are defined in `backend/apps/users/access.py`.
 - Stock-changing checkpoints happen during workflow actions (verify/prepare/distribute/complete depending on module), not arbitrary model saves.
 - Stock transfer completion writes paired `OUT` and `IN` transactions.
 - Receiving admin CSV import writes `Receiving`, `ReceivingItem`, updates/creates `Stock`, and writes `Transaction(IN)`.
+- RS borrowing/swap follow normal distribution stock-out rules; repayment from Rumah Sakit is recorded as `Receiving(receiving_type=RETURN_RS)` and linked at line level to the originating `DistributionItem`.
 
 ## Documentation Maintenance Contract
 

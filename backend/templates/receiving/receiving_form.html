@@ -53,6 +53,7 @@
                                 <tr>
                                     <th>Barang</th>
                                     <th style="width:100px;">Kuantitas</th>
+                                    <th style="width:220px;">Distribusi RS Asal</th>
                                     <th style="width:120px;">Batch/Lot</th>
                                     <th style="width:140px;">Tanggal Kedaluwarsa</th>
                                     <th style="width:120px;">Harga Satuan</th>
@@ -65,6 +66,7 @@
                                 <tr class="formset-row">
                                     <td>{{ item_form.item }}</td>
                                     <td>{{ item_form.quantity }}</td>
+                                    <td>{{ item_form.settlement_distribution_item }}</td>
                                     <td>{{ item_form.batch_lot }}</td>
                                     <td>{{ item_form.expiry_date }}</td>
                                     <td>{{ item_form.unit_price }}</td>
@@ -77,7 +79,7 @@
                                     </td>
                                     {{ item_form.id }}
                                     {% for error in item_form.errors.values %}
-                                    <tr><td colspan="7" class="text-danger small py-1">{{ error }}</td></tr>
+                                    <tr><td colspan="8" class="text-danger small py-1">{{ error }}</td></tr>
                                     {% endfor %}
                                 </tr>
                                 {% endfor %}
@@ -88,6 +90,7 @@
                         <tr class="formset-row">
                             <td>{{ formset.empty_form.item }}</td>
                             <td>{{ formset.empty_form.quantity }}</td>
+                            <td>{{ formset.empty_form.settlement_distribution_item }}</td>
                             <td>{{ formset.empty_form.batch_lot }}</td>
                             <td>{{ formset.empty_form.expiry_date }}</td>
                             <td>{{ formset.empty_form.unit_price }}</td>

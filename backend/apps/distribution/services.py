@@ -116,6 +116,19 @@ def execute_stock_distribution(distribution, user):
             stock.quantity = stock.quantity - quantity
             stock.save(update_fields=["quantity", "updated_at"])
 
+            distribution_item.issued_batch_lot = stock.batch_lot
+            distribution_item.issued_expiry_date = stock.expiry_date
+            distribution_item.issued_unit_price = stock.unit_price
+            distribution_item.issued_sumber_dana = stock.sumber_dana
+            distribution_item.save(
+                update_fields=[
+                    "issued_batch_lot",
+                    "issued_expiry_date",
+                    "issued_unit_price",
+                    "issued_sumber_dana",
+                ]
+            )
+
             Transaction.objects.create(
                 transaction_type=Transaction.TransactionType.OUT,
                 item=distribution_item.item,

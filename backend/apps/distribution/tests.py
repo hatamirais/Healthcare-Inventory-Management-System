@@ -230,6 +230,12 @@ class DistributionWorkflowTest(TestCase):
         self.assertEqual(txn.quantity, Decimal("40"))
         self.assertEqual(txn.item, self.item)
 
+        distribution_item = dist.items.get()
+        self.assertEqual(distribution_item.issued_batch_lot, "BATCH-D01")
+        self.assertEqual(distribution_item.issued_expiry_date.isoformat(), "2027-12-31")
+        self.assertEqual(distribution_item.issued_unit_price, Decimal("5000"))
+        self.assertEqual(distribution_item.issued_sumber_dana, self.funding_source)
+
     def test_distribute_insufficient_stock_fails(self):
         self.stock.quantity = Decimal("10")
         self.stock.save()
@@ -473,6 +479,31 @@ class DistributionWorkflowTest(TestCase):
 
         dist = Distribution.objects.latest("id")
         self.assertEqual(dist.program, "Imunisasi")
+
+    def test_create_borrow_rs_requires_rs_facility(self):
+        response = self.client.post(
+            reverse("distribution:distribution_create"),
+            {
+                "document_number": "",
+                "distribution_type": Distribution.DistributionType.BORROW_RS,
+                "request_date": "2026-03-11",
+                "facility": self.facility.pk,
+                "notes": "",
+                "assigned_staff": [self.user.pk],
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-item": self.item.pk,
+                "items-0-quantity_requested": "10",
+                "items-0-quantity_approved": "10",
+                "items-0-stock": self.stock.pk,
+                "items-0-notes": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "hanya dapat ditujukan ke fasilitas Rumah Sakit")
 
     def test_edit_distribution_updates_assigned_staff(self):
         dist = self._create_distribution(status=Distribution.Status.DRAFT)

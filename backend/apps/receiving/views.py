@@ -10,6 +10,7 @@ from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
 from apps.core.decorators import module_scope_required, perm_required
+from apps.distribution.models import Distribution, DistributionItem
 from apps.items.models import Supplier, FundingSource
 from apps.stock.models import Stock, Transaction
 from apps.users.models import ModuleAccess
@@ -24,6 +25,64 @@ from .forms import (
     ReceivingCloseForm,
     ReceivingOrderCloseItemFormSet,
 )
+
+
+def _validate_rs_return_items(receiving, formset):
+    if receiving.receiving_type != Receiving.ReceivingType.RETURN_RS:
+        return None
+
+    settlement_totals = {}
+
+    for form in formset.forms:
+        if not hasattr(form, "cleaned_data") or not form.cleaned_data:
+            continue
+        if form.cleaned_data.get("DELETE"):
+            continue
+
+        settlement_item = form.cleaned_data.get("settlement_distribution_item")
+        quantity = form.cleaned_data.get("quantity")
+        item = form.cleaned_data.get("item")
+
+        if settlement_item is None:
+            return "Setiap item Pengembalian RS wajib dikaitkan ke distribusi RS asal."
+        if quantity is None or quantity <= 0:
+            continue
+        if item and settlement_item.item_id != item.id:
+            return "Item pengembalian harus sama dengan item distribusi RS yang dipilih."
+        settlement_totals[settlement_item.pk] = (
+            settlement_totals.get(settlement_item.pk, 0) + quantity
+        )
+
+    if not settlement_totals:
+        return None
+
+    distribution_items = {
+        distribution_item.pk: distribution_item
+        for distribution_item in DistributionItem.objects.select_related(
+            "distribution",
+            "distribution__facility",
+            "item",
+        ).filter(pk__in=settlement_totals.keys())
+    }
+
+    for distribution_item_id, quantity in settlement_totals.items():
+        distribution_item = distribution_items.get(distribution_item_id)
+        if distribution_item is None:
+            return "Distribusi RS asal tidak ditemukan."
+        if distribution_item.distribution.distribution_type not in {
+            Distribution.DistributionType.BORROW_RS,
+            Distribution.DistributionType.SWAP_RS,
+        }:
+            return "Dokumen distribusi yang dipilih bukan distribusi RS yang valid."
+        if distribution_item.distribution.facility_id != receiving.facility_id:
+            return "Distribusi RS asal harus berasal dari rumah sakit yang sama dengan header penerimaan."
+        if quantity > distribution_item.outstanding_quantity:
+            return (
+                f"Jumlah pengembalian untuk {distribution_item.item.nama_barang} melebihi sisa "
+                f"outstanding dokumen {distribution_item.distribution.document_number}."
+            )
+
+    return None
 
 
 @login_required
@@ -116,7 +175,14 @@ def receiving_plan_list(request):
 def receiving_create(request):
     if request.method == "POST":
         form = ReceivingForm(request.POST)
-        formset = ReceivingItemFormSet(request.POST, prefix="items")
+        formset = ReceivingItemFormSet(
+            request.POST,
+            prefix="items",
+            form_kwargs={
+                "receiving_type": request.POST.get("receiving_type"),
+                "receiving_facility_id": request.POST.get("facility") or None,
+            },
+        )
 
         if form.is_valid() and formset.is_valid():
             try:
@@ -127,6 +193,10 @@ def receiving_create(request):
                     receiving.verified_by = request.user
                     receiving.verified_at = timezone.now()
                     receiving.save()
+
+                    rs_return_error = _validate_rs_return_items(receiving, formset)
+                    if rs_return_error:
+                        raise ValueError(rs_return_error)
 
                     formset.instance = receiving
                     receipt_items = formset.save(commit=False)
@@ -166,7 +236,11 @@ def receiving_create(request):
                             reference_type=Transaction.ReferenceType.RECEIVING,
                             reference_id=receiving.pk,
                             user=request.user,
-                            notes=f"Penerimaan reguler {receiving.document_number}",
+                            notes=(
+                                f"Pengembalian RS {receiving.document_number}"
+                                if receiving.receiving_type == Receiving.ReceivingType.RETURN_RS
+                                else f"Penerimaan reguler {receiving.document_number}"
+                            ),
                         )
 
                     for deleted_form in formset.deleted_forms:
@@ -236,12 +310,17 @@ def receiving_plan_create(request):
 def receiving_detail(request, pk):
     receiving = get_object_or_404(
         Receiving.objects.select_related(
-            "supplier", "sumber_dana", "created_by", "verified_by"
+            "supplier", "facility", "sumber_dana", "created_by", "verified_by"
         ),
         pk=pk,
         is_planned=False,
     )
-    items = receiving.items.select_related("item", "item__satuan")
+    items = receiving.items.select_related(
+        "item",
+        "item__satuan",
+        "settlement_distribution_item",
+        "settlement_distribution_item__distribution",
+    )
 
     return render(
         request,

@@ -138,15 +138,16 @@ This section reflects model code in `backend/apps/*/models.py`.
 - `receiving.ReceivingTypeOption` (`receiving_type_options`): `code`, `name`, `is_active`
 
 - `receiving.Receiving` (`receivings`):
-  - Type: `PROCUREMENT`, `GRANT`
+  - Type: `PROCUREMENT`, `GRANT`, `RETURN_RS`
   - Status: `DRAFT`, `SUBMITTED`, `APPROVED`, `PARTIAL`, `RECEIVED`, `CLOSED`, `VERIFIED`
   - Fields: `document_number` (auto-generated `RCV-YYYY-NNNNN` when blank), `receiving_date`, `is_planned`, `grant_origin`, `program`, `closed_reason`, `notes`
-  - FKs: `supplier` (nullable), `sumber_dana`, `created_by`, `verified_by` (nullable), `approved_by` (nullable), `closed_by` (nullable)
+  - FKs: `supplier` (nullable), `facility` (nullable, required for `RETURN_RS`), `sumber_dana`, `created_by`, `verified_by` (nullable), `approved_by` (nullable), `closed_by` (nullable)
   - Index: `idx_recv_status_date`
 
 - `receiving.ReceivingItem` (`receiving_items`):
-  - FKs: `receiving`, `order_item` (nullable), `item`, `location` (nullable), `received_by` (nullable)
+  - FKs: `receiving`, `order_item` (nullable), `item`, `location` (nullable), `settlement_distribution_item` (nullable), `received_by` (nullable)
   - Fields: `quantity`, `batch_lot`, `expiry_date`, `unit_price`, `received_at`, `created_at`
+  - `settlement_distribution_item` is used by `RETURN_RS` to settle outstanding quantities from `BORROW_RS` / `SWAP_RS` documents
 
 - `receiving.ReceivingDocument` (`receiving_documents`):
   - FK: `receiving`
@@ -159,7 +160,7 @@ This section reflects model code in `backend/apps/*/models.py`.
 ### 4.6 Distribution
 
 - `distribution.Distribution` (`distributions`):
-  - Type: `LPLPO`, `ALLOCATION`, `SPECIAL_REQUEST`
+  - Type: `LPLPO`, `ALLOCATION`, `SPECIAL_REQUEST`, `BORROW_RS`, `SWAP_RS`
   - Status: `DRAFT`, `SUBMITTED`, `VERIFIED`, `PREPARED`, `DISTRIBUTED`, `REJECTED`
   - Workflow includes manual reset action back to `DRAFT` from `SUBMITTED`, `VERIFIED`, `PREPARED`, and `REJECTED` (but not from `DISTRIBUTED`)
   - Provides `kepala_instalasi` and `petugas` assignments logic for print outputs
@@ -169,7 +170,9 @@ This section reflects model code in `backend/apps/*/models.py`.
 
 - `distribution.DistributionItem` (`distribution_items`):
   - FKs: `distribution`, `item`, `stock` (nullable)
-  - Fields: `quantity_requested`, `quantity_approved` (nullable), `notes`, `created_at`
+  - Fields: `quantity_requested`, `quantity_approved` (nullable), `issued_batch_lot`, `issued_expiry_date`, `issued_unit_price`, `notes`, `created_at`
+  - FKs also include `issued_sumber_dana` (nullable) to preserve the book-value source used when the RS document was distributed
+  - Outstanding RS quantity is derived from `quantity_approved - sum(receiving_items.quantity)` for linked `settlement_distribution_item` rows
 
 - `distribution.DistributionStaffAssignment` (`distribution_staff_assignments`):
   - FKs: `distribution`, `user`
@@ -252,6 +255,7 @@ This section reflects model code in `backend/apps/*/models.py`.
 Operational mutation points (from app behavior and admin import logic):
 
 - Receiving verify/receive path posts `Transaction(IN)` and updates/creates `Stock`.
+- `Receiving(receiving_type=RETURN_RS)` still posts a normal `Transaction(IN)`, but operationally it also settles the linked RS distribution item rather than pretending to restore the original batch.
 - Receiving CSV admin import (`import-csv/`) posts:
   - `Receiving(status=VERIFIED)`
   - `ReceivingItem`
@@ -261,6 +265,7 @@ Operational mutation points (from app behavior and admin import logic):
 - Distribution (current implementation does **not** use `Stock.reserved`):
   - prepare phase updates document status only (no stock mutation and no `stock.reserved` usage)
   - distribute phase allocates from and decreases `Stock.quantity` and posts `Transaction(OUT)`; any references in other docs (e.g. `.github/copilot-instructions.md`) to FEFO allocation via `Stock.reserved` are obsolete
+  - `BORROW_RS` and `SWAP_RS` use the same stock-out mechanics as other distributions, while preserving issued batch/value snapshots on each `DistributionItem` for settlement and audit visibility
 - Recall verify decreases stock and posts `Transaction(OUT, reference_type=RECALL)`
 - Expired verify decreases stock and posts `Transaction(OUT, reference_type=EXPIRED)`
 - Stock transfer complete posts paired `OUT` and `IN` transfer transactions and adjusts source/destination stock

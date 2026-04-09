@@ -35,8 +35,8 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 
 - `items`: CRUD master barang dan lookup, filter daftar, serta endpoint AJAX untuk pembuatan referensi cepat.
 - `stock`: daftar stok, daftar transaksi, kartu stok, dan alur transfer stok.
-- `receiving`: alur penerimaan reguler dan rencana penerimaan.
-- `distribution`: alur permintaan, verifikasi, persiapan, hingga distribusi dengan penugasan petugas per dokumen.
+- `receiving`: alur penerimaan reguler dan rencana penerimaan, termasuk `Pengembalian RS` dengan tautan settlement ke distribusi RS asal.
+- `distribution`: alur permintaan, verifikasi, persiapan, hingga distribusi dengan penugasan petugas per dokumen, termasuk `Pinjam RS` dan `Tukar RS`.
 - `recall`: alur retur ke supplier dari draft sampai selesai.
 - `expired`: alur penanganan barang kedaluwarsa dari draft sampai disposal, termasuk halaman alert kedaluwarsa.
 - `stock_opname`: proses hitung fisik dan cetak laporan selisih.
@@ -50,7 +50,7 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 ## Ringkasan Workflow
 
 - Receiving terencana: `DRAFT -> SUBMITTED -> APPROVED -> PARTIAL/RECEIVED -> CLOSED`
-- Receiving reguler atau hasil import: umumnya tercatat sebagai `VERIFIED` setelah posting.
+- Receiving reguler atau hasil import: umumnya tercatat sebagai `VERIFIED` setelah posting. `Pengembalian RS` memakai receiving reguler dan wajib ditautkan ke item distribusi RS asal.
 - Distribution: `DRAFT -> SUBMITTED -> VERIFIED -> PREPARED -> DISTRIBUTED`, dapat berakhir `REJECTED`, dan dokumen yang belum terdistribusi dapat dikembalikan ke `DRAFT`.
 - Recall: `DRAFT -> SUBMITTED -> VERIFIED -> COMPLETED`
 - Expired: `DRAFT -> SUBMITTED -> VERIFIED -> DISPOSED`
@@ -65,6 +65,7 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 - Header dokumen: `receivings`, `distributions`, `recalls`, `expired_docs`, `stock_transfers`, `stock_opnames`
 - Baris dokumen: `receiving_items`, `receiving_order_items`, `distribution_items`, `recall_items`, `expired_items`, `stock_transfer_items`, `stock_opname_items`
 - Penugasan petugas distribusi: `distribution_staff_assignments`
+- Settlement pengembalian RS disimpan melalui FK `receiving_items.settlement_distribution_item` ke `distribution_items`
 - Tabel otorisasi: `users`, `user_module_accesses`
 
 Rincian skema kanonis tersedia di `SYSTEM_MODEL.md`.

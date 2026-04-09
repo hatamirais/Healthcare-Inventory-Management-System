@@ -22,6 +22,9 @@
                     <dt class="col-5 text-muted">Supplier</dt>
                     <dd class="col-7">{{ receiving.supplier.name|default:"-" }}</dd>
 
+                    <dt class="col-5 text-muted">Fasilitas</dt>
+                    <dd class="col-7">{{ receiving.facility.name|default:"-" }}</dd>
+
                     <dt class="col-5 text-muted">Sumber Dana</dt>
                     <dd class="col-7">{{ receiving.sumber_dana.code }}</dd>
 
@@ -62,6 +65,7 @@
                                 <th>Batch/Lot</th>
                                 <th>Tanggal Kedaluwarsa</th>
                                 <th class="text-end">Kuantitas</th>
+                                <th>Dokumen RS Asal</th>
                                 <th class="text-end">Harga</th>
                                 <th class="text-end">Subtotal</th>
                             </tr>
@@ -76,6 +80,13 @@
                                 <td>{{ ri.batch_lot|default:"-" }}</td>
                                 <td>{{ ri.expiry_date|date:"d/m/Y"|default:"-" }}</td>
                                 <td class="text-end">{{ ri.quantity }}</td>
+                                <td>
+                                    {% if ri.settlement_distribution_item %}
+                                    {{ ri.settlement_distribution_item.distribution.document_number }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
                                 <td class="text-end">{{ ri.unit_price|floatformat:0 }}</td>
                                 <td class="text-end fw-semibold">{{ ri.total_price|floatformat:0 }}</td>
                             </tr>

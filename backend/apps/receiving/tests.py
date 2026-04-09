@@ -6,7 +6,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.items.models import Category, FundingSource, Item, Location, Unit
+from apps.distribution.models import Distribution, DistributionItem
+from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
 from apps.receiving.admin import ReceivingAdmin
 from apps.receiving.forms import PlannedReceivingForm, ReceivingForm
 from apps.receiving.models import (
@@ -168,6 +169,11 @@ class ReceivingWorkflowCleanupTest(TestCase):
         )
         self.funding = FundingSource.objects.create(code="DAK", name="DAK")
         self.location = Location.objects.create(code="LOC-01", name="Gudang A")
+        self.rs_facility = Facility.objects.create(
+            code="RS-01",
+            name="RSUD Meulaboh",
+            facility_type=Facility.FacilityType.RS,
+        )
 
     def test_regular_receiving_create_auto_verifies_and_posts_stock_transaction(self):
         response = self.client.post(
@@ -311,6 +317,7 @@ class ReceivingWorkflowCleanupTest(TestCase):
             "receiving_type": Receiving.ReceivingType.PROCUREMENT,
             "receiving_date": "2026-03-16",
             "supplier": "",
+            "facility": "",
             "sumber_dana": self.funding.pk,
             "notes": "",
         }
@@ -328,6 +335,74 @@ class ReceivingWorkflowCleanupTest(TestCase):
             planned_form.errors["supplier"],
             ["Supplier wajib diisi untuk tipe Pengadaan."],
         )
+
+    def test_rs_return_receiving_requires_rs_facility(self):
+        form = ReceivingForm(
+            data={
+                "document_number": "",
+                "receiving_type": Receiving.ReceivingType.RETURN_RS,
+                "receiving_date": "2026-03-16",
+                "supplier": "",
+                "facility": "",
+                "sumber_dana": self.funding.pk,
+                "notes": "",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors["facility"], ["Rumah sakit asal wajib dipilih."])
+
+    def test_rs_return_receiving_creates_settlement_link(self):
+        distribution = Distribution.objects.create(
+            distribution_type=Distribution.DistributionType.BORROW_RS,
+            request_date=date(2026, 3, 10),
+            facility=self.rs_facility,
+            status=Distribution.Status.DISTRIBUTED,
+            created_by=self.user,
+            approved_by=self.user,
+        )
+        distribution_item = DistributionItem.objects.create(
+            distribution=distribution,
+            item=self.item,
+            quantity_requested=Decimal("10"),
+            quantity_approved=Decimal("10"),
+            issued_batch_lot="BATCH-KELUAR-01",
+            issued_expiry_date=date(2027, 1, 1),
+            issued_unit_price=Decimal("1500"),
+            issued_sumber_dana=self.funding,
+        )
+
+        response = self.client.post(
+            reverse("receiving:receiving_create"),
+            {
+                "document_number": "",
+                "receiving_type": Receiving.ReceivingType.RETURN_RS,
+                "receiving_date": "2026-03-20",
+                "supplier": "",
+                "facility": self.rs_facility.pk,
+                "sumber_dana": self.funding.pk,
+                "notes": "Pengembalian batch baru",
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-item": self.item.pk,
+                "items-0-settlement_distribution_item": distribution_item.pk,
+                "items-0-quantity": "4",
+                "items-0-batch_lot": "BATCH-MASUK-77",
+                "items-0-expiry_date": "2030-01-01",
+                "items-0-unit_price": "1600",
+                "items-0-location": self.location.pk,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        receiving = Receiving.objects.get(receiving_type=Receiving.ReceivingType.RETURN_RS)
+        receiving_item = ReceivingItem.objects.get(receiving=receiving)
+        self.assertEqual(receiving.facility, self.rs_facility)
+        self.assertEqual(receiving_item.settlement_distribution_item, distribution_item)
+        distribution_item.refresh_from_db()
+        self.assertEqual(distribution_item.outstanding_quantity, Decimal("6"))
 
     def test_plan_receive_page_uses_fixed_rows_without_delete_control(self):
         receiving = Receiving.objects.create(

@@ -1,6 +1,11 @@
 from django import forms
-from django.forms import inlineformset_factory
+from django.db.models import DecimalField, Sum, Value
+from django.db.models.functions import Coalesce
 from django.db.utils import OperationalError, ProgrammingError
+from django.forms import inlineformset_factory
+
+from apps.distribution.models import Distribution, DistributionItem
+
 from .models import Receiving, ReceivingItem, ReceivingOrderItem, ReceivingTypeOption
 
 
@@ -26,9 +31,19 @@ class BaseReceivingForm(forms.ModelForm):
         cleaned_data = super().clean()
         receiving_type = cleaned_data.get("receiving_type")
         supplier = cleaned_data.get("supplier")
+        facility = cleaned_data.get("facility")
 
         if receiving_type == Receiving.ReceivingType.PROCUREMENT and not supplier:
             self.add_error("supplier", "Supplier wajib diisi untuk tipe Pengadaan.")
+
+        if receiving_type == Receiving.ReceivingType.RETURN_RS:
+            if not facility:
+                self.add_error("facility", "Rumah sakit asal wajib dipilih.")
+            elif facility.facility_type != facility.FacilityType.RS:
+                self.add_error(
+                    "facility",
+                    "Pengembalian RS hanya dapat dikaitkan ke fasilitas Rumah Sakit.",
+                )
 
         return cleaned_data
 
@@ -42,6 +57,7 @@ class ReceivingForm(BaseReceivingForm):
             "receiving_type",
             "receiving_date",
             "supplier",
+            "facility",
             "sumber_dana",
             "notes",
         ]
@@ -52,6 +68,7 @@ class ReceivingForm(BaseReceivingForm):
                 attrs={"class": "form-control", "type": "date"}
             ),
             "supplier": forms.Select(attrs={"class": "form-select"}),
+            "facility": forms.Select(attrs={"class": "form-select"}),
             "sumber_dana": forms.Select(attrs={"class": "form-select"}),
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
@@ -66,6 +83,7 @@ class PlannedReceivingForm(BaseReceivingForm):
             "receiving_type",
             "receiving_date",
             "supplier",
+            "facility",
             "sumber_dana",
             "notes",
         ]
@@ -76,20 +94,87 @@ class PlannedReceivingForm(BaseReceivingForm):
                 attrs={"class": "form-control", "type": "date"}
             ),
             "supplier": forms.Select(attrs={"class": "form-select"}),
+            "facility": forms.Select(attrs={"class": "form-select"}),
             "sumber_dana": forms.Select(attrs={"class": "form-select"}),
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
 
 
 class ReceivingItemForm(forms.ModelForm):
+    settlement_distribution_item = forms.ModelChoiceField(
+        queryset=DistributionItem.objects.none(),
+        required=False,
+        label="Asal Distribusi RS",
+        widget=forms.Select(
+            attrs={"class": "form-select form-select-sm js-typeahead-select"}
+        ),
+    )
+
     def __init__(self, *args, **kwargs):
+        receiving_type = kwargs.pop("receiving_type", None)
+        receiving_facility_id = kwargs.pop("receiving_facility_id", None)
         super().__init__(*args, **kwargs)
         self.fields["location"].required = True
+
+        open_rs_items = (
+            DistributionItem.objects.select_related(
+                "distribution",
+                "distribution__facility",
+                "item",
+            )
+            .filter(
+                distribution__status=Distribution.Status.DISTRIBUTED,
+                distribution__distribution_type__in=[
+                    Distribution.DistributionType.BORROW_RS,
+                    Distribution.DistributionType.SWAP_RS,
+                ],
+            )
+            .annotate(
+                settled_quantity_total=Coalesce(
+                    Sum("settlement_receipts__quantity"),
+                    Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
+                )
+            )
+            .order_by(
+                "distribution__facility__name",
+                "distribution__request_date",
+                "id",
+            )
+        )
+        if receiving_facility_id:
+            open_rs_items = open_rs_items.filter(
+                distribution__facility_id=receiving_facility_id
+            )
+
+        open_rs_item_ids = [
+            distribution_item.pk
+            for distribution_item in open_rs_items
+            if (
+                (distribution_item.quantity_approved or distribution_item.quantity_requested)
+                - distribution_item.settled_quantity_total
+            )
+            > 0
+        ]
+        self.fields["settlement_distribution_item"].queryset = (
+            DistributionItem.objects.select_related(
+                "distribution",
+                "distribution__facility",
+                "item",
+            ).filter(pk__in=open_rs_item_ids)
+        )
+        self.fields["settlement_distribution_item"].label_from_instance = lambda obj: (
+            f"{obj.distribution.document_number} | {obj.distribution.facility.name} | "
+            f"{obj.item.nama_barang} | Sisa: {obj.outstanding_quantity}"
+        )
+
+        if receiving_type != Receiving.ReceivingType.RETURN_RS:
+            self.fields["settlement_distribution_item"].widget = forms.HiddenInput()
 
     class Meta:
         model = ReceivingItem
         fields = [
             "item",
+            "settlement_distribution_item",
             "quantity",
             "batch_lot",
             "expiry_date",
@@ -98,6 +183,9 @@ class ReceivingItemForm(forms.ModelForm):
         ]
         widgets = {
             "item": forms.Select(
+                attrs={"class": "form-select form-select-sm js-typeahead-select"}
+            ),
+            "settlement_distribution_item": forms.Select(
                 attrs={"class": "form-select form-select-sm js-typeahead-select"}
             ),
             "quantity": forms.NumberInput(
@@ -124,6 +212,20 @@ class ReceivingItemForm(forms.ModelForm):
         if quantity is not None and quantity <= 0:
             raise forms.ValidationError("Jumlah harus lebih dari 0.")
         return quantity
+
+    def clean(self):
+        cleaned_data = super().clean()
+        item = cleaned_data.get("item")
+        settlement_distribution_item = cleaned_data.get("settlement_distribution_item")
+
+        if settlement_distribution_item and item:
+            if settlement_distribution_item.item_id != item.id:
+                self.add_error(
+                    "settlement_distribution_item",
+                    "Item pengembalian harus sama dengan item distribusi RS yang dipilih.",
+                )
+
+        return cleaned_data
 
 
 ReceivingItemFormSet = inlineformset_factory(

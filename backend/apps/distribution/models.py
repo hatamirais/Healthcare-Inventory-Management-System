@@ -11,6 +11,8 @@ class Distribution(TimeStampedModel):
         LPLPO = "LPLPO", "LPLPO"
         ALLOCATION = "ALLOCATION", "Alokasi"
         SPECIAL_REQUEST = "SPECIAL_REQUEST", "Permintaan Khusus"
+        BORROW_RS = "BORROW_RS", "Pinjam RS"
+        SWAP_RS = "SWAP_RS", "Tukar RS"
 
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
@@ -84,6 +86,13 @@ class Distribution(TimeStampedModel):
     def __str__(self):
         return f"{self.document_number} → {self.facility}"
 
+    @property
+    def is_rs_workflow(self):
+        return self.distribution_type in {
+            self.DistributionType.BORROW_RS,
+            self.DistributionType.SWAP_RS,
+        }
+
     def save(self, *args, **kwargs):
         if not self.document_number:
             prefix = f"DIST-{timezone.now().strftime('%Y%m')}-"
@@ -152,6 +161,21 @@ class DistributionItem(models.Model):
         related_name="distribution_items",
         help_text="Specific batch allocated (FEFO selection)",
     )
+    issued_batch_lot = models.CharField(max_length=100, blank=True)
+    issued_expiry_date = models.DateField(null=True, blank=True)
+    issued_unit_price = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    issued_sumber_dana = models.ForeignKey(
+        "items.FundingSource",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="issued_distribution_items",
+    )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -160,3 +184,27 @@ class DistributionItem(models.Model):
 
     def __str__(self):
         return f"{self.item} × {self.quantity_requested}"
+
+    @property
+    def settled_quantity(self):
+        from django.db.models import DecimalField, Sum, Value
+        from django.db.models.functions import Coalesce
+
+        return self.settlement_receipts.aggregate(
+            total=Coalesce(
+                Sum("quantity"),
+                Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
+            )
+        )["total"]
+
+    @property
+    def outstanding_quantity(self):
+        approved_quantity = self.quantity_approved or self.quantity_requested or 0
+        outstanding = approved_quantity - self.settled_quantity
+        return outstanding if outstanding > 0 else 0
+
+    @property
+    def outstanding_value(self):
+        if self.issued_unit_price is None:
+            return 0
+        return self.outstanding_quantity * self.issued_unit_price

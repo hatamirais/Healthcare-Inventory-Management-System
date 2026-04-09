@@ -30,6 +30,7 @@ class Receiving(TimeStampedModel):
     class ReceivingType(models.TextChoices):
         PROCUREMENT = "PROCUREMENT", "Pengadaan"
         GRANT = "GRANT", "Hibah"
+        RETURN_RS = "RETURN_RS", "Pengembalian RS"
 
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
@@ -51,6 +52,14 @@ class Receiving(TimeStampedModel):
         blank=True,
         related_name="receivings",
         help_text="Required for PROCUREMENT type",
+    )
+    facility = models.ForeignKey(
+        "items.Facility",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="receivings",
+        help_text="Required for Pengembalian RS type",
     )
     grant_origin = models.CharField(
         max_length=100,
@@ -113,6 +122,10 @@ class Receiving(TimeStampedModel):
         return f"{self.document_number} ({self.get_receiving_type_display()})"
 
     @property
+    def is_rs_return(self):
+        return self.receiving_type == self.ReceivingType.RETURN_RS
+
+    @property
     def receiving_type_label(self):
         builtin_map = dict(self.ReceivingType.choices)
         if self.receiving_type in builtin_map:
@@ -169,6 +182,13 @@ class ReceivingItem(models.Model):
         "items.Item",
         on_delete=models.PROTECT,
         related_name="receiving_items",
+    )
+    settlement_distribution_item = models.ForeignKey(
+        "distribution.DistributionItem",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="settlement_receipts",
     )
     quantity = models.DecimalField(max_digits=12, decimal_places=2)
     batch_lot = models.CharField(max_length=100)
