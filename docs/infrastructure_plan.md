@@ -95,12 +95,3 @@ When infra or settings change:
    - Django `/django/django`
    - django-axes `/jazzband/django-axes`
 
-## 7) App Demo Draft
-
-For the internal App Demo deployment on a department VM, use the draft in `docs/app_demo_deployment.md` as the working design reference.
-
-Current recommendation:
-
-- deploy Django plus PostgreSQL only
-- do not deploy Redis until the codebase actively uses it
-- add Nginx only when the VM must terminate HTTP or HTTPS itself
