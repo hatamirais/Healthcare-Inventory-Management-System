@@ -181,7 +181,7 @@ class DashboardViewTests(TestCase):
         response = self.client.get(reverse("dashboard"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Outstanding RS")
+        self.assertContains(response, "Sisa RS")
         self.assertContains(response, distribution.document_number)
         self.assertContains(response, rs_facility.name)
 

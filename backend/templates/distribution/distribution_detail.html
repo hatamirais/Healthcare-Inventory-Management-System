@@ -160,7 +160,7 @@
 
                             {% if distribution.is_rs_workflow %}
                             <dt class="col-5 text-muted">Monitoring RS</dt>
-                            <dd class="col-7 text-muted">Outstanding dihitung dari item Pengembalian RS yang ditautkan ke distribusi ini.</dd>
+                            <dd class="col-7 text-muted">Sisa pengembalian dihitung dari item Pengembalian RS yang ditautkan ke distribusi ini.</dd>
                             {% endif %}
 
                             <dt class="col-5 text-muted">Status</dt>
@@ -341,7 +341,7 @@
     {% if distribution.is_rs_workflow %}
     <div class="col-12 d-print-none">
         <div class="card content-card">
-            <div class="card-header"><span>Outstanding Pengembalian RS</span></div>
+            <div class="card-header"><span>Sisa RS</span></div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-bordered align-middle mb-0">
@@ -350,8 +350,8 @@
                                 <th>Nama Obat/Barang</th>
                                 <th>Batch Keluar</th>
                                 <th class="text-end">Qty Keluar</th>
-                                <th class="text-end">Qty Outstanding</th>
-                                <th class="text-end">Nilai Outstanding</th>
+                                <th class="text-end">Qty Sisa</th>
+                                <th class="text-end">Nilai Sisa</th>
                             </tr>
                         </thead>
                         <tbody>
