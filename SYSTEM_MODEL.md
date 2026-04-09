@@ -147,7 +147,7 @@ This section reflects model code in `backend/apps/*/models.py`.
 - `receiving.ReceivingItem` (`receiving_items`):
   - FKs: `receiving`, `order_item` (nullable), `item`, `location` (nullable), `settlement_distribution_item` (nullable), `received_by` (nullable)
   - Fields: `quantity`, `batch_lot`, `expiry_date`, `unit_price`, `received_at`, `created_at`
-  - `settlement_distribution_item` is used by `RETURN_RS` to settle outstanding quantities from `BORROW_RS` / `SWAP_RS` documents
+  - `settlement_distribution_item` is used by `RETURN_RS` to settle sisa pengembalian dari dokumen `BORROW_RS` / `SWAP_RS`
 
 - `receiving.ReceivingDocument` (`receiving_documents`):
   - FK: `receiving`
@@ -172,7 +172,7 @@ This section reflects model code in `backend/apps/*/models.py`.
   - FKs: `distribution`, `item`, `stock` (nullable)
   - Fields: `quantity_requested`, `quantity_approved` (nullable), `issued_batch_lot`, `issued_expiry_date`, `issued_unit_price`, `notes`, `created_at`
   - FKs also include `issued_sumber_dana` (nullable) to preserve the book-value source used when the RS document was distributed
-  - Outstanding RS quantity is derived from `quantity_approved - sum(receiving_items.quantity)` for linked `settlement_distribution_item` rows
+  - Sisa pengembalian RS dihitung dari `quantity_approved - sum(receiving_items.quantity)` untuk baris `settlement_distribution_item` yang terhubung
 
 - `distribution.DistributionStaffAssignment` (`distribution_staff_assignments`):
   - FKs: `distribution`, `user`

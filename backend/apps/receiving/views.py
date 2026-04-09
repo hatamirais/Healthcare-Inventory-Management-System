@@ -79,7 +79,7 @@ def _validate_rs_return_items(receiving, formset):
         if quantity > distribution_item.outstanding_quantity:
             return (
                 f"Jumlah pengembalian untuk {distribution_item.item.nama_barang} melebihi sisa "
-                f"outstanding dokumen {distribution_item.distribution.document_number}."
+                f"pengembalian dokumen {distribution_item.distribution.document_number}."
             )
 
     return None

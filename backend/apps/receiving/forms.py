@@ -164,7 +164,7 @@ class ReceivingItemForm(forms.ModelForm):
         )
         self.fields["settlement_distribution_item"].label_from_instance = lambda obj: (
             f"{obj.distribution.document_number} | {obj.distribution.facility.name} | "
-            f"{obj.item.nama_barang} | Sisa: {obj.outstanding_quantity}"
+            f"{obj.item.nama_barang} | Sisa Pengembalian: {obj.outstanding_quantity}"
         )
 
         if receiving_type != Receiving.ReceivingType.RETURN_RS:
