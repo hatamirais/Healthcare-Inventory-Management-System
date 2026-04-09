@@ -75,6 +75,11 @@
                         data-label="Buat Penerimaan">
                         <i class="bi bi-inbox-arrow-down"></i><span>Buat Penerimaan</span>
                     </a>
+                    <a href="{% url 'receiving:rs_return_list' %}"
+                        class="sidebar-link {% if 'rs_return_' in request.resolver_match.url_name %}active{% endif %}"
+                        data-label="Pengembalian RS">
+                        <i class="bi bi-arrow-return-left"></i><span>Pengembalian RS</span>
+                    </a>
                     <a href="{% url 'receiving:receiving_plan_list' %}"
                         class="sidebar-link {% if request.resolver_match.url_name == 'receiving_plan_list' %}active{% endif %}"
                         data-label="Rencana Penerimaan">
@@ -267,6 +272,10 @@
                         {% elif request.resolver_match.app_name == 'receiving' and 'receiving_plan_' in request.resolver_match.url_name and request.resolver_match.url_name != 'receiving_plan_list' %}
                         <a href="{% url 'receiving:receiving_plan_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Rencana Penerimaan">
                             <i class="bi bi-arrow-left me-1"></i>Rencana Penerimaan
+                        </a>
+                        {% elif request.resolver_match.app_name == 'receiving' and 'rs_return_' in request.resolver_match.url_name %}
+                        <a href="{% url 'receiving:rs_return_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Pengembalian RS">
+                            <i class="bi bi-arrow-left me-1"></i>Pengembalian RS
                         </a>
                         {% elif request.resolver_match.app_name == 'receiving' and request.resolver_match.url_name != 'receiving_list' %}
                         <a href="{% url 'receiving:receiving_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Buat Penerimaan">

@@ -93,6 +93,7 @@ Default scopes per role are defined in `backend/apps/users/access.py`.
 - Stock transfer completion writes paired `OUT` and `IN` transactions.
 - Receiving admin CSV import writes `Receiving`, `ReceivingItem`, updates/creates `Stock`, and writes `Transaction(IN)`.
 - RS borrowing/swap follow normal distribution stock-out rules; repayment from Rumah Sakit is recorded as `Receiving(receiving_type=RETURN_RS)` and linked at line level to the originating `DistributionItem`.
+- UI rule: keep `RETURN_RS` on a dedicated receiving list/form path, separate from regular receiving, so generic receiving UX does not expose RS settlement controls.
 
 ## Documentation Maintenance Contract
 

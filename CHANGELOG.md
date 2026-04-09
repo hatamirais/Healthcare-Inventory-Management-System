@@ -18,6 +18,7 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 - RS settlement is intentionally strict for this release: returns may use different batch and expiry data, but must settle the same item as the original RS distribution line.
 - Project documentation now reflects the RS borrowing/return workflow and the settlement-link model used for audit tracking.
+- `Pengembalian RS` now uses a dedicated receiving list/form path so regular receiving screens no longer expose RS settlement fields.
 
 ## [1.9.0] - 2026-04-07
 

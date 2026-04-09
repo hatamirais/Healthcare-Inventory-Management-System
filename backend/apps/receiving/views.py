@@ -18,6 +18,8 @@ from .models import Receiving, ReceivingItem, ReceivingOrderItem, ReceivingTypeO
 from .forms import (
     ReceivingForm,
     ReceivingItemFormSet,
+    RsReturnReceivingForm,
+    RSReturnReceivingItemFormSet,
     PlannedReceivingForm,
     ReceivingOrderItemFormSet,
     ReceivingReceiptItemFormSet,
@@ -85,11 +87,79 @@ def _validate_rs_return_items(receiving, formset):
     return None
 
 
+def _create_verified_receiving(request, form, formset, receiving_type=None):
+    with transaction.atomic():
+        receiving = form.save(commit=False)
+        if receiving_type is not None:
+            receiving.receiving_type = receiving_type
+        receiving.created_by = request.user
+        receiving.status = Receiving.Status.VERIFIED
+        receiving.verified_by = request.user
+        receiving.verified_at = timezone.now()
+        receiving.save()
+
+        rs_return_error = _validate_rs_return_items(receiving, formset)
+        if rs_return_error:
+            raise ValueError(rs_return_error)
+
+        formset.instance = receiving
+        receipt_items = formset.save(commit=False)
+        if not receipt_items:
+            raise ValueError("Tambahkan minimal 1 item penerimaan.")
+
+        for item in receipt_items:
+            item.receiving = receiving
+            item.received_by = request.user
+            item.received_at = timezone.now()
+            item.save()
+
+            stock, created = Stock.objects.get_or_create(
+                item=item.item,
+                location=item.location,
+                batch_lot=item.batch_lot,
+                sumber_dana=receiving.sumber_dana,
+                defaults={
+                    "expiry_date": item.expiry_date,
+                    "quantity": item.quantity,
+                    "unit_price": item.unit_price,
+                    "receiving_ref": receiving,
+                },
+            )
+            if not created:
+                stock.quantity += item.quantity
+                stock.save(update_fields=["quantity", "updated_at"])
+
+            Transaction.objects.create(
+                transaction_type=Transaction.TransactionType.IN,
+                item=item.item,
+                location=item.location,
+                batch_lot=item.batch_lot,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+                sumber_dana=receiving.sumber_dana,
+                reference_type=Transaction.ReferenceType.RECEIVING,
+                reference_id=receiving.pk,
+                user=request.user,
+                notes=(
+                    f"Pengembalian RS {receiving.document_number}"
+                    if receiving.receiving_type == Receiving.ReceivingType.RETURN_RS
+                    else f"Penerimaan reguler {receiving.document_number}"
+                ),
+            )
+
+        for deleted_form in formset.deleted_forms:
+            if deleted_form.instance.pk:
+                deleted_form.instance.delete()
+
+    return receiving
+
+
 @login_required
 def receiving_list(request):
     queryset = (
         Receiving.objects.select_related("supplier", "sumber_dana", "created_by")
         .filter(is_planned=False)
+        .exclude(receiving_type=Receiving.ReceivingType.RETURN_RS)
         .order_by("-receiving_date")
     )
 
@@ -115,6 +185,39 @@ def receiving_list(request):
             "selected_type": r_type or "",
             "type_procurement": "selected" if r_type == "PROCUREMENT" else "",
             "type_grant": "selected" if r_type == "GRANT" else "",
+        },
+    )
+
+
+@login_required
+def rs_return_list(request):
+    queryset = (
+        Receiving.objects.select_related(
+            "facility", "sumber_dana", "created_by", "verified_by"
+        )
+        .filter(
+            is_planned=False,
+            receiving_type=Receiving.ReceivingType.RETURN_RS,
+        )
+        .order_by("-receiving_date")
+    )
+
+    search = request.GET.get("q", "").strip()
+    if search:
+        queryset = queryset.filter(
+            Q(document_number__icontains=search)
+            | Q(facility__name__icontains=search)
+        )
+
+    paginator = Paginator(queryset, 25)
+    receivings = paginator.get_page(request.GET.get("page"))
+
+    return render(
+        request,
+        "receiving/rs_return_list.html",
+        {
+            "receivings": receivings,
+            "search": search,
         },
     )
 
@@ -175,77 +278,11 @@ def receiving_plan_list(request):
 def receiving_create(request):
     if request.method == "POST":
         form = ReceivingForm(request.POST)
-        formset = ReceivingItemFormSet(
-            request.POST,
-            prefix="items",
-            form_kwargs={
-                "receiving_type": request.POST.get("receiving_type"),
-                "receiving_facility_id": request.POST.get("facility") or None,
-            },
-        )
+        formset = ReceivingItemFormSet(request.POST, prefix="items")
 
         if form.is_valid() and formset.is_valid():
             try:
-                with transaction.atomic():
-                    receiving = form.save(commit=False)
-                    receiving.created_by = request.user
-                    receiving.status = Receiving.Status.VERIFIED
-                    receiving.verified_by = request.user
-                    receiving.verified_at = timezone.now()
-                    receiving.save()
-
-                    rs_return_error = _validate_rs_return_items(receiving, formset)
-                    if rs_return_error:
-                        raise ValueError(rs_return_error)
-
-                    formset.instance = receiving
-                    receipt_items = formset.save(commit=False)
-                    if not receipt_items:
-                        raise ValueError("Tambahkan minimal 1 item penerimaan.")
-
-                    for item in receipt_items:
-                        item.receiving = receiving
-                        item.received_by = request.user
-                        item.received_at = timezone.now()
-                        item.save()
-
-                        stock, created = Stock.objects.get_or_create(
-                            item=item.item,
-                            location=item.location,
-                            batch_lot=item.batch_lot,
-                            sumber_dana=receiving.sumber_dana,
-                            defaults={
-                                "expiry_date": item.expiry_date,
-                                "quantity": item.quantity,
-                                "unit_price": item.unit_price,
-                                "receiving_ref": receiving,
-                            },
-                        )
-                        if not created:
-                            stock.quantity += item.quantity
-                            stock.save(update_fields=["quantity", "updated_at"])
-
-                        Transaction.objects.create(
-                            transaction_type=Transaction.TransactionType.IN,
-                            item=item.item,
-                            location=item.location,
-                            batch_lot=item.batch_lot,
-                            quantity=item.quantity,
-                            unit_price=item.unit_price,
-                            sumber_dana=receiving.sumber_dana,
-                            reference_type=Transaction.ReferenceType.RECEIVING,
-                            reference_id=receiving.pk,
-                            user=request.user,
-                            notes=(
-                                f"Pengembalian RS {receiving.document_number}"
-                                if receiving.receiving_type == Receiving.ReceivingType.RETURN_RS
-                                else f"Penerimaan reguler {receiving.document_number}"
-                            ),
-                        )
-
-                    for deleted_form in formset.deleted_forms:
-                        if deleted_form.instance.pk:
-                            deleted_form.instance.delete()
+                receiving = _create_verified_receiving(request, form, formset)
 
             except (ValueError, ProtectedError) as exc:
                 messages.error(request, str(exc))
@@ -265,6 +302,54 @@ def receiving_create(request):
             "form": form,
             "formset": formset,
             "title": "Buat Penerimaan Baru",
+        },
+    )
+
+
+@login_required
+@perm_required("receiving.add_receiving")
+def rs_return_create(request):
+    if request.method == "POST":
+        form = RsReturnReceivingForm(request.POST)
+        formset = RSReturnReceivingItemFormSet(
+            request.POST,
+            prefix="items",
+            form_kwargs={
+                "receiving_type": Receiving.ReceivingType.RETURN_RS,
+                "receiving_facility_id": request.POST.get("facility") or None,
+            },
+        )
+
+        if form.is_valid() and formset.is_valid():
+            try:
+                receiving = _create_verified_receiving(
+                    request,
+                    form,
+                    formset,
+                    receiving_type=Receiving.ReceivingType.RETURN_RS,
+                )
+            except (ValueError, ProtectedError) as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(
+                    request,
+                    f"Pengembalian RS {receiving.document_number} berhasil dibuat.",
+                )
+                return redirect("receiving:rs_return_detail", pk=receiving.pk)
+    else:
+        form = RsReturnReceivingForm()
+        formset = RSReturnReceivingItemFormSet(
+            prefix="items",
+            form_kwargs={"receiving_type": Receiving.ReceivingType.RETURN_RS},
+        )
+
+    return render(
+        request,
+        "receiving/rs_return_form.html",
+        {
+            "form": form,
+            "formset": formset,
+            "title": "Buat Pengembalian RS",
         },
     )
 
@@ -314,6 +399,33 @@ def receiving_detail(request, pk):
         ),
         pk=pk,
         is_planned=False,
+    )
+    items = receiving.items.select_related(
+        "item",
+        "item__satuan",
+        "settlement_distribution_item",
+        "settlement_distribution_item__distribution",
+    )
+
+    return render(
+        request,
+        "receiving/receiving_detail.html",
+        {
+            "receiving": receiving,
+            "items": items,
+        },
+    )
+
+
+@login_required
+def rs_return_detail(request, pk):
+    receiving = get_object_or_404(
+        Receiving.objects.select_related(
+            "supplier", "facility", "sumber_dana", "created_by", "verified_by"
+        ),
+        pk=pk,
+        is_planned=False,
+        receiving_type=Receiving.ReceivingType.RETURN_RS,
     )
     items = receiving.items.select_related(
         "item",

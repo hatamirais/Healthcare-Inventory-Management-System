@@ -9,7 +9,7 @@ from django.urls import reverse
 from apps.distribution.models import Distribution, DistributionItem
 from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
 from apps.receiving.admin import ReceivingAdmin
-from apps.receiving.forms import PlannedReceivingForm, ReceivingForm
+from apps.receiving.forms import PlannedReceivingForm, ReceivingForm, RsReturnReceivingForm
 from apps.receiving.models import (
     Receiving,
     ReceivingItem,
@@ -293,6 +293,44 @@ class ReceivingWorkflowCleanupTest(TestCase):
         self.assertNotContains(response, 'Status:</span>', html=False)
         self.assertContains(response, 'badge-status badge-verified', html=False)
 
+    def test_regular_receiving_create_page_does_not_show_rs_settlement_column(self):
+        response = self.client.get(reverse("receiving:receiving_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Dokumen RS Asal")
+        self.assertNotContains(response, 'name="items-0-settlement_distribution_item"', html=False)
+
+    def test_rs_return_list_is_separated_from_regular_receiving_list(self):
+        Receiving.objects.create(
+            document_number="RCV-2026-99992",
+            receiving_type=Receiving.ReceivingType.GRANT,
+            receiving_date=date(2026, 3, 15),
+            sumber_dana=self.funding,
+            status=Receiving.Status.VERIFIED,
+            is_planned=False,
+            created_by=self.user,
+            verified_by=self.user,
+        )
+        rs_return = Receiving.objects.create(
+            document_number="RCV-2026-99991",
+            receiving_type=Receiving.ReceivingType.RETURN_RS,
+            receiving_date=date(2026, 3, 15),
+            facility=self.rs_facility,
+            sumber_dana=self.funding,
+            status=Receiving.Status.VERIFIED,
+            is_planned=False,
+            created_by=self.user,
+            verified_by=self.user,
+        )
+
+        regular_response = self.client.get(reverse("receiving:receiving_list"))
+        rs_response = self.client.get(reverse("receiving:rs_return_list"))
+
+        self.assertEqual(regular_response.status_code, 200)
+        self.assertEqual(rs_response.status_code, 200)
+        self.assertNotContains(regular_response, rs_return.document_number)
+        self.assertContains(rs_response, rs_return.document_number)
+
     def test_regular_receiving_detail_rejects_planned_receiving(self):
         planned_receiving = Receiving.objects.create(
             document_number="RCV-2026-99993",
@@ -337,12 +375,10 @@ class ReceivingWorkflowCleanupTest(TestCase):
         )
 
     def test_rs_return_receiving_requires_rs_facility(self):
-        form = ReceivingForm(
+        form = RsReturnReceivingForm(
             data={
                 "document_number": "",
-                "receiving_type": Receiving.ReceivingType.RETURN_RS,
                 "receiving_date": "2026-03-16",
-                "supplier": "",
                 "facility": "",
                 "sumber_dana": self.funding.pk,
                 "notes": "",
@@ -373,12 +409,10 @@ class ReceivingWorkflowCleanupTest(TestCase):
         )
 
         response = self.client.post(
-            reverse("receiving:receiving_create"),
+            reverse("receiving:rs_return_create"),
             {
                 "document_number": "",
-                "receiving_type": Receiving.ReceivingType.RETURN_RS,
                 "receiving_date": "2026-03-20",
-                "supplier": "",
                 "facility": self.rs_facility.pk,
                 "sumber_dana": self.funding.pk,
                 "notes": "Pengembalian batch baru",
@@ -403,6 +437,13 @@ class ReceivingWorkflowCleanupTest(TestCase):
         self.assertEqual(receiving_item.settlement_distribution_item, distribution_item)
         distribution_item.refresh_from_db()
         self.assertEqual(distribution_item.outstanding_quantity, Decimal("6"))
+
+    def test_rs_return_create_page_shows_dedicated_settlement_column(self):
+        response = self.client.get(reverse("receiving:rs_return_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Dokumen RS Asal")
+        self.assertContains(response, "Item Pengembalian RS")
 
     def test_plan_receive_page_uses_fixed_rows_without_delete_control(self):
         receiving = Receiving.objects.create(

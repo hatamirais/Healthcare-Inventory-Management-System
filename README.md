@@ -35,7 +35,7 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 
 - `items`: CRUD master barang dan lookup, filter daftar, serta endpoint AJAX untuk pembuatan referensi cepat.
 - `stock`: daftar stok, daftar transaksi, kartu stok, dan alur transfer stok.
-- `receiving`: alur penerimaan reguler dan rencana penerimaan, termasuk `Pengembalian RS` dengan tautan settlement ke distribusi RS asal.
+- `receiving`: alur penerimaan reguler dan rencana penerimaan, termasuk menu dan form khusus `Pengembalian RS` dengan tautan settlement ke distribusi RS asal.
 - `distribution`: alur permintaan, verifikasi, persiapan, hingga distribusi dengan penugasan petugas per dokumen, termasuk `Pinjam RS` dan `Tukar RS`.
 - `recall`: alur retur ke supplier dari draft sampai selesai.
 - `expired`: alur penanganan barang kedaluwarsa dari draft sampai disposal, termasuk halaman alert kedaluwarsa.
@@ -50,7 +50,8 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 ## Ringkasan Workflow
 
 - Receiving terencana: `DRAFT -> SUBMITTED -> APPROVED -> PARTIAL/RECEIVED -> CLOSED`
-- Receiving reguler atau hasil import: umumnya tercatat sebagai `VERIFIED` setelah posting. `Pengembalian RS` memakai receiving reguler dan wajib ditautkan ke item distribusi RS asal.
+- Receiving reguler atau hasil import: umumnya tercatat sebagai `VERIFIED` setelah posting.
+- `Pengembalian RS`: tercatat sebagai `VERIFIED` melalui daftar dan form khusus tersendiri, serta wajib ditautkan ke item distribusi RS asal.
 - Distribution: `DRAFT -> SUBMITTED -> VERIFIED -> PREPARED -> DISTRIBUTED`, dapat berakhir `REJECTED`, dan dokumen yang belum terdistribusi dapat dikembalikan ke `DRAFT`.
 - Recall: `DRAFT -> SUBMITTED -> VERIFIED -> COMPLETED`
 - Expired: `DRAFT -> SUBMITTED -> VERIFIED -> DISPOSED`

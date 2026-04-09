@@ -5,12 +5,17 @@ from django.db.utils import OperationalError, ProgrammingError
 from django.forms import inlineformset_factory
 
 from apps.distribution.models import Distribution, DistributionItem
+from apps.items.models import Facility
 
 from .models import Receiving, ReceivingItem, ReceivingOrderItem, ReceivingTypeOption
 
 
-def _get_receiving_type_choices():
-    builtin_choices = list(Receiving.ReceivingType.choices)
+def _get_receiving_type_choices(include_return_rs=True):
+    builtin_choices = [
+        choice
+        for choice in Receiving.ReceivingType.choices
+        if include_return_rs or choice[0] != Receiving.ReceivingType.RETURN_RS
+    ]
     try:
         custom_choices = list(
             ReceivingTypeOption.objects.filter(is_active=True)
@@ -24,8 +29,11 @@ def _get_receiving_type_choices():
 
 class BaseReceivingForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
+        include_return_rs = kwargs.pop("include_return_rs", True)
         super().__init__(*args, **kwargs)
-        self.fields["receiving_type"].choices = _get_receiving_type_choices()
+        self.fields["receiving_type"].choices = _get_receiving_type_choices(
+            include_return_rs=include_return_rs
+        )
 
     def clean(self):
         cleaned_data = super().clean()
@@ -49,6 +57,9 @@ class BaseReceivingForm(forms.ModelForm):
 
 
 class ReceivingForm(BaseReceivingForm):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("include_return_rs", False)
+        super().__init__(*args, **kwargs)
 
     class Meta:
         model = Receiving
@@ -72,6 +83,42 @@ class ReceivingForm(BaseReceivingForm):
             "sumber_dana": forms.Select(attrs={"class": "form-select"}),
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
+
+
+class RsReturnReceivingForm(forms.ModelForm):
+    class Meta:
+        model = Receiving
+        fields = [
+            "document_number",
+            "receiving_date",
+            "facility",
+            "sumber_dana",
+            "notes",
+        ]
+        widgets = {
+            "document_number": forms.TextInput(attrs={"class": "form-control"}),
+            "receiving_date": forms.DateInput(
+                attrs={"class": "form-control", "type": "date"}
+            ),
+            "facility": forms.Select(attrs={"class": "form-select"}),
+            "sumber_dana": forms.Select(attrs={"class": "form-select"}),
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["facility"].queryset = Facility.objects.filter(
+            facility_type=Facility.FacilityType.RS
+        ).order_by("name")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        facility = cleaned_data.get("facility")
+
+        if not facility:
+            self.add_error("facility", "Rumah sakit asal wajib dipilih.")
+
+        return cleaned_data
 
 
 class PlannedReceivingForm(BaseReceivingForm):
@@ -101,10 +148,55 @@ class PlannedReceivingForm(BaseReceivingForm):
 
 
 class ReceivingItemForm(forms.ModelForm):
+    class Meta:
+        model = ReceivingItem
+        fields = [
+            "item",
+            "quantity",
+            "batch_lot",
+            "expiry_date",
+            "unit_price",
+            "location",
+        ]
+        widgets = {
+            "item": forms.Select(
+                attrs={"class": "form-select form-select-sm js-typeahead-select"}
+            ),
+            "quantity": forms.NumberInput(
+                attrs={"class": "form-control form-control-sm", "min": "1"}
+            ),
+            "batch_lot": forms.TextInput(
+                attrs={"class": "form-control form-control-sm"}
+            ),
+            "expiry_date": forms.DateInput(
+                attrs={"class": "form-control form-control-sm", "type": "date"}
+            ),
+            "unit_price": forms.NumberInput(
+                attrs={
+                    "class": "form-control form-control-sm",
+                    "min": "0",
+                    "step": "0.01",
+                }
+            ),
+            "location": forms.Select(attrs={"class": "form-select form-select-sm"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["location"].required = True
+
+    def clean_quantity(self):
+        quantity = self.cleaned_data.get("quantity")
+        if quantity is not None and quantity <= 0:
+            raise forms.ValidationError("Jumlah harus lebih dari 0.")
+        return quantity
+
+
+class RSReturnReceivingItemForm(forms.ModelForm):
     settlement_distribution_item = forms.ModelChoiceField(
         queryset=DistributionItem.objects.none(),
         required=False,
-        label="Asal Distribusi RS",
+        label="Dokumen RS Asal",
         widget=forms.Select(
             attrs={"class": "form-select form-select-sm js-typeahead-select"}
         ),
@@ -232,6 +324,15 @@ ReceivingItemFormSet = inlineformset_factory(
     Receiving,
     ReceivingItem,
     form=ReceivingItemForm,
+    extra=3,
+    can_delete=True,
+)
+
+
+RSReturnReceivingItemFormSet = inlineformset_factory(
+    Receiving,
+    ReceivingItem,
+    form=RSReturnReceivingItemForm,
     extra=3,
     can_delete=True,
 )
