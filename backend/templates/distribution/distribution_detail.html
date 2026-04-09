@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% load number_format %}
 
-{% block title %}Detail Distribusi {{ distribution.document_number }} — Healthcare IMS{% endblock %}
-{% block page_title %}Detail Distribusi{% endblock %}
+{% block title %}{{ page_title|default:"Detail Distribusi" }} {{ distribution.document_number }} — Healthcare IMS{% endblock %}
+{% block page_title %}{{ page_title|default:"Detail Distribusi" }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -123,7 +123,7 @@
     <div class="col-12">
         <div class="card content-card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span>Informasi Distribusi</span>
+                <span>Informasi {{ module_label|default:"Distribusi" }}</span>
                 <button
                     class="btn btn-sm btn-outline-secondary"
                     type="button"
@@ -160,7 +160,7 @@
 
                             {% if distribution.is_rs_workflow %}
                             <dt class="col-5 text-muted">Monitoring RS</dt>
-                            <dd class="col-7 text-muted">Sisa pengembalian dihitung dari item Pengembalian RS yang ditautkan ke distribusi ini.</dd>
+                            <dd class="col-7 text-muted">Sisa pengembalian dihitung dari item Pengembalian RS yang ditautkan ke dokumen ini.</dd>
                             {% endif %}
 
                             <dt class="col-5 text-muted">Status</dt>
@@ -205,7 +205,7 @@
                     </div>
                     <div class="col-12 col-xl-4">
                         <div class="border rounded-3 p-3 bg-light-subtle">
-                            <h6 class="mb-3">Aksi Distribusi</h6>
+                            <h6 class="mb-3">Aksi {{ module_label|default:"Distribusi" }}</h6>
                             <div class="d-grid gap-2">
                                 {% if distribution.status == 'DRAFT' %}
                                 <a href="{% url 'distribution:distribution_edit' distribution.pk %}" class="btn btn-outline-secondary btn-sm">
@@ -277,12 +277,17 @@
                                     </button>
                                 </form>
                                 {% endif %}
+                                {% if module_label == 'Pinjam RS' and distribution.status == 'DISTRIBUTED' and can_record_rs_return %}
+                                <a href="{% url 'receiving:rs_return_from_borrow_create' distribution.pk %}" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-arrow-return-left me-1"></i>Catat Pengembalian
+                                </a>
+                                {% endif %}
                                 {% if distribution.status == 'VERIFIED' or distribution.status == 'PREPARED' or distribution.approved_by %}
                                 <button type="button" class="btn btn-dark btn-sm" onclick="window.print()">
                                     <i class="bi bi-printer me-1"></i>Cetak SBBK
                                 </button>
                                 {% endif %}
-                                <a href="{% url 'distribution:distribution_list' %}" class="btn btn-outline-secondary btn-sm">
+                                <a href="{% url module_back_url_name|default:'distribution:distribution_list' %}" class="btn btn-outline-secondary btn-sm">
                                     <i class="bi bi-arrow-left me-1"></i>Kembali
                                 </a>
                             </div>
@@ -296,7 +301,7 @@
 
     <div class="col-12">
         <div class="card content-card">
-            <div class="card-header"><span>Daftar Item</span></div>
+            <div class="card-header"><span>Daftar Item {{ module_label|default:"Distribusi" }}</span></div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-bordered align-middle mb-0">
@@ -304,7 +309,7 @@
                             <tr>
                                 <th class="text-center" style="width: 70px;">No</th>
                                 <th>Nama Obat/Barang</th>
-                                <th class="text-end" style="width: 160px;">Jumlah Distribusi</th>
+                                <th class="text-end" style="width: 160px;">Jumlah {{ module_label|default:"Distribusi" }}</th>
                                 <th class="text-end" style="width: 170px;">Harga (Rp)</th>
                                 <th class="text-end" style="width: 190px;">Jumlah (Rp)</th>
                             </tr>
@@ -326,7 +331,7 @@
                                 <td colspan="5">
                                     <div class="empty-state">
                                         <i class="bi bi-inbox d-block"></i>
-                                        <p>Belum ada item distribusi</p>
+                                        <p>Belum ada item {{ module_label|default:"distribusi"|lower }}</p>
                                     </div>
                                 </td>
                             </tr>

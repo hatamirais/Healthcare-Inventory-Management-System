@@ -445,6 +445,93 @@ class ReceivingWorkflowCleanupTest(TestCase):
         self.assertContains(response, "Dokumen RS Asal")
         self.assertContains(response, "Item Pengembalian RS")
 
+    def test_rs_return_from_borrow_create_prefills_source_document(self):
+        distribution = Distribution.objects.create(
+            distribution_type=Distribution.DistributionType.BORROW_RS,
+            request_date=date(2026, 3, 10),
+            facility=self.rs_facility,
+            status=Distribution.Status.DISTRIBUTED,
+            created_by=self.user,
+            approved_by=self.user,
+        )
+        DistributionItem.objects.create(
+            distribution=distribution,
+            item=self.item,
+            quantity_requested=Decimal("10"),
+            quantity_approved=Decimal("10"),
+            issued_batch_lot="BATCH-KELUAR-01",
+            issued_expiry_date=date(2027, 1, 1),
+            issued_unit_price=Decimal("1500"),
+            issued_sumber_dana=self.funding,
+        )
+
+        response = self.client.get(
+            reverse("receiving:rs_return_from_borrow_create", args=[distribution.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Catat Pengembalian Pinjam RS")
+        self.assertContains(response, distribution.document_number)
+        self.assertContains(response, self.rs_facility.name)
+
+    def test_rs_return_from_borrow_create_locks_item_price_and_funding_source(self):
+        other_funding = FundingSource.objects.create(code="BLUD", name="BLUD")
+        other_rs = Facility.objects.create(
+            code="RS-02B",
+            name="RSUD Cadangan",
+            facility_type=Facility.FacilityType.RS,
+        )
+        distribution = Distribution.objects.create(
+            distribution_type=Distribution.DistributionType.BORROW_RS,
+            request_date=date(2026, 3, 10),
+            facility=self.rs_facility,
+            status=Distribution.Status.DISTRIBUTED,
+            created_by=self.user,
+            approved_by=self.user,
+        )
+        distribution_item = DistributionItem.objects.create(
+            distribution=distribution,
+            item=self.item,
+            quantity_requested=Decimal("10"),
+            quantity_approved=Decimal("10"),
+            issued_batch_lot="BATCH-KELUAR-01",
+            issued_expiry_date=date(2027, 1, 1),
+            issued_unit_price=Decimal("1500"),
+            issued_sumber_dana=self.funding,
+        )
+
+        response = self.client.post(
+            reverse("receiving:rs_return_from_borrow_create", args=[distribution.pk]),
+            {
+                "document_number": "",
+                "receiving_date": "2026-03-20",
+                "facility": other_rs.pk,
+                "sumber_dana": other_funding.pk,
+                "notes": "Pengembalian batch baru",
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-item": "",
+                "items-0-settlement_distribution_item": "999999",
+                "items-0-quantity": "4",
+                "items-0-batch_lot": "BATCH-MASUK-77",
+                "items-0-expiry_date": "2030-01-01",
+                "items-0-unit_price": "9999",
+                "items-0-location": self.location.pk,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        receiving = Receiving.objects.get(receiving_type=Receiving.ReceivingType.RETURN_RS)
+        receiving_item = ReceivingItem.objects.get(receiving=receiving)
+
+        self.assertEqual(receiving.facility, self.rs_facility)
+        self.assertEqual(receiving.sumber_dana, self.funding)
+        self.assertEqual(receiving_item.item, self.item)
+        self.assertEqual(receiving_item.settlement_distribution_item, distribution_item)
+        self.assertEqual(receiving_item.unit_price, Decimal("1500"))
+
     def test_plan_receive_page_uses_fixed_rows_without_delete_control(self):
         receiving = Receiving.objects.create(
             document_number="RCV-2026-99997",

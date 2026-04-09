@@ -3,6 +3,7 @@ from django.db.models import DecimalField, Sum, Value
 from django.db.models.functions import Coalesce
 from django.db.utils import OperationalError, ProgrammingError
 from django.forms import inlineformset_factory
+from django.forms.models import BaseInlineFormSet
 
 from apps.distribution.models import Distribution, DistributionItem
 from apps.items.models import Facility
@@ -117,6 +118,39 @@ class RsReturnReceivingForm(forms.ModelForm):
 
         if not facility:
             self.add_error("facility", "Rumah sakit asal wajib dipilih.")
+
+        return cleaned_data
+
+
+class PrefilledRsReturnReceivingForm(RsReturnReceivingForm):
+    def __init__(self, *args, **kwargs):
+        source_distribution = kwargs.pop("source_distribution", None)
+        locked_funding_source = kwargs.pop("locked_funding_source", None)
+        super().__init__(*args, **kwargs)
+        self.source_distribution = source_distribution
+        self.locked_funding_source = locked_funding_source
+
+        if self.source_distribution is not None:
+            facility = self.source_distribution.facility
+            self.fields["facility"].queryset = Facility.objects.filter(pk=facility.pk)
+            self.fields["facility"].initial = facility.pk
+            self.fields["facility"].disabled = True
+
+        if self.locked_funding_source is not None:
+            self.fields["sumber_dana"].queryset = self.fields["sumber_dana"].queryset.filter(
+                pk=self.locked_funding_source.pk
+            )
+            self.fields["sumber_dana"].initial = self.locked_funding_source.pk
+            self.fields["sumber_dana"].disabled = True
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        if self.source_distribution is not None:
+            cleaned_data["facility"] = self.source_distribution.facility
+
+        if self.locked_funding_source is not None:
+            cleaned_data["sumber_dana"] = self.locked_funding_source
 
         return cleaned_data
 
@@ -320,6 +354,41 @@ class RSReturnReceivingItemForm(forms.ModelForm):
         return cleaned_data
 
 
+class PrefilledRSReturnReceivingItemForm(RSReturnReceivingItemForm):
+    def __init__(self, *args, **kwargs):
+        locked_distribution_item = kwargs.pop("locked_distribution_item", None)
+        super().__init__(*args, **kwargs)
+        self.locked_distribution_item = locked_distribution_item
+
+        if self.locked_distribution_item is None:
+            return
+
+        self.fields["item"].queryset = self.fields["item"].queryset.filter(
+            pk=self.locked_distribution_item.item_id
+        )
+        self.fields["item"].initial = self.locked_distribution_item.item_id
+        self.fields["item"].disabled = True
+
+        self.fields["settlement_distribution_item"].queryset = DistributionItem.objects.filter(
+            pk=self.locked_distribution_item.pk
+        )
+        self.fields["settlement_distribution_item"].initial = self.locked_distribution_item.pk
+        self.fields["settlement_distribution_item"].disabled = True
+
+        self.fields["unit_price"].initial = self.locked_distribution_item.issued_unit_price
+        self.fields["unit_price"].disabled = True
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        if self.locked_distribution_item is not None:
+            cleaned_data["item"] = self.locked_distribution_item.item
+            cleaned_data["settlement_distribution_item"] = self.locked_distribution_item
+            cleaned_data["unit_price"] = self.locked_distribution_item.issued_unit_price
+
+        return cleaned_data
+
+
 ReceivingItemFormSet = inlineformset_factory(
     Receiving,
     ReceivingItem,
@@ -336,6 +405,32 @@ RSReturnReceivingItemFormSet = inlineformset_factory(
     extra=3,
     can_delete=True,
 )
+
+
+class PrefilledRSReturnReceivingItemBaseFormSet(BaseInlineFormSet):
+    def __init__(self, *args, **kwargs):
+        self.locked_distribution_items = list(kwargs.pop("locked_distribution_items", []))
+        super().__init__(*args, **kwargs)
+
+    def get_form_kwargs(self, index):
+        kwargs = super().get_form_kwargs(index)
+        if index is not None and index < len(self.locked_distribution_items):
+            distribution_item = self.locked_distribution_items[index]
+            kwargs["locked_distribution_item"] = distribution_item
+            kwargs["receiving_type"] = Receiving.ReceivingType.RETURN_RS
+            kwargs["receiving_facility_id"] = distribution_item.distribution.facility_id
+        return kwargs
+
+
+def build_prefilled_rs_return_item_formset(extra_forms):
+    return inlineformset_factory(
+        Receiving,
+        ReceivingItem,
+        form=PrefilledRSReturnReceivingItemForm,
+        formset=PrefilledRSReturnReceivingItemBaseFormSet,
+        extra=extra_forms,
+        can_delete=False,
+    )
 
 
 class ReceivingOrderItemForm(forms.ModelForm):

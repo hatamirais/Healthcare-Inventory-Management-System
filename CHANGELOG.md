@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
-## [1.10.0] - 2026-04-09
+## [1.11.0] - 2026-04-09
 
 ### Added
 
@@ -19,6 +19,9 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 - RS settlement is intentionally strict for this release: returns may use different batch and expiry data, but must settle the same item as the original RS distribution line.
 - Project documentation now reflects the RS borrowing/return workflow and the settlement-link model used for audit tracking.
 - `Pengembalian RS` now uses a dedicated receiving list/form path so regular receiving screens no longer expose RS settlement fields.
+- `Pinjam RS` now has a dedicated list/create/detail path under Pengeluaran, while still reusing the existing distribution model and stock workflow underneath.
+- New `Pinjam RS` creation uses a single kuantitas field and auto-copies it to approved quantity, then records the document directly as verified.
+- `Pinjam RS` detail now provides a direct `Catat Pengembalian` action that opens a prefilled return form with locked rumah sakit, item, harga satuan, dan sumber dana from the originating document.
 
 ## [1.9.0] - 2026-04-07
 

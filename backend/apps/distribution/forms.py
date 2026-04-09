@@ -93,6 +93,28 @@ class DistributionForm(forms.ModelForm):
         return cleaned_data
 
 
+class BorrowRSDistributionForm(DistributionForm):
+    class Meta(DistributionForm.Meta):
+        fields = [
+            "document_number",
+            "request_date",
+            "facility",
+            "program",
+            "notes",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["facility"].queryset = self.fields["facility"].queryset.filter(
+            facility_type="RS"
+        )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        cleaned_data["distribution_type"] = Distribution.DistributionType.BORROW_RS
+        return cleaned_data
+
+
 class DistributionItemForm(forms.ModelForm):
     class Meta:
         model = DistributionItem
@@ -117,7 +139,8 @@ class DistributionItemForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["quantity_approved"].required = False
+        if "quantity_approved" in self.fields:
+            self.fields["quantity_approved"].required = False
         self.fields["stock"].required = False
         self.fields["notes"].required = False
         # FEFO default: only show batches with available stock, ordered by earliest expiry
@@ -151,6 +174,24 @@ DistributionItemFormSet = inlineformset_factory(
     Distribution,
     DistributionItem,
     form=DistributionItemForm,
+    extra=3,
+    can_delete=True,
+)
+
+
+class BorrowRSDistributionItemForm(DistributionItemForm):
+    class Meta(DistributionItemForm.Meta):
+        fields = ["item", "quantity_requested", "stock", "notes"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["quantity_requested"].label = "Kuantitas"
+
+
+BorrowRSDistributionItemFormSet = inlineformset_factory(
+    Distribution,
+    DistributionItem,
+    form=BorrowRSDistributionItemForm,
     extra=3,
     can_delete=True,
 )

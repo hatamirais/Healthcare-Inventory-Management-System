@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}{{ title }} — Healthcare IMS{% endblock %}
-{% block page_title %}{{ title }}{% endblock %}
+{% block title %}{{ page_title|default:title }} — Healthcare IMS{% endblock %}
+{% block page_title %}{{ page_title|default:title }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -109,7 +109,7 @@
 {% block content %}
 <div class="card content-card table-container form-page-card">
             <div class="card-header">
-                <span><i class="bi bi-send me-2"></i>{{ title }}</span>
+                <span><i class="bi {% if form_icon %}{{ form_icon }}{% else %}bi-send{% endif %} me-2"></i>{{ title }}</span>
             </div>
             <div class="card-body">
                 <form method="post" novalidate>
@@ -125,6 +125,7 @@
 
                     <div class="row g-3 mb-4">
                         {% for field in form %}
+                        {% if field.name == 'distribution_type' and not show_distribution_type %}{% else %}
                         <div class="{% if field.name == 'notes' or field.name == 'assigned_staff' %}col-12{% else %}col-md-6{% endif %}">
                             {% if field.name == 'assigned_staff' %}
                             <div class="staff-picker border rounded-3 p-3">
@@ -192,6 +193,7 @@
                             <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}
                         </div>
+                        {% endif %}
                         {% endfor %}
                     </div>
                     <div class="mb-2 small text-muted">Tip: Periksa stok per batch pada tabel item sebelum menyetujui distribusi.</div>
@@ -218,8 +220,10 @@
                             <thead>
                                 <tr>
                                     <th>Barang</th>
-                                    <th style="width:100px;">Kuantitas Diminta</th>
+                                    <th style="width:100px;">{{ quantity_label|default:"Kuantitas Diminta" }}</th>
+                                    {% if show_approved_quantity %}
                                     <th style="width:100px;">Kuantitas Disetujui</th>
+                                    {% endif %}
                                     <th>Stok (Batch)</th>
                                     <th style="width:120px;">Catatan</th>
                                     <th style="width:50px;">Hapus</th>
@@ -230,7 +234,9 @@
                                 <tr class="formset-row">
                                     <td>{{ item_form.item }}</td>
                                     <td>{{ item_form.quantity_requested }}</td>
+                                    {% if show_approved_quantity %}
                                     <td>{{ item_form.quantity_approved }}</td>
+                                    {% endif %}
                                     <td>{{ item_form.stock }}</td>
                                     <td>{{ item_form.notes }}</td>
                                     <td class="text-center">
@@ -243,7 +249,7 @@
                                 </tr>
                                 {% if item_form.non_field_errors %}
                                 <tr>
-                                    <td colspan="6" class="text-danger small py-1">
+                                    <td colspan="{{ item_error_colspan|default:6 }}" class="text-danger small py-1">
                                         {% for error in item_form.non_field_errors %}
                                         <div>{{ error }}</div>
                                         {% endfor %}
@@ -253,7 +259,7 @@
                                 {% for field in item_form %}
                                     {% for error in field.errors %}
                                     <tr>
-                                        <td colspan="6" class="text-danger small py-1">
+                                        <td colspan="{{ item_error_colspan|default:6 }}" class="text-danger small py-1">
                                             {{ field.label }}: {{ error }}
                                         </td>
                                     </tr>
@@ -268,7 +274,9 @@
                         <tr class="formset-row">
                             <td>{{ formset.empty_form.item }}</td>
                             <td>{{ formset.empty_form.quantity_requested }}</td>
+                            {% if show_approved_quantity %}
                             <td>{{ formset.empty_form.quantity_approved }}</td>
+                            {% endif %}
                             <td>{{ formset.empty_form.stock }}</td>
                             <td>{{ formset.empty_form.notes }}</td>
                             <td class="text-center">
@@ -285,7 +293,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-check-lg me-1"></i>Simpan
                         </button>
-                        <a href="{% url 'distribution:distribution_list' %}" class="btn btn-outline-secondary">Batal</a>
+                        <a href="{% url back_url_name|default:'distribution:distribution_list' %}" class="btn btn-outline-secondary">Batal</a>
                     </div>
                 </form>
             </div>

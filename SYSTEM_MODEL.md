@@ -149,6 +149,7 @@ This section reflects model code in `backend/apps/*/models.py`.
   - FKs: `receiving`, `order_item` (nullable), `item`, `location` (nullable), `settlement_distribution_item` (nullable), `received_by` (nullable)
   - Fields: `quantity`, `batch_lot`, `expiry_date`, `unit_price`, `received_at`, `created_at`
   - `settlement_distribution_item` is used by `RETURN_RS` to settle sisa pengembalian dari dokumen `BORROW_RS` / `SWAP_RS`
+  - For `RETURN_RS` launched from a `BORROW_RS` detail page, facility, item, unit price, and funding source are derived from the originating distribution document and enforced server-side
 
 - `receiving.ReceivingDocument` (`receiving_documents`):
   - FK: `receiving`

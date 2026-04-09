@@ -16,6 +16,8 @@ from apps.stock.models import Stock, Transaction
 from apps.users.models import ModuleAccess
 from .models import Receiving, ReceivingItem, ReceivingOrderItem, ReceivingTypeOption
 from .forms import (
+    build_prefilled_rs_return_item_formset,
+    PrefilledRsReturnReceivingForm,
     ReceivingForm,
     ReceivingItemFormSet,
     RsReturnReceivingForm,
@@ -85,6 +87,46 @@ def _validate_rs_return_items(receiving, formset):
             )
 
     return None
+
+
+def _get_prefillable_borrow_rs_distribution(distribution_pk):
+    distribution = get_object_or_404(
+        Distribution.objects.select_related("facility"),
+        pk=distribution_pk,
+        distribution_type=Distribution.DistributionType.BORROW_RS,
+        status=Distribution.Status.DISTRIBUTED,
+    )
+    distribution_items = list(
+        distribution.items.select_related(
+            "item",
+            "issued_sumber_dana",
+        )
+    )
+    outstanding_items = [
+        distribution_item
+        for distribution_item in distribution_items
+        if distribution_item.outstanding_quantity > 0
+    ]
+
+    if not outstanding_items:
+        raise ValueError("Dokumen Pinjam RS ini tidak memiliki sisa pengembalian.")
+
+    funding_sources = {
+        distribution_item.issued_sumber_dana
+        for distribution_item in outstanding_items
+        if distribution_item.issued_sumber_dana is not None
+    }
+
+    if len(funding_sources) != 1 or any(
+        distribution_item.issued_sumber_dana is None
+        or distribution_item.issued_unit_price is None
+        for distribution_item in outstanding_items
+    ):
+        raise ValueError(
+            "Pengembalian dari Pinjam RS ini belum bisa diprefill karena item outstanding memiliki sumber dana atau harga yang tidak seragam. Gunakan form Pengembalian RS biasa."
+        )
+
+    return distribution, outstanding_items, funding_sources.pop()
 
 
 def _create_verified_receiving(request, form, formset, receiving_type=None):
@@ -350,6 +392,73 @@ def rs_return_create(request):
             "form": form,
             "formset": formset,
             "title": "Buat Pengembalian RS",
+        },
+    )
+
+
+@login_required
+@perm_required("receiving.add_receiving")
+def rs_return_from_borrow_create(request, distribution_pk):
+    try:
+        distribution, outstanding_items, funding_source = _get_prefillable_borrow_rs_distribution(
+            distribution_pk
+        )
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("distribution:borrow_rs_detail", pk=distribution_pk)
+
+    formset_class = build_prefilled_rs_return_item_formset(len(outstanding_items))
+
+    if request.method == "POST":
+        form = PrefilledRsReturnReceivingForm(
+            request.POST,
+            source_distribution=distribution,
+            locked_funding_source=funding_source,
+        )
+        formset = formset_class(
+            request.POST,
+            prefix="items",
+            locked_distribution_items=outstanding_items,
+        )
+
+        if form.is_valid() and formset.is_valid():
+            try:
+                receiving = _create_verified_receiving(
+                    request,
+                    form,
+                    formset,
+                    receiving_type=Receiving.ReceivingType.RETURN_RS,
+                )
+            except (ValueError, ProtectedError) as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(
+                    request,
+                    f"Pengembalian RS {receiving.document_number} berhasil dibuat dari dokumen {distribution.document_number}.",
+                )
+                return redirect("receiving:rs_return_detail", pk=receiving.pk)
+    else:
+        form = PrefilledRsReturnReceivingForm(
+            initial={
+                "facility": distribution.facility.pk,
+                "sumber_dana": funding_source.pk,
+            },
+            source_distribution=distribution,
+            locked_funding_source=funding_source,
+        )
+        formset = formset_class(
+            prefix="items",
+            locked_distribution_items=outstanding_items,
+        )
+
+    return render(
+        request,
+        "receiving/rs_return_from_borrow_form.html",
+        {
+            "form": form,
+            "formset": formset,
+            "title": "Catat Pengembalian Pinjam RS",
+            "source_distribution": distribution,
         },
     )
 

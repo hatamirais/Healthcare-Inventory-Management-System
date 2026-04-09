@@ -99,9 +99,14 @@
                 <div class="collapse sidebar-submenu {% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' %}show{% endif %}" id="sidebar-pengeluaran">
                     {% if can_view_distribution %}
                     <a href="{% url 'distribution:distribution_list' %}"
-                        class="sidebar-link {% if request.resolver_match.app_name == 'distribution' %}active{% endif %}"
+                        class="sidebar-link {% if request.resolver_match.app_name == 'distribution' and 'borrow_rs_' not in request.resolver_match.url_name %}active{% endif %}"
                         data-label="Distribusi">
                         <i class="bi bi-send"></i><span>Distribusi</span>
+                    </a>
+                    <a href="{% url 'distribution:borrow_rs_list' %}"
+                        class="sidebar-link {% if 'borrow_rs_' in request.resolver_match.url_name %}active{% endif %}"
+                        data-label="Pinjam RS">
+                        <i class="bi bi-arrow-up-right-circle"></i><span>Pinjam RS</span>
                     </a>
                     {% endif %}
                     {% if can_view_recall %}
@@ -253,7 +258,11 @@
                             <i class="bi bi-layout-sidebar"></i>
                         </button>
 
-                        {% if request.resolver_match.app_name == 'distribution' and request.resolver_match.url_name != 'distribution_list' %}
+                        {% if request.resolver_match.app_name == 'distribution' and 'borrow_rs_' in request.resolver_match.url_name and request.resolver_match.url_name != 'borrow_rs_list' %}
+                        <a href="{% url 'distribution:borrow_rs_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Pinjam RS">
+                            <i class="bi bi-arrow-left me-1"></i>Pinjam RS
+                        </a>
+                        {% elif request.resolver_match.app_name == 'distribution' and request.resolver_match.url_name != 'distribution_list' %}
                         <a href="{% url 'distribution:distribution_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Distribusi">
                             <i class="bi bi-arrow-left me-1"></i>Distribusi
                         </a>
