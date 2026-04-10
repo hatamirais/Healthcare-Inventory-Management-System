@@ -2,7 +2,7 @@
 
 CSV templates used for bootstrap imports via Django Admin.
 
-Last verified: 2026-03-17
+Last verified: 2026-04-10
 Verification sources: `backend/seed/*.csv`, `backend/apps/items/admin.py`, `backend/apps/stock/admin.py`, `backend/apps/receiving/admin.py`
 
 ## Import Order
@@ -34,6 +34,12 @@ For initial stock, prefer `receiving.csv` (custom receiving import endpoint) so 
 ### Dedicated receiving import
 
 Use `/admin/receiving/receiving/import-csv/` for `receiving.csv`.
+
+Import behavior summary:
+
+- Rows are grouped by `document_number` into one `Receiving` header plus multiple `ReceivingItem` rows.
+- The first row supplies header-level values such as `supplier_code`, `receiving_date`, and default `sumber_dana_code` or `location_code`.
+- `sumber_dana_code` and `location_code` can still be overridden per row when a document mixes line-level values.
 
 ## CSV Column Specifications
 
@@ -128,7 +134,7 @@ Expected columns for custom receiving import:
 - `document_number` (required)
 - `receiving_type` (optional; defaults to `GRANT` in import handler)
 - `receiving_date` (required)
-- `supplier_code` (optional)
+- `supplier_code` (optional; applied from the first row of each grouped document)
 - `sumber_dana_code` (required at least header/row effective value)
 - `location_code` (required at least header/row effective value)
 - `item_code` (required, maps to `Item.kode_barang`)
@@ -136,6 +142,11 @@ Expected columns for custom receiving import:
 - `batch_lot` (optional; auto-generated if blank)
 - `expiry_date` (optional; defaults to `2099-12-31` when blank)
 - `unit_price` (optional; default `0`)
+
+Import notes:
+
+- Baris pertama per `document_number` menjadi sumber data header `Receiving`.
+- `sumber_dana_code` dan `location_code` pada baris item akan override nilai header bila diisi.
 
 Date formats accepted by parser:
 

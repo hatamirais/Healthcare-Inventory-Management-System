@@ -48,6 +48,19 @@ Minimal variabel yang perlu diisi:
 - `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`
 - `ALLOWED_HOSTS`
 
+Variabel opsional yang saat ini dibaca oleh aplikasi:
+
+- `DEBUG`
+- `CSRF_TRUSTED_ORIGINS`
+- `EMAIL_BACKEND`
+- `DATA_UPLOAD_MAX_NUMBER_FIELDS`
+- `SECURE_SSL_REDIRECT`
+
+Catatan:
+
+- `manage.py`, `config/wsgi.py`, dan `config/asgi.py` sudah default ke `config.settings`, sehingga `DJANGO_SETTINGS_MODULE` tidak perlu diubah untuk setup standar.
+- `DATA_UPLOAD_MAX_NUMBER_FIELDS` default `10000` untuk mengakomodasi form LPLPO dan form bulk serupa yang mengirim banyak field dalam satu request.
+
 ### 3. Jalankan infrastruktur
 
 ```bash
@@ -101,6 +114,11 @@ Metode yang direkomendasikan di Windows adalah menggunakan helper script dari ro
 
 Script ini akan berpindah ke direktori `backend/`, mengaktifkan virtual environment bila tersedia, lalu menjalankan test target.
 
+Opsi tambahan yang tersedia:
+
+- `-KeepDb` untuk mempercepat iterasi test lokal dengan reuse database test.
+- `-NoActivate` bila environment Python sudah aktif di shell saat ini.
+
 Alternatif dari dalam direktori `backend/`:
 
 ```bash
@@ -138,6 +156,8 @@ Saat file `VERSION` berubah di branch `main`, GitHub Actions menjalankan `.githu
 - Template seed tersedia di `backend/seed/`.
 - Urutan import kanonis: `units -> categories -> funding_sources -> programs -> locations -> suppliers -> facilities -> items -> receiving`.
 - Untuk stok awal, gunakan `receiving.csv` melalui endpoint import Receiving Admin di `/admin/receiving/receiving/import-csv/` agar stok dan `Transaction(IN)` terbentuk dalam satu alur yang konsisten.
+- Import penerimaan mengelompokkan baris berdasarkan `document_number`; baris pertama menjadi header dokumen, sementara `sumber_dana_code` dan `location_code` per baris dapat override nilai header.
+- Kolom opsional `receiving_type` pada import penerimaan default ke `GRANT` bila tidak diisi.
 
 Dokumen terkait:
 
@@ -159,13 +179,14 @@ Gunakan siklus berikut agar dokumentasi tetap sinkron dengan kode:
    - `/django/django`
    - `/websites/django-import-export_readthedocs_io_en`
    - `/jazzband/django-axes`
-4. Klasifikasikan drift dokumentasi berdasarkan tingkat dampak:
+4. Cocokkan environment variables yang terdokumentasi dengan `backend/config/settings.py` dan `.env.example`; jangan mendokumentasikan key yang tidak benar-benar dibaca aplikasi tanpa memberi catatan konteksnya.
+5. Klasifikasikan drift dokumentasi berdasarkan tingkat dampak:
    - Critical: skema, workflow, otorisasi, atau perilaku keamanan tidak sesuai
    - Major: command, route, atau environment variable sudah usang
    - Minor: istilah, redaksi, atau format tidak konsisten
-5. Perbarui dokumen kanonis terlebih dahulu: `SYSTEM_MODEL.md`, `AGENTS.md`, `README.md`, lalu `backend/seed/README.md` atau dokumen `docs/` yang relevan.
-6. Tambahkan metadata verifikasi terakhir dan sumber verifikasinya jika relevan.
-7. Lakukan QA dokumentasi sebelum merge:
+6. Perbarui dokumen kanonis terlebih dahulu: `SYSTEM_MODEL.md`, `AGENTS.md`, `README.md`, lalu `backend/seed/README.md` atau dokumen `docs/` yang relevan.
+7. Tambahkan metadata verifikasi terakhir dan sumber verifikasinya jika relevan.
+8. Lakukan QA dokumentasi sebelum merge:
    - tidak ada route mismatch
    - tidak ada model atau tabel yang keliru
    - command dapat dijalankan sesuai dokumentasi

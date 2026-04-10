@@ -24,19 +24,20 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 - Pengelolaan master barang dan data referensi seperti satuan, kategori, program, sumber dana, lokasi, supplier, dan fasilitas.
 - Pencatatan stok per batch dengan pendekatan FEFO agar distribusi lebih terkendali dan masa kedaluwarsa lebih mudah dipantau.
 - Alur kerja end-to-end untuk penerimaan, distribusi, recall, barang kedaluwarsa, transfer stok, dan stock opname.
+- Dukungan tipe penerimaan bawaan dan tipe kustom melalui `ReceivingTypeOption`, termasuk quick-create dari form penerimaan.
 - Pelaporan LPLPO bulanan dan pengajuan permintaan barang secara ad-hoc dari Puskesmas.
 - Log `Transaction` yang imutabel untuk seluruh pergerakan stok, sehingga histori tetap terjaga.
 - Pengendalian akses melalui kombinasi permission Django dan `ModuleAccess` per pengguna.
-- Dukungan import CSV dari Django Admin, termasuk endpoint khusus untuk penerimaan barang.
+- Dukungan import CSV dari Django Admin, termasuk endpoint khusus untuk penerimaan barang yang mengelompokkan baris per `document_number` dan langsung membentuk stok serta `Transaction(IN)`.
 
 ## Modul Saat Ini
 
 ### Modul aktif
 
 - `items`: CRUD master barang dan lookup, filter daftar, serta endpoint AJAX untuk pembuatan referensi cepat.
-- `stock`: daftar stok, daftar transaksi, kartu stok, dan alur transfer stok.
-- `receiving`: alur penerimaan reguler dan rencana penerimaan, termasuk menu dan form khusus `Pengembalian RS` dengan tautan settlement ke distribusi RS asal.
-- `distribution`: alur permintaan, verifikasi, persiapan, hingga distribusi dengan penugasan petugas per dokumen, termasuk jalur UI khusus `Pinjam RS` dan tipe `Tukar RS`.
+- `stock`: daftar stok, daftar transaksi, kartu stok, pencarian stok per lokasi, dan alur transfer stok antar lokasi.
+- `receiving`: alur penerimaan reguler dan rencana penerimaan, quick-create referensi dari form, tipe penerimaan kustom, serta menu dan form khusus `Pengembalian RS` dengan tautan settlement ke distribusi RS asal.
+- `distribution`: alur permintaan, verifikasi, persiapan, hingga distribusi dengan penugasan petugas per dokumen, termasuk jalur UI khusus `Pinjam RS`, tipe `Tukar RS`, dan reset atau step-back workflow sebelum dokumen terdistribusi.
 - `recall`: alur retur ke supplier dari draft sampai selesai.
 - `expired`: alur penanganan barang kedaluwarsa dari draft sampai disposal, termasuk halaman alert kedaluwarsa.
 - `stock_opname`: proses hitung fisik dan cetak laporan selisih.
@@ -44,13 +45,13 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 - `lplpo`: pelaporan pemakaian dan permintaan rutin bulanan dari Puskesmas.
 - `users`: manajemen pengguna dan pengaturan cakupan akses modul.
 
-- `core`: dashboard dan pengaturan sistem (logo, header dokumen, nama fasilitas) secara dinamis.
-- `reports`: kapabilitas pencetakan dan ekspor Excel untuk laporan inventaris, mutasi, kedaluwarsa, dan penerimaan per sumber dana secara role-based.
+- `core`: dashboard, middleware akses panel admin, dan pengaturan sistem (logo, header dokumen, nama fasilitas) secara dinamis.
+- `reports`: halaman ringkasan laporan dengan keluaran `rekap`, `penerimaan hibah`, `pengadaan`, `kadaluarsa`, dan `pengeluaran`.
 
 ## Ringkasan Workflow
 
 - Receiving terencana: `DRAFT -> SUBMITTED -> APPROVED -> PARTIAL/RECEIVED -> CLOSED`
-- Receiving reguler atau hasil import: umumnya tercatat sebagai `VERIFIED` setelah posting.
+- Receiving reguler, tipe kustom, atau hasil import: umumnya tercatat sebagai `VERIFIED` setelah posting.
 - `Pengembalian RS`: tercatat sebagai `VERIFIED` melalui daftar dan form khusus tersendiri, serta wajib ditautkan ke item distribusi RS asal.
 - Distribution: `DRAFT -> SUBMITTED -> VERIFIED -> PREPARED -> DISTRIBUTED`, dapat berakhir `REJECTED`, dan dokumen yang belum terdistribusi dapat dikembalikan ke `DRAFT`.
 - `Pinjam RS`: memakai model distribusi yang sama, tetapi saat dibuat lewat menu khusus akan langsung tercatat `VERIFIED` dengan satu field kuantitas operasional.
@@ -76,9 +77,10 @@ Rincian skema kanonis tersedia di `SYSTEM_MODEL.md`.
 ## Keamanan
 
 - Perlindungan brute-force login menggunakan `django-axes`.
-- Validasi kata sandi kuat secara real-time di antarmuka pembuatan pengguna.
+- Validasi kata sandi kuat dengan minimum 10 karakter dan validator kustom tambahan.
 - Kombinasi pengamanan sesi dan CSRF dengan `HttpOnly` serta `SameSite=Lax`.
 - Hardening produksi aktif saat `DEBUG=False`, termasuk secure cookie dan header keamanan terkait.
+- Dukungan `CSRF_TRUSTED_ORIGINS`, backend email berbasis environment, dan batas field upload yang dinaikkan untuk form LPLPO berukuran besar.
 
 ## Dokumentasi
 

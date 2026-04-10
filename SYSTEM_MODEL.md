@@ -2,8 +2,8 @@
 
 Canonical reference for current schema, route topology, permission model, and stock mutation behavior.
 
-Last verified: 2026-03-31
-Verification sources: `backend/apps/*/models.py`, `backend/config/urls.py`, `backend/apps/*/urls.py`, `backend/apps/core/decorators.py`, `backend/apps/users/access.py`, `backend/config/settings.py`, `backend/apps/receiving/admin.py`
+Last verified: 2026-04-10
+Verification sources: `backend/apps/*/models.py`, `backend/config/urls.py`, `backend/apps/*/urls.py`, `backend/apps/core/decorators.py`, `backend/apps/users/access.py`, `backend/config/settings.py`, `backend/apps/receiving/admin.py`, `backend/apps/distribution/services.py`, `backend/apps/stock/views.py`, `backend/apps/lplpo/signals.py`
 
 ## 1) Domain Overview
 
@@ -36,8 +36,13 @@ Module highlights:
 
 - Stock card: `/stock/stock-card/`, `/stock/stock-card/<item_id>/`
 - Stock transfer: `/stock/transfers/*`
+- Receiving regular: `/receiving/`, `/receiving/create/`, `/receiving/<pk>/`
 - Receiving plan: `/receiving/plans/*`
+- RS returns: `/receiving/rs-returns/*`, including `/receiving/rs-returns/from-borrow/<distribution_pk>/create/`
+- Receiving quick-create APIs: `/receiving/api/quick-create-supplier/`, `/receiving/api/quick-create-funding-source/`, `/receiving/api/quick-create-receiving-type/`
+- Borrow RS distribution: `/distribution/borrow-rs/*`
 - Expiry alerts: `/expired/alerts/`
+- Reports: `/reports/`, `/reports/rekap/`, `/reports/penerimaan-hibah/`, `/reports/pengadaan/`, `/reports/kadaluarsa/`, `/reports/pengeluaran/`
 - LPLPO lists: `/lplpo/` (All), `/lplpo/my/` (Puskesmas scoped)
 - Puskesmas requests: `/puskesmas/`
 
@@ -115,6 +120,7 @@ This section reflects model code in `backend/apps/*/models.py`.
   - Unique: `uq_stock_batch` on `(item, location, batch_lot, sumber_dana)`
   - Checks: `quantity >= 0`, `reserved >= 0`
   - Indexes: `idx_stock_fefo`, `idx_stock_expiry`, `idx_stock_item_loc`
+  - Properties: `available_quantity`, `total_value`, `is_expired`, `is_near_expiry`
 
 - `stock.Transaction` (`transactions`):
   - Types: `IN`, `OUT`, `ADJUST`, `RETURN`
@@ -122,20 +128,25 @@ This section reflects model code in `backend/apps/*/models.py`.
   - FKs: `item`, `location`, `sumber_dana` (nullable), `user`
   - Fields: `batch_lot`, `quantity`, `unit_price` (nullable), `reference_type`, `reference_id`, `notes`, `created_at`
   - Indexes: `idx_trans_item_date`, `idx_trans_reference`, `idx_trans_created`
+  - Current workflows write `IN` and `OUT`; `RETURN` remains available in the enum but is not emitted by the main document flows verified on 2026-04-10
 
 - `stock.StockTransfer` (`stock_transfers`):
   - Status: `DRAFT`, `COMPLETED`
   - `document_number` auto-generated `TRF-YYYY-NNNNN` when blank
   - FKs: `source_location`, `destination_location`, `created_by`, `completed_by` (nullable)
   - Fields: `transfer_date`, `notes`, `completed_at`
+  - Validation: source and destination locations must differ
+  - Completion behavior: writes paired `Transaction(OUT)` and `Transaction(IN)` rows with `reference_type=TRANSFER`
 
 - `stock.StockTransferItem` (`stock_transfer_items`):
   - FKs: `transfer`, `stock`, `item`
   - Fields: `quantity`, `notes`
+  - Validation: quantity must be `> 0` and selected `item` must match the source stock batch
 
 ### 4.5 Receiving
 
 - `receiving.ReceivingTypeOption` (`receiving_type_options`): `code`, `name`, `is_active`
+  - Used by quick-create receiving type UI and by `Receiving.receiving_type_label` to resolve non-built-in labels
 
 - `receiving.Receiving` (`receivings`):
   - Type: `PROCUREMENT`, `GRANT`, `RETURN_RS`
@@ -143,11 +154,14 @@ This section reflects model code in `backend/apps/*/models.py`.
   - Fields: `document_number` (auto-generated `RCV-YYYY-NNNNN` when blank), `receiving_date`, `is_planned`, `grant_origin`, `program`, `closed_reason`, `notes`
   - FKs: `supplier` (nullable), `facility` (nullable, required for `RETURN_RS`), `sumber_dana`, `created_by`, `verified_by` (nullable), `approved_by` (nullable), `closed_by` (nullable)
   - Index: `idx_recv_status_date`
+  - Properties: `is_rs_return`, `receiving_type_label`
   - UI: `RETURN_RS` is intentionally exposed through a dedicated receiving list/form flow, separated from regular receiving entry screens
+  - Custom receiving types can still be stored in `receiving_type`; built-in display labels come from `ReceivingType`, while non-built-in labels are resolved from `ReceivingTypeOption`
 
 - `receiving.ReceivingItem` (`receiving_items`):
   - FKs: `receiving`, `order_item` (nullable), `item`, `location` (nullable), `settlement_distribution_item` (nullable), `received_by` (nullable)
   - Fields: `quantity`, `batch_lot`, `expiry_date`, `unit_price`, `received_at`, `created_at`
+  - Property: `total_price`
   - `settlement_distribution_item` is used by `RETURN_RS` to settle sisa pengembalian dari dokumen `BORROW_RS` / `SWAP_RS`
   - For `RETURN_RS` launched from a `BORROW_RS` detail page, facility, item, unit price, and funding source are derived from the originating distribution document and enforced server-side
 
@@ -158,6 +172,7 @@ This section reflects model code in `backend/apps/*/models.py`.
 - `receiving.ReceivingOrderItem` (`receiving_order_items`):
   - FKs: `receiving`, `item`
   - Fields: `planned_quantity`, `received_quantity`, `unit_price`, `notes`, `is_cancelled`, `cancel_reason`
+  - Property: `remaining_quantity`
 
 ### 4.6 Distribution
 
@@ -169,11 +184,13 @@ This section reflects model code in `backend/apps/*/models.py`.
   - Fields: `document_number` (auto-generated `DIST-YYYYMM-XXXXX` when blank), `request_date`, `program`, `distributed_date`, `notes`, `ocr_text`
   - FKs: `facility`, `created_by`, `verified_by` (nullable), `approved_by` (nullable)
   - Indexes: `idx_dist_status_date`, `idx_dist_facility_date`
+  - Property: `is_rs_workflow`
 
 - `distribution.DistributionItem` (`distribution_items`):
   - FKs: `distribution`, `item`, `stock` (nullable)
   - Fields: `quantity_requested`, `quantity_approved` (nullable), `issued_batch_lot`, `issued_expiry_date`, `issued_unit_price`, `notes`, `created_at`
   - FKs also include `issued_sumber_dana` (nullable) to preserve the book-value source used when the RS document was distributed
+  - Properties: `settled_quantity`, `outstanding_quantity`, `outstanding_value`
   - Sisa pengembalian RS dihitung dari `quantity_approved - sum(receiving_items.quantity)` untuk baris `settlement_distribution_item` yang terhubung
 
 - `distribution.DistributionStaffAssignment` (`distribution_staff_assignments`):
@@ -263,10 +280,12 @@ Operational mutation points (from app behavior and admin import logic):
   - `ReceivingItem`
   - `Stock` update/create
   - `Transaction(IN)`
+  - Rows are grouped by `document_number`; the first row supplies header-level values, while row-level `sumber_dana_code` and `location_code` can override header defaults
 - LPLPO Finalize creates a Distribution document mapped 1:1.
-- Distribution (current implementation does **not** use `Stock.reserved`):
-  - prepare phase updates document status only (no stock mutation and no `stock.reserved` usage)
-  - distribute phase allocates from and decreases `Stock.quantity` and posts `Transaction(OUT)`; any references in other docs (e.g. `.github/copilot-instructions.md`) to FEFO allocation via `Stock.reserved` are obsolete
+- Distribution:
+  - verification and distribution validations use `Stock.available_quantity` (`quantity - reserved`) when checking the selected batch
+  - prepare phase updates document status only (no stock mutation and no reservation write)
+  - distribute phase decreases `Stock.quantity` and posts `Transaction(OUT)`; the current workflow does not automatically increment or clear `stock.reserved`
   - `BORROW_RS` and `SWAP_RS` use the same stock-out mechanics as other distributions, while preserving issued batch/value snapshots on each `DistributionItem` for settlement and audit visibility
 - Recall verify decreases stock and posts `Transaction(OUT, reference_type=RECALL)`
 - Expired verify decreases stock and posts `Transaction(OUT, reference_type=EXPIRED)`
@@ -280,11 +299,15 @@ From `backend/config/settings.py`:
 - `AUTH_USER_MODEL = "users.User"`
 - `APP_VERSION` is loaded from root `VERSION` (semantic version `MAJOR.MINOR.PATCH`)
 - `SECRET_KEY` loaded from environment and required (`os.environ[...]`)
+- `DEBUG` defaults to `True` unless overridden by environment
+- `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` are environment-driven comma-separated lists
 - `AUTHENTICATION_BACKENDS` order:
   1. `axes.backends.AxesStandaloneBackend`
   2. `django.contrib.auth.backends.ModelBackend`
 - `axes.middleware.AxesMiddleware` included after standard auth/session middleware
 - `AXES_FAILURE_LIMIT = 5`, `AXES_COOLOFF_TIME = 0.5`, `AXES_RESET_ON_SUCCESS = True`
+- `EMAIL_BACKEND` is environment-configurable and defaults to Django's console backend
+- `DATA_UPLOAD_MAX_NUMBER_FIELDS` defaults to `10000` to support wide LPLPO and similar bulk forms
 - Session hardening: `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE="Lax"`, browser-close expiry
 - CSRF hardening: `CSRF_COOKIE_HTTPONLY`, `CSRF_COOKIE_SAMESITE="Lax"`
 - Additional hardening when `DEBUG=False`: secure cookies, HSTS, frame deny, SSL redirect toggle, referrer policy
@@ -303,6 +326,9 @@ Defined in `backend/apps/receiving/admin.py` (`ReceivingAdmin.import_csv_view`):
 
 - Endpoint: `/admin/receiving/receiving/import-csv/`
 - Required columns: `document_number`, `receiving_date`, `item_code`, `sumber_dana_code`, `location_code`, `quantity`
+- Optional columns: `receiving_type` (defaults to `GRANT`), `supplier_code`, `batch_lot`, `expiry_date`, `unit_price`
+- Rows are grouped by `document_number`; first-row supplier and header values seed the parent `Receiving`
+- Row-level `sumber_dana_code` and `location_code` may override the first-row values for each line item
 - Supported date formats in parser:
   - `DD/MM/YYYY`
   - `YYYY-MM-DD`
