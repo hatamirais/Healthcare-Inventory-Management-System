@@ -127,11 +127,16 @@ Alasan:
 - Setelah modul aktif direview dan disetujui, baru saya lanjut ke file plan modul berikutnya.
 - Jika ada koreksi pada format atau depth, format itu akan dibawa ke modul-modul berikutnya agar konsisten.
 
-## Modul Aktif Saat Ini
-
-Modul pertama yang disiapkan untuk review:
+## Modul Yang Sudah Disiapkan
 
 - [01-stock-module-test-plan.md](01-stock-module-test-plan.md)
+- [02-items-module-test-plan.md](02-items-module-test-plan.md)
+
+## Modul Aktif Saat Ini
+
+Modul aktif untuk review berikutnya:
+
+- [02-items-module-test-plan.md](02-items-module-test-plan.md)
 
 ## Deliverable Rules
 
