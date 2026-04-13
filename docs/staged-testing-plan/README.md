@@ -131,12 +131,14 @@ Alasan:
 
 - [01-stock-module-test-plan.md](01-stock-module-test-plan.md)
 - [02-items-module-test-plan.md](02-items-module-test-plan.md)
+- [03-users-uac-module-test-plan.md](03-users-uac-module-test-plan.md)
+- [04-users-crud-module-test-plan.md](04-users-crud-module-test-plan.md)
 
 ## Modul Aktif Saat Ini
 
 Modul aktif untuk review berikutnya:
 
-- [02-items-module-test-plan.md](02-items-module-test-plan.md)
+- [04-users-crud-module-test-plan.md](04-users-crud-module-test-plan.md)
 
 ## Deliverable Rules
 
