@@ -5,6 +5,54 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.12.0] - 2026-04-14
+
+### Security Audit
+
+This release completes a comprehensive security hardening audit focused on
+enabling a strict Content Security Policy, establishing automated vulnerability
+detection, and improving production operational logging.
+
+### Added
+
+- **Content Security Policy (CSP) Enforcement**: New `CSPMiddleware` injects a
+  strict `Content-Security-Policy` header on every HTTP response. The policy
+  enforces `script-src 'self'` which blocks all inline JavaScript execution,
+  mitigating the primary XSS attack vector. The full policy also restricts
+  `frame-ancestors`, `form-action`, and `base-uri` to `'self'` for defense in depth.
+- **10 External JavaScript Modules**: All interactive logic previously embedded
+  as inline `<script>` blocks has been extracted into dedicated external `.js`
+  files (`confirm-actions.js`, `quick-create.js`, `distribution-form.js`,
+  `item-form.js`, `puskesmas-form.js`, `lplpo-edit.js`, `expired-alerts.js`,
+  `rekap-filter.js`, `user-form.js`, `login.js`) loaded via `<script src>` tags.
+- **Declarative UI Event Handling**: Replaced all 40+ inline event handlers
+  (`onclick`, `onsubmit`, `onchange`) across 27 templates with data-attribute
+  driven patterns (`data-action`, `data-confirm-submit`, `data-confirm-click`,
+  `data-action-remove-row`, `data-quick-create`) processed by a single global
+  handler module.
+- **Security Audit Logging**: Signal-based logging for authentication events
+  (`login_success`, `logout`, `login_failed`) with structured metadata including
+  username, client IP (proxy-aware via `X-Forwarded-For`), and user agent.
+- **Automated Dependency Scanning**: GitHub Actions CI workflow using `pip-audit`
+  that runs on every push and pull request to protected branches, failing the
+  pipeline on any known vulnerability (`--strict` mode).
+- **Custom Error Pages**: Production-safe `404.html` and `500.html` templates
+  that prevent Django debug information from leaking in production.
+
+### Changed
+
+- **DEBUG Default Hardened**: `DEBUG` environment variable now defaults to
+  `False` instead of `True`. Development environments must explicitly opt in
+  with `DEBUG=True` in `.env` to prevent accidental production exposure.
+- **Structured Logging to stdout**: All Django logging (`django`, `django.request`,
+  `security`, `axes`) now routes exclusively to stdout via `StreamHandler`,
+  replacing any file-based logging. This ensures compatibility with Docker log
+  drivers and centralized log aggregation without filesystem dependencies.
+- **Templates Refactored for CSP**: 27 templates across all application modules
+  (receiving, distribution, items, users, puskesmas, lplpo, expired, recall,
+  stock opname, reports) updated to reference external JS files and use
+  declarative `data-*` attributes in place of inline JavaScript.
+
 ## [1.11.0] - 2026-04-09
 
 ### Added
