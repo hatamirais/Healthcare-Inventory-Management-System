@@ -191,7 +191,7 @@
                     <form method="post" action="{% url 'puskesmas:request_submit' req.pk %}">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-primary w-100" id="submit-btn"
-                            onclick="return confirm('Ajukan permintaan ini?')">
+                            data-confirm-click="Ajukan permintaan ini?">
                             <i class="bi bi-send me-1"></i>Ajukan Permintaan
                         </button>
                     </form>
@@ -209,7 +209,7 @@
                     <form method="post" action="{% url 'puskesmas:request_reset_draft' req.pk %}">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-outline-secondary w-100" id="reset-draft-btn"
-                            onclick="return confirm('Kembalikan ke Draft?')">
+                            data-confirm-click="Kembalikan ke Draft?">
                             <i class="bi bi-arrow-counterclockwise me-1"></i>Kembalikan ke Draft
                         </button>
                     </form>
@@ -222,7 +222,7 @@
                     <form method="post" action="{% url 'puskesmas:request_reset_draft' req.pk %}">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-outline-secondary w-100" id="reset-draft-btn"
-                            onclick="return confirm('Kembalikan ke Draft?')">
+                            data-confirm-click="Kembalikan ke Draft?">
                             <i class="bi bi-arrow-counterclockwise me-1"></i>Kembalikan ke Draft
                         </button>
                     </form>

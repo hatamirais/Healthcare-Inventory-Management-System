@@ -11,7 +11,10 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-8">
-        <div class="card content-card">
+        <div class="card content-card" id="item-form-container"
+            data-url-unit="{% url 'items:quick_create_unit' %}"
+            data-url-category="{% url 'items:quick_create_category' %}"
+            data-url-program="{% url 'items:quick_create_program' %}">
             <div class="card-header">
                 <span><i class="bi bi-box-seam me-2"></i>{{ title }}</span>
             </div>
@@ -169,106 +172,6 @@
 
 {% block extra_js %}
 <script src="{% static 'vendor/tom-select/tom-select.complete.min.js' %}"></script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const checkbox = document.getElementById('id_is_program_item');
-    const programSelect = document.getElementById('id_program');
-    const programField = document.getElementById('id_program')?.closest('.mb-3');
-
-    function initTomSelect(selectId, placeholder, isRequired) {
-        const select = document.getElementById(selectId);
-        if (!select || typeof TomSelect === 'undefined') return null;
-        if (isRequired && !select.value) select.selectedIndex = -1;
-        return new TomSelect(select, {
-            create: false,
-            allowEmptyOption: !isRequired,
-            maxOptions: 500,
-            placeholder: placeholder,
-            searchField: ['text'],
-            sortField: [{ field: '$score' }, { field: 'text' }],
-        });
-    }
-
-    function toggleProgramField() {
-        if (programField) programField.style.display = checkbox?.checked ? 'block' : 'none';
-        if (programSelect) {
-            if (checkbox?.checked) { programSelect.required = true; }
-            else {
-                programSelect.required = false;
-                if (programTom) programTom.clear(true);
-                else programSelect.value = '';
-            }
-        }
-    }
-
-    const satuanTom = initTomSelect('id_satuan', 'Pilih atau cari satuan...', true);
-    const kategoriTom = initTomSelect('id_kategori', 'Pilih atau cari kategori...', true);
-    const programTom = initTomSelect('id_program', 'Pilih atau cari program...');
-
-    if (checkbox) {
-        checkbox.addEventListener('change', toggleProgramField);
-        toggleProgramField();
-    }
-
-    // AJAX helpers
-    function getCookie(name) {
-        let val = null;
-        document.cookie.split(';').forEach(c => {
-            c = c.trim();
-            if (c.startsWith(name + '=')) val = decodeURIComponent(c.substring(name.length + 1));
-        });
-        return val;
-    }
-
-    function quickCreate(url, bodyStr, errorElId, modalId, tomInstance, fieldIds) {
-        const errorEl = document.getElementById(errorElId);
-        errorEl.classList.add('d-none');
-        fetch(url, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken')},
-            body: bodyStr,
-        })
-        .then(r => r.json().then(data => ({ok: r.ok, data: data})))
-        .then(function(result) {
-            if (!result.ok) { errorEl.textContent = result.data.error; errorEl.classList.remove('d-none'); return; }
-            if (tomInstance) {
-                tomInstance.addOption({value: String(result.data.id), text: result.data.text});
-                tomInstance.setValue(String(result.data.id));
-            }
-            fieldIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = '';
-            });
-            bootstrap.Modal.getInstance(document.getElementById(modalId)).hide();
-        });
-    }
-
-    // Tambah Satuan
-    document.getElementById('btn-save-unit').addEventListener('click', function() {
-        const ids = ['unit-code', 'unit-name', 'unit-description'];
-        const body = 'code=' + encodeURIComponent(document.getElementById('unit-code').value.trim())
-            + '&name=' + encodeURIComponent(document.getElementById('unit-name').value.trim())
-            + '&description=' + encodeURIComponent(document.getElementById('unit-description').value.trim());
-        quickCreate("{% url 'items:quick_create_unit' %}", body, 'unit-error', 'modal-satuan', satuanTom, ids);
-    });
-
-    // Tambah Kategori
-    document.getElementById('btn-save-cat').addEventListener('click', function() {
-        const ids = ['cat-code', 'cat-name', 'cat-sort_order'];
-        const body = 'code=' + encodeURIComponent(document.getElementById('cat-code').value.trim())
-            + '&name=' + encodeURIComponent(document.getElementById('cat-name').value.trim())
-            + '&sort_order=' + encodeURIComponent(document.getElementById('cat-sort_order').value.trim());
-        quickCreate("{% url 'items:quick_create_category' %}", body, 'cat-error', 'modal-kategori', kategoriTom, ids);
-    });
-
-    // Tambah Program
-    document.getElementById('btn-save-prog').addEventListener('click', function() {
-        const ids = ['prog-code', 'prog-name', 'prog-description'];
-        const body = 'code=' + encodeURIComponent(document.getElementById('prog-code').value.trim())
-            + '&name=' + encodeURIComponent(document.getElementById('prog-name').value.trim())
-            + '&description=' + encodeURIComponent(document.getElementById('prog-description').value.trim());
-        quickCreate("{% url 'items:quick_create_program' %}", body, 'prog-error', 'modal-program', programTom, ids);
-    });
-});
-</script>
+<script src="{% static 'js/item-form.js' %}"></script>
 {% endblock %}
+

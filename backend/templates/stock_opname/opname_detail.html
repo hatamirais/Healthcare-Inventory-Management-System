@@ -74,7 +74,7 @@
                         {% if opname.status == "DRAFT" %}
                         <form method="post" action="{% url 'stock_opname:opname_start' opname.pk %}">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Mulai stock opname?')">
+                            <button type="submit" class="btn btn-success btn-sm" data-confirm-click="Mulai stock opname?">
                                 <i class="bi bi-play-fill me-1"></i>Mulai Opname
                             </button>
                         </form>
@@ -84,7 +84,7 @@
                         </a>
                         <form method="post" action="{% url 'stock_opname:opname_complete' opname.pk %}">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Selesaikan stock opname ini?')">
+                            <button type="submit" class="btn btn-success btn-sm" data-confirm-click="Selesaikan stock opname ini?">
                                 <i class="bi bi-check-circle me-1"></i>Selesaikan
                             </button>
                         </form>

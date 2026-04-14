@@ -43,20 +43,6 @@
             <input type="hidden" name="next" value="{{ next }}">
         </form>
 
-        <script>
-        document.getElementById('togglePassword').addEventListener('click', function () {
-            var input = document.getElementById('id_password');
-            var icon = this.querySelector('i');
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.classList.replace('bi-eye-slash', 'bi-eye');
-            } else {
-                input.type = 'password';
-                icon.classList.replace('bi-eye', 'bi-eye-slash');
-            }
-        });
-        </script>
-
         <div class="text-center mt-3">
             <small class="text-muted">
                 <i class="bi bi-question-circle me-1"></i>Lupa kata sandi? Hubungi administrator untuk mengatur ulang.
@@ -64,4 +50,8 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/login.js' %}"></script>
 {% endblock %}

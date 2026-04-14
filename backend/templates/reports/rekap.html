@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% load number_format %}
 
 {% block title %}Laporan Rekap — Healthcare IMS{% endblock %}
@@ -160,7 +161,7 @@
                             <i class="bi bi-funnel"></i> Sumber Dana
                             {% if selected_sd_ids %}<span class="badge bg-white text-info ms-1">{{ selected_sd_ids|length }}</span>{% endif %}
                         </button>
-                        <button type="button" class="btn btn-dark" onclick="window.print()">
+                        <button type="button" class="btn btn-dark" data-action="print">
                             <i class="bi bi-printer"></i> Cetak Laporan
                         </button>
                         <button type="submit" name="format" value="excel" class="btn btn-success">
@@ -328,55 +329,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const selectAllCheckbox = document.getElementById('sdSelectAll');
-    const sdCheckboxes = document.querySelectorAll('.sd-checkbox');
-    const applyBtn = document.getElementById('applySumberDana');
-    const filterForm = document.getElementById('rekapFilterForm');
-    const hiddenInputsContainer = document.getElementById('sdHiddenInputs');
-
-    // Initialize "select all" state
-    function updateSelectAll() {
-        const allChecked = sdCheckboxes.length > 0 && 
-            Array.from(sdCheckboxes).every(cb => cb.checked);
-        const someChecked = Array.from(sdCheckboxes).some(cb => cb.checked);
-        selectAllCheckbox.checked = allChecked;
-        selectAllCheckbox.indeterminate = someChecked && !allChecked;
-    }
-    updateSelectAll();
-
-    // Toggle all
-    selectAllCheckbox.addEventListener('change', function() {
-        sdCheckboxes.forEach(cb => cb.checked = this.checked);
-    });
-
-    // Individual checkbox change
-    sdCheckboxes.forEach(cb => {
-        cb.addEventListener('change', updateSelectAll);
-    });
-
-    // Apply button: update hidden inputs and submit form
-    applyBtn.addEventListener('click', function() {
-        // Clear existing hidden inputs
-        hiddenInputsContainer.innerHTML = '';
-
-        // Add selected sumber_dana as hidden inputs
-        sdCheckboxes.forEach(cb => {
-            if (cb.checked) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'sumber_dana';
-                input.value = cb.value;
-                hiddenInputsContainer.appendChild(input);
-            }
-        });
-
-        // Close modal and submit form
-        const modal = bootstrap.Modal.getInstance(document.getElementById('sumberDanaModal'));
-        modal.hide();
-        filterForm.submit();
-    });
-});
-</script>
+<script src="{% static 'js/rekap-filter.js' %}"></script>
 {% endblock %}
+

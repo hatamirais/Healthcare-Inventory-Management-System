@@ -173,14 +173,14 @@
                     <form method="post" action="{% url 'lplpo:lplpo_submit' lplpo.pk %}">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-primary w-100" id="submit-btn"
-                            onclick="return confirm('Ajukan LPLPO ini?')">
+                            data-confirm-click="Ajukan LPLPO ini?">
                             <i class="bi bi-send me-1"></i>Ajukan
                         </button>
                     </form>
                     <form method="post" action="{% url 'lplpo:lplpo_delete' lplpo.pk %}">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-outline-danger w-100" id="delete-btn"
-                            onclick="return confirm('Hapus LPLPO ini? Tindakan ini tidak dapat dibatalkan.')">
+                            data-confirm-click="Hapus LPLPO ini? Tindakan ini tidak dapat dibatalkan.">
                             <i class="bi bi-trash me-1"></i>Hapus
                         </button>
                     </form>
@@ -194,7 +194,7 @@
                     <form method="post" action="{% url 'lplpo:lplpo_finalize' lplpo.pk %}">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-success w-100" id="finalize-btn"
-                            onclick="return confirm('Finalisasi LPLPO ini dan buat dokumen distribusi?')">
+                            data-confirm-click="Finalisasi LPLPO ini dan buat dokumen distribusi?">
                             <i class="bi bi-check2-all me-1"></i>Finalisasi & Buat Distribusi
                         </button>
                     </form>

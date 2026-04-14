@@ -106,7 +106,7 @@
                                             <div class="d-none">{{ f.DELETE }}</div>
                                             {% endif %}
                                             <button type="button" class="btn btn-sm btn-link text-danger delete-row-btn p-0"
-                                                onclick="removeRow(this)" title="Hapus baris">
+                                                data-action-remove-row title="Hapus baris">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </td>
@@ -136,7 +136,7 @@
                                 </td>
                                 <td class="text-center">
                                     <button type="button" class="btn btn-sm btn-link text-danger delete-row-btn p-0"
-                                        onclick="removeRow(this)" title="Hapus baris">
+                                        data-action-remove-row title="Hapus baris">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </td>
@@ -165,46 +165,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
-    const formsetBody = document.getElementById('formset-body');
-    const template = document.getElementById('empty-form-template');
-
-    document.getElementById('add-item-btn').addEventListener('click', function () {
-        const idx = parseInt(totalFormsInput.value);
-        const clone = template.content.cloneNode(true);
-
-        // Replace __prefix__ with current index
-        clone.querySelectorAll('[name]').forEach(el => {
-            el.name = el.name.replace('__prefix__', idx);
-            el.id = el.id.replace('__prefix__', idx);
-        });
-        formsetBody.appendChild(clone);
-        totalFormsInput.value = idx + 1;
-    });
-
-    function removeRow(btn) {
-        const row = btn.closest('tr');
-        // If it has an id (existing DB row), check for DELETE checkbox
-        const deleteInput = row.querySelector('input[type=checkbox]');
-        if (deleteInput) {
-            deleteInput.checked = true;
-            row.style.display = 'none';
-        } else {
-            row.remove();
-            renumberForms();
-        }
-    }
-
-    function renumberForms() {
-        const rows = formsetBody.querySelectorAll('tr.formset-row:not([style*="display: none"])');
-        rows.forEach((row, idx) => {
-            row.querySelectorAll('[name]').forEach(el => {
-                el.name = el.name.replace(/items-\d+-/, `items-${idx}-`);
-                el.id = el.id.replace(/items-\d+-/, `items-${idx}-`);
-            });
-        });
-        totalFormsInput.value = rows.length;
-    }
-</script>
+{% load static %}
+<script src="{% static 'js/puskesmas-form.js' %}"></script>
 {% endblock %}

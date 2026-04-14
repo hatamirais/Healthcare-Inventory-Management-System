@@ -30,8 +30,8 @@
 </head>
 <body>
     <div class="no-print" style="margin-bottom:16px;">
-        <button onclick="window.print()" style="padding:6px 16px; cursor:pointer;">🖨️ Cetak</button>
-        <button onclick="window.close()" style="padding:6px 16px; cursor:pointer; margin-left:8px;">✖ Tutup</button>
+        <button data-action="print" style="padding:6px 16px; cursor:pointer;">🖨️ Cetak</button>
+        <button data-action="close" style="padding:6px 16px; cursor:pointer; margin-left:8px;">✖ Tutup</button>
     </div>
 
     <h1>LAPORAN SELISIH STOCK OPNAME</h1>
@@ -107,5 +107,6 @@
             <div class="sign-line">Kepala Instalasi Farmasi</div>
         </div>
     </div>
+<script src="/static/js/confirm-actions.js"></script>
 </body>
 </html>

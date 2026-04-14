@@ -17,7 +17,7 @@
                 <!-- Location filter -->
                 <form method="get" class="row g-2 mb-3">
                     <div class="col-md-3">
-                        <select name="location" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <select name="location" class="form-select form-select-sm" data-action="submit-on-change">
                             <option value="">Semua Lokasi</option>
                             {% for loc in locations %}
                             <option value="{{ loc.pk }}" {% if selected_location == loc.pk|stringformat:'d' %}selected{% endif %}>{{ loc.code }} — {{ loc.name }}</option>

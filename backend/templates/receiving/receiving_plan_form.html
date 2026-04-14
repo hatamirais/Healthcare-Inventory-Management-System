@@ -130,7 +130,14 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
-                <button type="button" class="btn btn-primary btn-sm" id="btn-save-supplier">
+                <button type="button" class="btn btn-primary btn-sm" id="btn-save-supplier"
+                    data-quick-create
+                    data-url="{% url 'receiving:quick_create_supplier' %}"
+                    data-fields="supplier-code,supplier-name"
+                    data-field-names="code,name"
+                    data-error-el="supplier-error"
+                    data-modal-id="modal-supplier"
+                    data-select-id="id_supplier">
                     <i class="bi bi-check-lg me-1"></i>Simpan
                 </button>
             </div>
@@ -161,7 +168,14 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
-                <button type="button" class="btn btn-primary btn-sm" id="btn-save-sumber-dana">
+                <button type="button" class="btn btn-primary btn-sm" id="btn-save-sumber-dana"
+                    data-quick-create
+                    data-url="{% url 'receiving:quick_create_funding_source' %}"
+                    data-fields="sumber-dana-code,sumber-dana-name"
+                    data-field-names="code,name"
+                    data-error-el="sumber-dana-error"
+                    data-modal-id="modal-sumber_dana"
+                    data-select-id="id_sumber_dana">
                     <i class="bi bi-check-lg me-1"></i>Simpan
                 </button>
             </div>
@@ -192,7 +206,15 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
-                <button type="button" class="btn btn-primary btn-sm" id="btn-save-receiving-type">
+                <button type="button" class="btn btn-primary btn-sm" id="btn-save-receiving-type"
+                    data-quick-create
+                    data-url="{% url 'receiving:quick_create_receiving_type' %}"
+                    data-fields="receiving-type-code,receiving-type-name"
+                    data-field-names="code,name"
+                    data-uppercase-fields="code"
+                    data-error-el="receiving-type-error"
+                    data-modal-id="modal-receiving_type"
+                    data-select-id="id_receiving_type">
                     <i class="bi bi-check-lg me-1"></i>Simpan
                 </button>
             </div>
@@ -202,96 +224,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-function getCsrfToken() {
-    const meta = document.querySelector('meta[name="csrf-token"]');
-    if (meta && meta.content) return meta.content;
-    const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
-    return input ? input.value : '';
-}
-
-async function postFormJson(url, body) {
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': getCsrfToken(),
-            'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: body,
-    });
-
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-        const text = await response.text();
-        throw new Error(`Server mengembalikan respons tidak valid (${response.status}). ${text.slice(0, 120)}`);
-    }
-
-    const data = await response.json();
-    return { ok: response.ok, status: response.status, data };
-}
-
-document.getElementById('btn-save-supplier').addEventListener('click', async function() {
-    const errorEl = document.getElementById('supplier-error');
-    errorEl.classList.add('d-none');
-    const code = document.getElementById('supplier-code').value.trim();
-    const name = document.getElementById('supplier-name').value.trim();
-    const body = 'code=' + encodeURIComponent(code) + '&name=' + encodeURIComponent(name);
-    try {
-        const result = await postFormJson('{% url "receiving:quick_create_supplier" %}', body);
-        if (!result.ok) { errorEl.textContent = result.data.error; errorEl.classList.remove('d-none'); return; }
-        const select = document.getElementById('id_supplier');
-        const opt = new Option(result.data.text, result.data.id, true, true);
-        select.add(opt);
-        document.getElementById('supplier-code').value = '';
-        document.getElementById('supplier-name').value = '';
-        bootstrap.Modal.getInstance(document.getElementById('modal-supplier')).hide();
-    } catch (err) {
-        errorEl.textContent = err.message || 'Gagal menyimpan supplier.';
-        errorEl.classList.remove('d-none');
-    }
-});
-
-document.getElementById('btn-save-sumber-dana').addEventListener('click', async function() {
-    const errorEl = document.getElementById('sumber-dana-error');
-    errorEl.classList.add('d-none');
-    const code = document.getElementById('sumber-dana-code').value.trim();
-    const name = document.getElementById('sumber-dana-name').value.trim();
-    const body = 'code=' + encodeURIComponent(code) + '&name=' + encodeURIComponent(name);
-    try {
-        const result = await postFormJson('{% url "receiving:quick_create_funding_source" %}', body);
-        if (!result.ok) { errorEl.textContent = result.data.error; errorEl.classList.remove('d-none'); return; }
-        const select = document.getElementById('id_sumber_dana');
-        const opt = new Option(result.data.text, result.data.id, true, true);
-        select.add(opt);
-        document.getElementById('sumber-dana-code').value = '';
-        document.getElementById('sumber-dana-name').value = '';
-        bootstrap.Modal.getInstance(document.getElementById('modal-sumber_dana')).hide();
-    } catch (err) {
-        errorEl.textContent = err.message || 'Gagal menyimpan sumber dana.';
-        errorEl.classList.remove('d-none');
-    }
-});
-
-document.getElementById('btn-save-receiving-type').addEventListener('click', async function() {
-    const errorEl = document.getElementById('receiving-type-error');
-    errorEl.classList.add('d-none');
-    const code = document.getElementById('receiving-type-code').value.trim().toUpperCase();
-    const name = document.getElementById('receiving-type-name').value.trim();
-    const body = 'code=' + encodeURIComponent(code) + '&name=' + encodeURIComponent(name);
-    try {
-        const result = await postFormJson('{% url "receiving:quick_create_receiving_type" %}', body);
-        if (!result.ok) { errorEl.textContent = result.data.error; errorEl.classList.remove('d-none'); return; }
-        const select = document.getElementById('id_receiving_type');
-        const opt = new Option(result.data.text, result.data.id, true, true);
-        select.add(opt);
-        document.getElementById('receiving-type-code').value = '';
-        document.getElementById('receiving-type-name').value = '';
-        bootstrap.Modal.getInstance(document.getElementById('modal-receiving_type')).hide();
-    } catch (err) {
-        errorEl.textContent = err.message || 'Gagal menyimpan tipe penerimaan.';
-        errorEl.classList.remove('d-none');
-    }
-});
-</script>
+{% load static %}
+<script src="{% static 'js/quick-create.js' %}"></script>
 {% endblock %}

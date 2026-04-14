@@ -24,7 +24,7 @@
 </head>
 <body>
     <div class="no-print" style="text-align:center; padding:8px;">
-        <button onclick="window.print()" style="padding:6px 20px; font-size:12px; cursor:pointer;">
+        <button data-action="print" style="padding:6px 20px; font-size:12px; cursor:pointer;">
             🖨️ Cetak Halaman Ini
         </button>
     </div>
@@ -100,5 +100,6 @@
             <p>NIP: _______________</p>
         </div>
     </div>
+<script src="{% static 'js/confirm-actions.js' %}"></script>
 </body>
 </html>

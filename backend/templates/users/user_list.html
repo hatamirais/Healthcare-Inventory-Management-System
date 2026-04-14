@@ -85,7 +85,7 @@
                         </form>
                         {% endif %}
                         {% if can_delete_user %}
-                        <form method="post" action="{% url 'users:user_delete' account.pk %}" class="d-inline" onsubmit="return confirm('Hapus pengguna ini? Tindakan ini tidak dapat dibatalkan.');">
+                        <form method="post" action="{% url 'users:user_delete' account.pk %}" class="d-inline" data-confirm-submit="Hapus pengguna ini? Tindakan ini tidak dapat dibatalkan.">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-sm btn-outline-danger" title="{% if account.is_active %}Nonaktifkan dulu{% else %}Hapus permanen{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="{% if account.is_active %}Nonaktifkan dulu baru hapus{% else %}Hapus permanen pengguna{% endif %}" {% if request.user == account or account.is_active %}disabled{% endif %}>
                                 <i class="bi bi-trash"></i>
@@ -124,18 +124,34 @@
                 {% if users.has_next %}
                 <li class="page-item"><a class="page-link" href="?page={{ users.next_page_number }}">&raquo;</a></li>
                 {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if users.has_other_pages %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+        <small class="text-muted">{{ users.start_index }}-{{ users.end_index }} dari {{ users.paginator.count }}</small>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                {% if users.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ users.previous_page_number }}">&laquo;</a></li>
+                {% endif %}
+                {% for num in users.paginator.page_range %}
+                {% if users.number == num %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% endif %}
+                {% endfor %}
+                {% if users.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ users.next_page_number }}">&raquo;</a></li>
+                {% endif %}
             </ul>
         </nav>
     </div>
     {% endif %}
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.forEach(function (el) {
-        new bootstrap.Tooltip(el);
-    });
-});
-</script>
 {% endblock %}

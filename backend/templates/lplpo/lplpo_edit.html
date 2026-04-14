@@ -103,32 +103,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    function recalcRow(row) {
-        const getVal = (sel) => parseFloat(row.querySelector(sel)?.value) || 0;
-
-        // Get values from either input or hidden field
-        const stockAwalInput = row.querySelector('[name*="stock_awal"]');
-        const stockAwal = stockAwalInput ? parseFloat(stockAwalInput.value) || 0 : 0;
-        const penerimaan = getVal('[name*="penerimaan"]');
-        const pemakaian = getVal('[name*="pemakaian"]');
-        const waktuKosong = getVal('[name*="waktu_kosong"]');
-
-        const persediaan = stockAwal + penerimaan;
-        const stockKeseluruhan = persediaan - pemakaian;
-        const stockOptimum = stockKeseluruhan * 1.2;
-        const jumlahKebutuhan = (stockKeseluruhan * 0.2) + waktuKosong;
-
-        row.querySelector('.js-persediaan').textContent = persediaan.toFixed(2);
-        row.querySelector('.js-stock-keseluruhan').textContent = stockKeseluruhan.toFixed(2);
-        row.querySelector('.js-stock-optimum').textContent = stockOptimum.toFixed(2);
-        row.querySelector('.js-jumlah-kebutuhan').textContent = jumlahKebutuhan.toFixed(2);
-    }
-
-    document.querySelectorAll('.lplpo-row').forEach(row => {
-        row.querySelectorAll('input[type="number"]').forEach(input => {
-            input.addEventListener('input', () => recalcRow(row));
-        });
-    });
-</script>
+{% load static %}
+<script src="{% static 'js/lplpo-edit.js' %}"></script>
 {% endblock %}
