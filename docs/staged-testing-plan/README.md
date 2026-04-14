@@ -127,6 +127,12 @@ Alasan:
 - Setelah modul aktif direview dan disetujui, baru saya lanjut ke file plan modul berikutnya.
 - Jika ada koreksi pada format atau depth, format itu akan dibawa ke modul-modul berikutnya agar konsisten.
 
+## Dokumen Roadmap Program
+
+Peta jalan tingkat program tersedia di:
+
+- [PROGRAM-STAGE-ROADMAP.md](PROGRAM-STAGE-ROADMAP.md)
+
 ## Modul Yang Sudah Disiapkan
 
 - [01-stock-module-test-plan.md](01-stock-module-test-plan.md)
@@ -134,12 +140,13 @@ Alasan:
 - [03-users-uac-module-test-plan.md](03-users-uac-module-test-plan.md)
 - [04-users-crud-module-test-plan.md](04-users-crud-module-test-plan.md)
 - [05-core-module-test-plan.md](05-core-module-test-plan.md)
+- [06-receiving-module-test-plan.md](06-receiving-module-test-plan.md)
 
 ## Modul Aktif Saat Ini
 
 Modul aktif untuk review berikutnya:
 
-- [05-core-module-test-plan.md](05-core-module-test-plan.md)
+- [06-receiving-module-test-plan.md](06-receiving-module-test-plan.md)
 
 ## Deliverable Rules
 
