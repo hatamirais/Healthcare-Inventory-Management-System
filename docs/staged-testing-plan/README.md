@@ -1,91 +1,91 @@
-# Staged Test Program
+# Program Pengujian Bertahap
 
-Dokumen di folder ini menggantikan pendekatan test plan tunggal dengan program pengujian bertahap yang lebih formal dan lebih dekat ke praktik industri.
+Dokumen di folder ini menggantikan pendekatan satu dokumen rencana uji dengan program pengujian bertahap yang lebih formal, terstruktur, dan selaras dengan praktik rekayasa perangkat lunak yang baik.
 
 ## Tujuan Program
 
-- Membangun coverage secara bertahap dengan urutan yang mengikuti dependency dan risiko bisnis.
-- Menggunakan quality gate per modul: satu modul direncanakan, direview, lalu baru lanjut ke modul berikutnya.
-- Menstandarkan struktur test plan agar setiap modul punya objective, scope, risk, scenario matrix, entry criteria, dan exit criteria yang konsisten.
+- Membangun cakupan pengujian secara bertahap berdasarkan dependency dan risiko bisnis.
+- Menerapkan gerbang mutu per modul: satu modul direncanakan, direview, lalu baru dilanjutkan ke modul berikutnya.
+- Menstandarkan struktur dokumen agar setiap modul memiliki tujuan, cakupan, risiko, matriks skenario, kriteria masuk, dan kriteria selesai yang konsisten.
 
-## Standar Yang Diadopsi
+## Standar Yang Digunakan
 
 Program ini mengikuti prinsip umum yang lazim dipakai pada tim QA dan software engineering modern:
 
-- Risk-based testing: prioritas ditentukan oleh dampak bisnis dan peluang kegagalan.
-- Testing pyramid: lebih banyak unit/service test, lebih sedikit UI-heavy integration test.
-- Shift-left testing: validasi rule bisnis sedekat mungkin dengan model, form, service, dan signal.
-- Traceability: setiap modul punya pemetaan antara risk area dan target test.
-- Stage gate review: satu plan per modul direview sebelum lanjut ke plan berikutnya.
-- Regression discipline: setiap defect penting harus menghasilkan regression test.
+- Pengujian berbasis risiko: prioritas ditentukan oleh dampak bisnis dan peluang kegagalan.
+- Piramida pengujian: lebih banyak pengujian unit dan layanan, lebih sedikit pengujian integrasi yang berat di UI.
+- Shift-left testing: aturan bisnis divalidasi sedekat mungkin dengan model, form, service, signal, dan kontrak view.
+- Keterlacakan: setiap modul memiliki pemetaan yang jelas antara area risiko dan target pengujian.
+- Review bertahap: satu rencana per modul direview sebelum dilanjutkan ke modul berikutnya.
+- Disiplin regresi: setiap defect penting harus menghasilkan regression test.
 
 ## Struktur Dokumen Per Modul
 
-Setiap file module plan wajib memuat:
+Setiap file rencana pengujian modul wajib memuat:
 
-1. Objective
-2. Scope in
-3. Scope out
-4. Dependency dan related modules
-5. Risk assessment
-6. Test levels
-7. Scenario matrix
-8. Test data strategy
-9. Entry criteria
-10. Exit criteria
-11. Deliverables
-12. Recommended execution order
+1. Tujuan
+2. Cakupan yang diuji
+3. Cakupan di luar pengujian
+4. Dependency dan modul terkait
+5. Penilaian risiko
+6. Tingkat pengujian
+7. Matriks skenario
+8. Strategi data uji
+9. Kriteria masuk
+10. Kriteria selesai
+11. Hasil akhir yang diharapkan
+12. Urutan pelaksanaan yang direkomendasikan
 
 ## Urutan Tahap Semua Modul
 
 Urutan ini disusun dari fondasi sistem ke workflow bisnis tingkat atas.
 
-### Stage 1: Inventory Kernel
+### Tahap 1: Fondasi Integritas Inventaris
 
 - `stock`
 
 Alasan:
 
-- Menjadi fondasi mutasi stok, transaction ledger, stock card, stock transfer, dan API pencarian stok.
+- Menjadi fondasi mutasi stok, buku besar transaksi, kartu stok, mutasi lokasi, dan API pencarian stok.
 - Hampir semua workflow lain bergantung pada ketepatan modul ini.
 
-### Stage 2: Master Data Foundation
+### Tahap 2: Fondasi Keandalan Data Master
 
 - `items`
 
 Alasan:
 
-- Menentukan validitas referensi item, satuan, kategori, program, lokasi, sumber dana, supplier, dan fasilitas.
-- Kegagalan di sini menyebar ke receiving, distribution, stock, dan reports.
+- Menentukan validitas referensi item, satuan, kategori, program, lokasi, sumber dana, pemasok, dan fasilitas.
+- Kegagalan di sini menyebar ke `receiving`, `distribution`, `stock`, dan `reports`.
 
-### Stage 3: Platform Access and Shared Behavior
+### Tahap 3: Lapisan Akses dan Platform Bersama
 
 - `core`
 - `users`
 
 Alasan:
 
-- Menentukan kontrol akses, decorator behavior, dashboard shared behavior, role/group sync, dan module scope fallback.
+- Menentukan kontrol akses, perilaku decorator, dashboard bersama, sinkronisasi role/group, dan fallback module scope.
 
-### Stage 4: Inbound Inventory Flow
+### Tahap 4: Alur Masuk Inventaris
 
 - `receiving`
 
 Alasan:
 
-- Entry point utama penambahan stok dan sumber transaksi `IN`.
-- Memiliki CSV import, regular receiving, planned receiving, dan return RS.
+- Menjadi titik masuk utama penambahan stok dan sumber transaksi `IN`.
+- Memiliki impor CSV, penerimaan reguler, penerimaan terencana, dan pengembalian RS.
 
-### Stage 5: Outbound Inventory Flow
+### Tahap 5: Alur Keluar Inventaris
 
 - `distribution`
 
 Alasan:
 
-- Workflow stok keluar paling penting dan paling sensitif secara operasional.
-- Memiliki branch bisnis tambahan: `LPLPO`, `BORROW_RS`, dan `SWAP_RS`.
+- Merupakan workflow stok keluar paling penting dan paling sensitif secara operasional.
+- Memiliki cabang bisnis tambahan: `LPLPO`, `BORROW_RS`, dan `SWAP_RS`.
 
-### Stage 6: Reverse and Disposal Flows
+### Tahap 6: Alur Retur dan Pemusnahan
 
 - `recall`
 - `expired`
@@ -94,40 +94,40 @@ Alasan:
 
 - Keduanya mengurangi stok dan menulis `Transaction(OUT)` dengan aturan bisnis yang berbeda.
 
-### Stage 7: Reconciliation and Physical Control
+### Tahap 7: Rekonsiliasi dan Pengendalian Fisik
 
 - `stock_opname`
 
 Alasan:
 
-- Menjadi kontrol fisik terhadap akurasi stok sistem.
-- Harus memverifikasi discrepancy behavior, bukan hanya akses.
+- Menjadi kontrol fisik atas akurasi stok sistem.
+- Harus memverifikasi perilaku selisih, bukan hanya akses.
 
-### Stage 8: Facility Request and Routine Planning
+### Tahap 8: Permintaan Fasilitas dan Perencanaan Rutin
 
 - `puskesmas`
 - `lplpo`
 
 Alasan:
 
-- Sangat bergantung pada facility isolation, workflow lintas modul, dan link ke distribution.
+- Sangat bergantung pada isolasi fasilitas, workflow lintas modul, dan tautan ke `distribution`.
 
-### Stage 9: Reporting and Decision Support
+### Tahap 9: Pelaporan dan Dukungan Keputusan
 
 - `reports`
 
 Alasan:
 
-- Bergantung pada akurasi semua modul upstream.
-- Paling tepat direncanakan setelah transaksi inti sudah punya baseline coverage yang kuat.
+- Bergantung pada akurasi semua modul di hulu.
+- Paling tepat direncanakan setelah transaksi inti memiliki baseline coverage yang kuat.
 
-## Review Workflow
+## Alur Review
 
-- Saya hanya akan membuat detail plan untuk satu modul aktif pada satu waktu.
-- Setelah modul aktif direview dan disetujui, baru saya lanjut ke file plan modul berikutnya.
-- Jika ada koreksi pada format atau depth, format itu akan dibawa ke modul-modul berikutnya agar konsisten.
+- Detail rencana hanya dibuat untuk satu modul aktif pada satu waktu.
+- Setelah modul aktif direview dan disetujui, barulah dilanjutkan ke file rencana modul berikutnya.
+- Jika ada koreksi pada format atau kedalaman bahasan, format itu dibawa ke modul-modul berikutnya agar tetap konsisten.
 
-## Dokumen Roadmap Program
+## Dokumen Peta Jalan Program
 
 Peta jalan tingkat program tersedia di:
 
@@ -148,8 +148,8 @@ Modul aktif untuk review berikutnya:
 
 - [06-receiving-module-test-plan.md](06-receiving-module-test-plan.md)
 
-## Deliverable Rules
+## Aturan Hasil Akhir
 
-- Nama file memakai prefix numerik untuk menjaga urutan review.
+- Nama file memakai awalan numerik untuk menjaga urutan review.
 - Satu file hanya untuk satu modul utama.
-- Related module disebut di dalam plan, tetapi tidak dibuatkan plan terpisah sampai modul itu menjadi giliran aktif.
+- Modul terkait boleh disebut di dalam rencana, tetapi tidak dibuatkan file terpisah sampai modul tersebut menjadi giliran aktif.

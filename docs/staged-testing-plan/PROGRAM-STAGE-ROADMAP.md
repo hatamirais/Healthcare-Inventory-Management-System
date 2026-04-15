@@ -1,24 +1,24 @@
-# Program Stage Roadmap
+# Peta Jalan Tahapan Program
 
-Dokumen ini menjadi peta jalan tingkat program untuk seluruh staged testing plan. Tujuannya adalah memberi gambaran urutan eksekusi, alasan prioritas, dependency antar stage, dan quality gate yang harus dipenuhi sebelum melanjutkan ke stage berikutnya.
+Dokumen ini menjadi peta jalan tingkat program untuk seluruh rencana pengujian bertahap. Tujuannya adalah memberi gambaran urutan pelaksanaan, alasan prioritas, dependency antar tahap, dan gerbang mutu yang harus dipenuhi sebelum melanjutkan ke tahap berikutnya.
 
-## Tujuan Roadmap
+## Tujuan Peta Jalan
 
-- Menyatukan seluruh module test plan ke dalam urutan program yang jelas dan dapat dieksekusi.
-- Memastikan pengujian bergerak dari fondasi data ke workflow operasional, lalu ke laporan dan pengambilan keputusan.
-- Mengurangi rework dengan mengunci kontrak shared layer lebih awal sebelum modul hilir bergantung padanya.
-- Menjaga agar setiap stage memiliki entry criteria, exit criteria, dan alasan bisnis yang eksplisit.
-- Menjadi referensi program sebelum detail plan per modul dibuat.
+- Menyatukan seluruh rencana pengujian modul ke dalam urutan program yang jelas dan dapat dijalankan.
+- Memastikan pengujian bergerak dari fondasi data ke workflow operasional, lalu ke pelaporan dan pengambilan keputusan.
+- Mengurangi pekerjaan ulang dengan mengunci kontrak lapisan bersama lebih awal sebelum modul hilir bergantung padanya.
+- Menjaga agar setiap tahap memiliki kriteria masuk, kriteria selesai, dan alasan bisnis yang eksplisit.
+- Menjadi referensi program sebelum detail rencana per modul dibuat.
 
-## Prinsip Penyusunan Stage
+## Prinsip Penyusunan Tahap
 
-Roadmap ini mengikuti prinsip berikut:
+Peta jalan ini mengikuti prinsip berikut:
 
-- Risk-based testing: modul dengan dampak bisnis dan data tertinggi diuji lebih dahulu.
-- Dependency-first sequencing: modul fondasi diuji sebelum modul hilir yang bergantung padanya.
-- Shared-contract locking: decorator, UAC, singleton settings, dan shared context dikunci sebelum workflow lintas modul melebar.
-- Regression discipline: setiap defect penting yang ditemukan selama implementasi stage harus menghasilkan regression test.
-- Stage gate review: satu stage tidak dianggap selesai hanya karena file test bertambah; stage harus lolos quality gate yang disepakati.
+- Pengujian berbasis risiko: modul dengan dampak bisnis dan data tertinggi diuji lebih dahulu.
+- Pengurutan berbasis dependency: modul fondasi diuji sebelum modul hilir yang bergantung padanya.
+- Penguncian kontrak bersama: decorator, UAC, singleton settings, dan context bersama dikunci sebelum workflow lintas modul melebar.
+- Disiplin regresi: setiap defect penting yang ditemukan selama implementasi tahap harus menghasilkan regression test.
+- Review gerbang tahap: satu tahap tidak dianggap selesai hanya karena jumlah file test bertambah; tahap harus lolos gerbang mutu yang disepakati.
 
 ## Stage 1: Inventory Integrity Foundation
 
