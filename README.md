@@ -93,7 +93,7 @@ Rincian skema kanonis tersedia di `SYSTEM_MODEL.md`.
 
 ## Panduan Developer
 
-Instruksi setup environment, migrasi database, pengujian, versioning, dan proses import dipindahkan ke `docs/developer_guide.md` agar README tetap fokus sebagai gambaran produk dan titik masuk utama repositori.
+Instruksi setup environment, migrasi database, pengujian, versioning, dan proses import tersedia di `docs/developer_guide.md`.
 
 ## Bantuan dan Kustomisasi
 
