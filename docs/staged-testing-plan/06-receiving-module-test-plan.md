@@ -1,10 +1,10 @@
-# Receiving Module Test Plan
+# Rencana Pengujian Modul `receiving`
 
-## Objective
+## Tujuan
 
-Memastikan modul `receiving` menangani seluruh alur masuk inventaris secara valid, menciptakan atau menginkrementasi `Stock` dengan benar, menghasilkan audit trail `Transaction(IN)` yang akurat, dan menjaga dokumen workflow tetap aman dari transisi status yang tidak valid.
+Memastikan modul `receiving` menangani seluruh alur masuk inventaris secara valid, menciptakan atau menginkrementasi `Stock` dengan benar, menghasilkan jejak audit `Transaction(IN)` yang akurat, dan menjaga dokumen workflow tetap aman dari transisi status yang tidak valid.
 
-## Scope In
+## Cakupan Yang Diuji
 
 Komponen dalam cakupan plan ini:
 
@@ -13,7 +13,7 @@ Komponen dalam cakupan plan ini:
 - model `ReceivingOrderItem`
 - model `ReceivingDocument`
 - model `ReceivingTypeOption`
-- property turunan seperti `is_rs_return`, `receiving_type_label`, `remaining_quantity`, `total_price`
+- properti turunan seperti `is_rs_return`, `receiving_type_label`, `remaining_quantity`, `total_price`
 - `generate_document_number()` pada `Receiving`
 - view `receiving_list`
 - view `receiving_create`
@@ -37,84 +37,84 @@ Komponen dalam cakupan plan ini:
 - admin CSV import untuk `Receiving` dan `ReceivingItem`
 - helper `_validate_rs_return_items` dan `_get_prefillable_borrow_rs_distribution`
 
-## Scope Out
+## Di Luar Cakupan
 
 Di luar plan ini:
 
 - workflow distribution secara penuh, termasuk outstanding settlement behavior yang bukan dikontrak langsung oleh receiving
-- full admin CRUD untuk master data items, location, atau funding source
+- CRUD admin penuh untuk master data items, location, atau funding source
 - laporan dan agregasi dashboard dari data receiving
 - template styling dan visual presentation
 
 Catatan:
 
-Plan ini menguji kontrak receiving sebagai alur masuk stok. Behavior detail pada `distribution`, `stock`, `items`, `reports`, dan modul lain tetap dimiliki oleh plan modul masing-masing. Interaksi dengan modul lain diuji sebatas kontrak langsung yang disentuh oleh receiving.
+Rencana ini menguji kontrak receiving sebagai alur masuk stok. Behavior detail pada `distribution`, `stock`, `items`, `reports`, dan modul lain tetap dimiliki oleh plan modul masing-masing. Interaksi dengan modul lain diuji sebatas kontrak langsung yang disentuh oleh receiving.
 
-## Related Modules and Dependencies
+## Modul Terkait dan Dependency
 
-Related modules yang harus diperhatikan ketika test disusun:
+Modul terkait yang perlu diperhatikan saat menyusun pengujian:
 
 - `items`: `Item`, `Supplier`, `FundingSource`, `Location`, `Facility` sebagai referensi utama
-- `stock`: `Stock` dan `Transaction` sebagai target side effect saat receiving diverifikasi
+- `stock`: `Stock` dan `Transaction` sebagai target efek samping saat receiving diverifikasi
 - `distribution`: `Distribution` dan `DistributionItem` sebagai referensi untuk RS return settlement
-- `users`: autentikasi, role, dan module scope sebagai gatekeeper akses
+- `users`: autentikasi, role, dan module scope sebagai penjaga akses
 - `core`: decorator `perm_required` dan `module_scope_required`
 
 Dependency teknis utama:
 
-- Django `transaction.atomic()` untuk operasi verifikasi receiving
+- Django `transaction.atomik()` untuk operasi verifikasi receiving
 - `select_for_update()` untuk guard duplikat verifikasi
 - formset inline untuk `ReceivingItem` dan `ReceivingOrderItem`
 - `setUpTestData()` untuk fixture master reference yang mahal dibuat ulang
 - unique constraint pada `document_number` di `Receiving`
 
-## Business Risks
+## Risiko Bisnis
 
-### Critical Risks
+### Risiko Kritis
 
 1. Stock tidak bertambah atau bertambah dengan nilai yang salah saat receiving diverifikasi.
 2. `Transaction(IN)` tidak dibuat atau dibuat dengan quantity, batch, atau referensi dokumen yang salah.
-3. CSV import menciptakan records tidak konsisten atau melewati validasi yang harusnya gagal.
+3. CSV import menciptakan record tidak konsisten atau melewati validasi yang harusnya gagal.
 4. Return RS mismatch dengan distribusi asal, menyebabkan outstanding quantity tidak akurat.
-5. Rollback tidak terjadi saat proses verifikasi gagal di tengah jalan, meninggalkan partial state.
+5. Rollback tidak terjadi saat proses verifikasi gagal di tengah jalan, meninggalkan state parsial.
 
-### High Risks
+### Risiko Tinggi
 
 1. Planned receiving status transition salah, seperti APPROVED langsung ke RECEIVED tanpa submit.
 2. Regular receiving dibuat sebagai VERIFIED tetapi stock increment tidak terjadi.
 3. ReceivingTypeOption nonaktif masih bisa dipilih di form.
 4. `quick_create_supplier` atau `quick_create_funding_source` dapat dibuat oleh user tanpa scope yang cukup.
-5. Document number `RCV-YYYY-NNNNN` tidak unik atau formatnya salah.
+5. Nomor dokumen `RCV-YYYY-NNNNN` tidak unik atau formatnya salah.
 
-### Medium Risks
+### Risiko Menengah
 
 1. `remaining_quantity` pada `ReceivingOrderItem` menghitung nilai negatif atau melebihi `planned_quantity`.
-2. `receiving_type_label` fallback ke custom type tidak berjalan ketika built-in choices tidak cocok.
+2. `receiving_type_label` fallback ke tipe kustom tidak berjalan ketika built-in choices tidak cocok.
 3. Filter dan pagination list view menyembunyikan data secara tidak konsisten.
 4. Admin import tidak menulis `Transaction(IN)` saat dipakai untuk initial stock seeding.
 
-## Quality Targets
+## Sasaran Mutu
 
 Target kualitas untuk modul ini:
 
 - Setiap receiving path yang mengubah stok harus memiliki assertion terhadap `Stock.quantity` dan `Transaction`, bukan hanya response HTTP.
-- Semua transisi status pada `Receiving` harus punya positive path dan negative path.
-- CSV import harus memiliki happy path test dan test untuk baris tidak valid atau data tidak lengkap.
+- Semua transisi status pada `Receiving` harus punya jalur sukses dan jalur gagal.
+- CSV import harus memiliki test jalur berhasil dan test untuk baris tidak valid atau data tidak lengkap.
 - Return RS flow harus diverifikasi terhadap settlement linkage dan outstanding quantity distribution asal.
-- Tidak ada behavior kritis yang hanya diuji lewat template response `200` saja.
+- Tidak ada perilaku kritis yang hanya diuji lewat template response `200` saja.
 
-## Test Levels
+## Tingkat Pengujian
 
-### Level 1: Model and Rule Tests
+### Tingkat 1: Pengujian Model dan Aturan
 
 Fokus:
 
-- document number generation
-- property turunan pada `Receiving` dan `ReceivingOrderItem`
-- custom type label resolution
+- pembangkitan nomor dokumen
+- properti turunan pada `Receiving` dan `ReceivingOrderItem`
+- tipe kustom label resolution
 - constraint dan validasi model dasar
 
-### Level 2: Workflow Tests
+### Tingkat 2: Pengujian Workflow
 
 Fokus:
 
@@ -123,26 +123,26 @@ Fokus:
 - return RS receiving: create, prefill dari BORROW_RS, validate settlement, verify
 - guard terhadap transisi status invalid
 
-### Level 3: Stock and Transaction Side Effect Tests
+### Tingkat 3: Pengujian Side Effect Stok dan Transaksi
 
 Fokus:
 
 - stock creation bila batch belum ada
 - stock increment bila batch sudah ada
 - `Transaction(IN)` creation per line item
-- atomicity dan rollback saat verifikasi gagal
+- atomikity dan rollback saat verifikasi gagal
 - RS return settlement update pada `outstanding_quantity`
 
-### Level 4: Import Tests
+### Tingkat 4: Pengujian Impor
 
 Fokus:
 
-- CSV import happy path menulis receiving, items, stock, dan transaction
+- CSV import jalur berhasil menulis receiving, items, stock, dan transaction
 - baris dengan field kosong atau tidak valid ditolak dengan pesan yang jelas
 - duplicate document number ditangani dengan benar
 - import admin hanya dapat diakses oleh user dengan scope cukup
 
-### Level 5: View and Access Tests
+### Tingkat 5: Pengujian View dan Akses
 
 Fokus:
 
@@ -151,13 +151,13 @@ Fokus:
 - permission dan scope access control
 - quick-create supplier, funding source, dan receiving type
 
-## Scenario Matrix
+## Matriks Skenario
 
 ### A. Document Number Generation
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. `generate_document_number()` menghasilkan format `RCV-YYYY-NNNNN`.
 2. Save tanpa `document_number` mengisi otomatis dengan nomor yang benar.
@@ -166,14 +166,14 @@ Scenarios:
 
 ### B. Receiving Model Properties
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. `is_rs_return` bernilai true hanya untuk `receiving_type == RETURN_RS`.
 2. `receiving_type_label` mengembalikan label built-in untuk type standar.
 3. `receiving_type_label` mengembalikan nama custom dari `ReceivingTypeOption` aktif bila type bukan built-in.
-4. `receiving_type_label` fallback ke nilai raw `receiving_type` bila custom type tidak ditemukan.
+4. `receiving_type_label` kembali ke nilai mentah `receiving_type` bila tipe kustom tidak ditemukan.
 5. `ReceivingItem.total_price` mengembalikan `quantity * unit_price` dengan benar.
 6. `ReceivingOrderItem.remaining_quantity` mengembalikan `planned_quantity - received_quantity` bila positif.
 7. `ReceivingOrderItem.remaining_quantity` mengembalikan `0` bila `received_quantity >= planned_quantity`.
@@ -181,9 +181,9 @@ Scenarios:
 
 ### C. Regular Receiving Create
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. User dengan scope `OPERATE` dapat membuat regular receiving dengan minimal satu item valid.
 2. Receiving dibuat langsung dengan status `VERIFIED`.
@@ -196,9 +196,9 @@ Scenarios:
 
 ### D. Stock Creation and Increment Side Effects
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. Verifikasi receiving membuat `Stock` baru bila tuple `(item, location, batch_lot, sumber_dana)` belum ada.
 2. Verifikasi receiving menginkrementasi `Stock.quantity` bila tuple sudah ada.
@@ -209,9 +209,9 @@ Scenarios:
 
 ### E. Planned Receiving Workflow
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. User dengan scope `OPERATE` dapat membuat planned receiving dengan status awal `DRAFT`.
 2. Planned receiving dapat di-submit ke status `SUBMITTED`.
@@ -226,9 +226,9 @@ Scenarios:
 
 ### F. Return RS Receiving
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. RS return hanya bisa dibuat dengan `receiving_type = RETURN_RS` dan facility terkait.
 2. Setiap item RS return wajib dikaitkan ke `settlement_distribution_item` yang valid.
@@ -242,9 +242,9 @@ Scenarios:
 
 ### G. Status Transition Guards
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. Submit planned receiving dari non-`DRAFT` ditolak.
 2. Approve planned receiving dari non-`SUBMITTED` ditolak.
@@ -254,9 +254,9 @@ Scenarios:
 
 ### H. CSV Import
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. Import CSV valid membuat `Receiving`, `ReceivingItem`, menginkrementasi `Stock`, dan menulis `Transaction(IN)`.
 2. Import CSV dengan baris quantity kosong menghasilkan error pada baris tersebut.
@@ -267,9 +267,9 @@ Scenarios:
 
 ### I. List, Filter, and Search Views
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. `receiving_list` menampilkan dokumen regular receiving terurut terbaru.
 2. Filter status bekerja untuk setiap nilai status yang valid.
@@ -280,9 +280,9 @@ Scenarios:
 
 ### J. Quick-Create Endpoints
 
-Priority: Medium
+Prioritas: Menengah
 
-Scenarios:
+Skenario:
 
 1. `quick_create_supplier` membuat supplier baru dan mengembalikan id serta nama.
 2. `quick_create_funding_source` membuat sumber dana baru dan mengembalikan id serta nama.
@@ -293,9 +293,9 @@ Scenarios:
 
 ### K. Permission and Scope Access
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. User tidak login diarahkan ke halaman login dari semua view.
 2. User dengan scope `VIEW` dapat mengakses list dan detail, tetapi tidak dapat create atau approve.
@@ -303,7 +303,7 @@ Scenarios:
 4. User dengan scope `APPROVE` dapat approve planned receiving.
 5. Superuser dapat mengakses semua view tanpa memerlukan permission khusus.
 
-## Test Data Strategy
+## Strategi Data Uji
 
 Gunakan data minimal tetapi representatif:
 
@@ -313,7 +313,7 @@ Gunakan data minimal tetapi representatif:
 - 1 user dengan scope `VIEW` untuk validasi akses baca saja
 - 1 user tanpa akses receiving untuk validasi deny-path
 - 2 item aktif dengan batch yang berbeda
-- 1 item nonaktif untuk negative path
+- 1 item nonaktif untuk jalur gagal
 - 2 lokasi aktif
 - 1 funding source utama
 - 1 supplier aktif
@@ -328,7 +328,7 @@ Prinsip data:
 - Pisahkan fixture workflow tests dari fixture model tests agar debugging lebih mudah.
 - Gunakan data sekecil mungkin tetapi tetap cukup untuk memverifikasi perhitungan stok dan transaksi.
 
-## Recommended Test File Layout
+## Struktur File Test Yang Direkomendasikan
 
 Struktur yang direkomendasikan untuk implementasi modul ini:
 
@@ -346,35 +346,35 @@ backend/apps/receiving/tests/
 
 Jika test masih dipertahankan dalam satu file sementara waktu, grouping class test sebaiknya mengikuti struktur area di atas.
 
-## Entry Criteria
+## Kriteria Masuk
 
-Plan ini siap dieksekusi bila:
+Rencana ini siap dieksekusi bila:
 
 - app `receiving` sudah termigrasi penuh
-- modul `stock`, `items`, dan `users` sudah memiliki baseline coverage yang stabil
+- modul `stock`, `items`, dan `users` sudah memiliki cakupan dasar yang stabil
 - fixture dasar item, lokasi, funding source, supplier, fasilitas, dan user sudah bisa dibuat konsisten
 - tidak ada migration pending yang mempengaruhi model `receiving`, `stock`, atau `distribution`
 
-## Exit Criteria
+## Kriteria Selesai
 
-Modul `receiving` dianggap memenuhi baseline plan ini bila:
+Modul `receiving` dianggap memenuhi rencana dasar ini bila:
 
 - semua critical scenario punya automated test
 - minimal 80 persen high-priority scenario punya automated test
 - setiap receiving path yang mengubah stok memiliki assertion `Stock.quantity` dan `Transaction`
-- CSV import memiliki happy path test dan coverage baris tidak valid
+- CSV import memiliki test jalur berhasil dan cakupan baris tidak valid
 - RS return flow memiliki settlement validation dan denial test
 - transisi status invalid diblokir dan diuji
 
-## Deliverables
+## Hasil Akhir Yang Diharapkan
 
-Deliverable yang diharapkan dari implementasi plan ini:
+Hasil akhir yang diharapkan dari implementasi rencana ini:
 
 1. File test baru atau refactor file test lama sesuai layout yang disetujui.
 2. Shared helper atau factory untuk fixture master reference bila dipakai lebih dari satu test file.
 3. Catatan regression untuk defect receiving yang ditemukan selama implementasi.
 
-## Recommended Execution Order
+## Urutan Pelaksanaan Yang Direkomendasikan
 
 Urutan implementasi test untuk modul `receiving`:
 
@@ -387,4 +387,4 @@ Urutan implementasi test untuk modul `receiving`:
 7. `test_list_views.py`
 8. `test_access_control.py`
 
-Urutan ini dipilih agar rule model dan kontrak side effect stok dikunci terlebih dahulu sebelum workflow dan access control yang lebih luas diuji.
+Urutan ini dipilih agar aturan model dan kontrak efek samping stok dikunci terlebih dahulu sebelum workflow dan access control yang lebih luas diuji.

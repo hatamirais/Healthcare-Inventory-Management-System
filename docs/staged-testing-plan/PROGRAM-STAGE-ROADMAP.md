@@ -16,11 +16,11 @@ Peta jalan ini mengikuti prinsip berikut:
 
 - Pengujian berbasis risiko: modul dengan dampak bisnis dan data tertinggi diuji lebih dahulu.
 - Pengurutan berbasis dependency: modul fondasi diuji sebelum modul hilir yang bergantung padanya.
-- Penguncian kontrak bersama: decorator, UAC, singleton settings, dan context bersama dikunci sebelum workflow lintas modul melebar.
+- Penguncian kontrak bersama: decorator, UAC, singleton settings, dan context bersama dikunci sebelum alur kerja lintas modul melebar.
 - Disiplin regresi: setiap defect penting yang ditemukan selama implementasi tahap harus menghasilkan regression test.
 - Review gerbang tahap: satu tahap tidak dianggap selesai hanya karena jumlah file test bertambah; tahap harus lolos gerbang mutu yang disepakati.
 
-## Stage 1: Inventory Integrity Foundation
+## Tahap 1: Inventory Integrity Foundation
 
 Modul:
 
@@ -29,20 +29,20 @@ Modul:
 Fokus utama:
 
 - integritas quantity per batch
-- pairing `Transaction(IN/OUT)`
+- pasangan `Transaction(IN/OUT)`
 - `available_quantity` dan `reserved`
 - transfer antar lokasi
 - stock card dan lookup stok dasar
 
 Alasan prioritas:
 
-`stock` adalah fondasi seluruh mutasi inventaris. Hampir semua workflow lain bergantung pada ketepatan modul ini. Kesalahan pada layer ini akan merusak receiving, distribution, recall, expired, stock opname, dashboard, dan reports.
+`stock` adalah fondasi seluruh mutasi inventaris. Hampir semua alur kerja lain bergantung pada ketepatan modul ini. Kesalahan pada layer ini akan merusak receiving, distribution, recall, expired, stock opname, dashboard, dan reports.
 
 Risiko dominan:
 
 - quantity salah pada batch tertentu
 - transaction ledger tidak sinkron
-- transfer tidak atomic atau tidak seimbang
+- transfer tidak atomik atau tidak seimbang
 - FEFO atau batch selection tidak valid
 
 Deliverable utama:
@@ -50,15 +50,15 @@ Deliverable utama:
 - model dan rule tests
 - transfer workflow tests dengan success, rejection, dan rollback
 - available quantity dan reservation tests
-- JSON API contract tests
+- JSON API uji kontraks
 
-Quality gate:
+Gerbang mutu:
 
 - semua critical stock mutation path memiliki assertion data, bukan hanya status response
-- transaction `IN/OUT` pairing diverifikasi langsung
-- tidak ada transfer flow tanpa regression coverage
+- transaction `IN/OUT` pasangan diverifikasi langsung
+- tidak ada transfer flow tanpa cakupan regresi
 
-## Stage 2: Master Data Reliability
+## Tahap 2: Master Data Reliability
 
 Modul:
 
@@ -89,13 +89,13 @@ Deliverable utama:
 - lookup dan quick-create tests
 - normalization dan uniqueness tests
 
-Quality gate:
+Gerbang mutu:
 
 - item nonaktif dikecualikan dari semua flow operasional
-- rule bisnis item program tercakup
+- aturan bisnis item program tercakup
 - semua lookup penting memiliki deterministic test
 
-## Stage 3: Access Control and Shared Platform Layer
+## Tahap 3: Access Control and Shared Platform Layer
 
 Modul:
 
@@ -107,7 +107,7 @@ Fokus utama:
 - role dan group sync
 - module scope fallback
 - decorator behavior lintas modul
-- dashboard aggregation dan scoping
+- agregasi dashboard dan scoping
 - singleton system settings
 - context processor global
 
@@ -119,15 +119,15 @@ Risiko dominan:
 
 - permission leakage antar modul
 - facility scoping yang salah di dashboard Puskesmas
-- notification bell menghitung dokumen secara salah
+- lonceng notifikasi menghitung dokumen secara salah
 - singleton settings tidak konsisten
 
 Deliverable utama:
 
 - role dan group sync tests
 - decorator allow-path dan deny-path tests
-- dashboard aggregation tests
-- notification logic tests
+- agregasi dashboard tests
+- logika notifikasi tests
 - singleton settings regression tests
 
 Urutan sub-modul yang direkomendasikan:
@@ -136,13 +136,13 @@ Urutan sub-modul yang direkomendasikan:
 2. `users` CRUD
 3. `core`
 
-Quality gate:
+Gerbang mutu:
 
 - decorator contract diverifikasi langsung, bukan hanya via view test
 - facility isolation Puskesmas dibuktikan
-- shared context dan global behavior stabil di kondisi fallback
+- context bersama dan global behavior stabil di kondisi fallback
 
-## Stage 4: Inbound Inventory Flow
+## Tahap 4: Inbound Inventory Flow
 
 Modul:
 
@@ -154,11 +154,11 @@ Fokus utama:
 - regular receiving dan planned receiving
 - return RS receiving
 - CSV import
-- stock increment dan `Transaction(IN)` side effect
+- stock increment dan `Transaction(IN)` efek samping
 
 Alasan prioritas:
 
-`receiving` adalah entry point utama penambahan stok. Setelah fondasi data dan platform layer stabil, alur masuk stok harus diverifikasi sebelum alur keluar diuji.
+`receiving` adalah entry point utama penambahan stok. Setelah fondasi data dan lapisan platform stabil, alur masuk stok harus diverifikasi sebelum alur keluar diuji.
 
 Risiko dominan:
 
@@ -171,18 +171,18 @@ Risiko dominan:
 Deliverable utama:
 
 - workflow tests untuk semua path status
-- CSV import happy path dan error handling
+- CSV import jalur berhasil dan error handling
 - planned vs regular receiving distinction tests
-- stock increment dan transaction side effect assertions
+- stock increment dan transaction efek samping assertions
 - permission dan scope tests
 
-Quality gate:
+Gerbang mutu:
 
 - setiap receiving path yang mengubah stok memiliki assertion data langsung
-- CSV import memiliki coverage happy path dan baris tidak valid
+- CSV import memiliki cakupan jalur berhasil dan baris tidak valid
 - transisi status tidak valid diblokir dan diuji
 
-## Stage 5: Outbound Inventory Flow
+## Tahap 5: Outbound Inventory Flow
 
 Modul:
 
@@ -198,7 +198,7 @@ Fokus utama:
 
 Alasan prioritas:
 
-Distribution adalah workflow stok keluar paling operasional dan paling sensitif. Bergantung pada stok yang sudah stabil, master data yang valid, dan access control yang terkunci.
+Distribution adalah alur kerja stok keluar paling operasional dan paling sensitif. Bergantung pada stok yang sudah stabil, master data yang valid, dan access control yang terkunci.
 
 Risiko dominan:
 
@@ -215,13 +215,13 @@ Deliverable utama:
 - reserved vs distributed quantity assertions
 - step-back dan reset behavior tests
 
-Quality gate:
+Gerbang mutu:
 
 - semua transisi stok keluar memiliki guard-path test
 - outstanding metric diverifikasi langsung
 - settlement behavior terbukti end-to-end
 
-## Stage 6: Reverse and Disposal Flows
+## Tahap 6: Reverse and Disposal Flows
 
 Modul:
 
@@ -232,7 +232,7 @@ Fokus utama:
 
 - workflow pengembalian ke supplier
 - workflow disposal barang kadaluarsa
-- `Transaction(OUT)` side effect
+- `Transaction(OUT)` efek samping
 - guard status transition
 
 Alasan prioritas:
@@ -243,24 +243,24 @@ Risiko dominan:
 
 - penghapusan stok tidak otorisasi
 - `OUT` transaction tidak dibuat atau salah
-- audit trail tidak lengkap
+- jejak audit tidak lengkap
 - transisi status invalid lolos validasi
 
 Deliverable utama:
 
 - recall workflow tests
 - expired workflow tests
-- transaction side effect assertions
+- transaction efek samping assertions
 - permission dan guard tests
 - disposal dan reversal regression tests
 
-Quality gate:
+Gerbang mutu:
 
-- setiap pengurangan stok membuat side effect ledger yang benar
+- setiap pengurangan stok membuat efek samping ledger yang benar
 - restrict dan reject path diuji
 - audit integrity diverifikasi
 
-## Stage 7: Physical Reconciliation
+## Tahap 7: Physical Reconciliation
 
 Modul:
 
@@ -292,13 +292,13 @@ Deliverable utama:
 - filter dan list tests
 - permission dan isolation tests
 
-Quality gate:
+Gerbang mutu:
 
 - discrepancy behavior diverifikasi secara numerik
 - completion path diuji melebihi HTTP response
 - hasil rekonsiliasi divalidasi
 
-## Stage 8: Facility Request and Planning Workflows
+## Tahap 8: Facility Request and Planning Workflows
 
 Modul:
 
@@ -315,7 +315,7 @@ Fokus utama:
 
 Alasan prioritas:
 
-Kedua modul ini bergantung pada facility isolation yang stabil, access control yang terkunci, dan distribution yang sudah punya baseline coverage.
+Kedua modul ini bergantung pada facility isolation yang stabil, access control yang terkunci, dan distribution yang sudah punya cakupan dasar.
 
 Risiko dominan:
 
@@ -331,13 +331,13 @@ Deliverable utama:
 - LPLPO submission dan review tests
 - scope-based action tests
 
-Quality gate:
+Gerbang mutu:
 
 - tidak ada fasilitas yang dapat melihat atau mengubah data fasilitas lain
 - transisi submission dan review diblokir tanpa akses yang tepat
 - integrasi downstream diverifikasi
 
-## Stage 9: Reporting and Decision Support
+## Tahap 9: Reporting and Decision Support
 
 Modul:
 
@@ -352,7 +352,7 @@ Fokus utama:
 
 Alasan prioritas:
 
-Reports adalah read-model layer terakhir. Kualitas laporan bergantung pada akurasi semua modul upstream. Menguji reports terlalu awal menghasilkan noise dari modul yang belum stabil.
+Reports adalah lapisan model baca terakhir. Kualitas laporan bergantung pada akurasi semua modul upstream. Menguji reports terlalu awal menghasilkan noise dari modul yang belum stabil.
 
 Risiko dominan:
 
@@ -368,7 +368,7 @@ Deliverable utama:
 - filter dan pagination tests
 - export dan print response tests
 
-Quality gate:
+Gerbang mutu:
 
 - laporan kritis memiliki assertion data, bukan hanya status 200
 - export dan print output divalidasi secara struktural
@@ -394,7 +394,7 @@ Urutan ini adalah urutan eksekusi yang disarankan untuk membuat detail plan dan 
 
 ## Governance Program
 
-### Entry Criteria Per Stage
+### Kriteria Masuk Per Stage
 
 Stage siap dieksekusi bila:
 
@@ -403,7 +403,7 @@ Stage siap dieksekusi bila:
 - strategi fixture minimal sudah disepakati
 - peta status dan workflow utama modul sudah teridentifikasi
 
-### Exit Criteria Per Stage
+### Kriteria Selesai Per Stage
 
 Stage dianggap selesai bila:
 

@@ -1,10 +1,10 @@
-# Stock Module Test Plan
+# Rencana Pengujian Modul `stock`
 
-## Objective
+## Tujuan
 
-Memastikan modul `stock` menjaga integritas inventaris per batch, menghasilkan audit trail yang benar, dan menyediakan data yang konsisten untuk workflow hilir seperti receiving, distribution, recall, expired, stock opname, dan reports.
+Memastikan modul `stock` menjaga integritas inventaris per batch, menghasilkan jejak audit yang benar, dan menyediakan data yang konsisten untuk alur kerja hilir seperti receiving, distribution, recall, expired, stock opname, dan reports.
 
-## Scope In
+## Cakupan Yang Diuji
 
 Komponen dalam cakupan plan ini:
 
@@ -12,7 +12,7 @@ Komponen dalam cakupan plan ini:
 - model `Transaction`
 - model `StockTransfer`
 - model `StockTransferItem`
-- property turunan seperti `available_quantity`, `total_value`, `is_expired`, `is_near_expiry`
+- properti turunan seperti `available_quantity`, `total_value`, `is_expired`, `is_near_expiry`
 - view `stock_list`
 - view `transaction_list`
 - `stock_card_select`
@@ -25,23 +25,23 @@ Komponen dalam cakupan plan ini:
 - endpoint `api_location_stock_search`
 - admin rules untuk `Transaction` dan `StockTransfer`
 
-## Scope Out
+## Di Luar Cakupan
 
 Di luar plan ini:
 
 - workflow receiving detail
 - workflow distribution detail
 - workflow recall dan expired detail
-- report rendering detail
-- dashboard aggregation detail
+- report perenderan detail
+- agregasi dashboard detail
 
 Catatan:
 
-Interaksi dengan modul lain tetap diuji sebatas kontrak yang dibutuhkan modul `stock`, bukan behavior penuh modul terkait.
+Interaksi dengan modul lain tetap diuji sebatas kontrak yang dibutuhkan modul `stock`, bukan perilaku penuh modul terkait.
 
-## Related Modules and Dependencies
+## Modul Terkait dan Dependency
 
-Related modules yang harus diperhatikan ketika test disusun:
+Modul terkait yang perlu diperhatikan saat menyusun pengujian:
 
 - `items`: item, location, funding source, dan master reference lain
 - `users`: autentikasi user dan permission
@@ -57,59 +57,59 @@ Dependency teknis utama:
 - `select_for_update()` pada completion transfer
 - pagination dan filtering list view
 
-## Business Risks
+## Risiko Bisnis
 
-### Critical Risks
+### Risiko Kritis
 
 1. Pengurangan atau penambahan stok salah pada batch tertentu.
 2. `Transaction` tidak selaras dengan perubahan stok aktual.
 3. Transfer stok menghasilkan quantity sumber dan tujuan yang tidak seimbang.
 4. Batch yang reserved tetap bisa dipindah atau dipakai melebihi `available_quantity`.
 
-### High Risks
+### Risiko Tinggi
 
 1. Stock card menampilkan running balance yang salah.
 2. API stok menampilkan batch tidak valid, batch salah lokasi, atau batch tanpa availability.
 3. Transfer completed dua kali atau completed pada draft invalid state.
 4. Filter list dan pagination menutupi data penting secara tidak konsisten.
 
-### Medium Risks
+### Risiko Menengah
 
 1. Perhitungan near-expiry atau expired salah di boundary date.
 2. Search endpoint terlalu longgar atau mengembalikan item inactive.
 3. Admin memungkinkan perubahan data yang seharusnya immutable.
 
-## Quality Targets
+## Sasaran Mutu
 
 Target kualitas untuk modul ini:
 
 - Semua perubahan stok yang berasal dari modul `stock` harus memiliki assertion terhadap stock quantity dan `Transaction`.
-- Semua state transition pada `StockTransfer` harus punya positive path dan negative path.
-- Semua property inti model harus memiliki unit test untuk normal case dan boundary case.
-- Semua endpoint JSON harus memiliki contract test untuk shape data dan filtering utama.
-- Tidak ada behavior kritis yang hanya diuji lewat template response `200` saja.
+- Semua state transition pada `StockTransfer` harus punya jalur sukses dan jalur gagal.
+- Semua properti inti model harus memiliki unit test untuk normal case dan boundary case.
+- Semua endpoint JSON harus memiliki uji kontrak untuk shape data dan filtering utama.
+- Tidak ada perilaku kritis yang hanya diuji lewat template response `200` saja.
 
-## Test Levels
+## Tingkat Pengujian
 
-### Level 1: Model and Rule Tests
+### Tingkat 1: Pengujian Model dan Aturan
 
 Fokus:
 
 - constraint bisnis
-- property perhitungan
+- properti perhitungan
 - validasi `clean()`
-- document number generation
+- pembangkitan nomor dokumen
 
-### Level 2: Service-Like Workflow Tests
+### Tingkat 2: Pengujian Workflow Mirip Layanan
 
 Fokus:
 
-- transfer completion sebagai workflow atomic
+- transfer completion sebagai workflow atomik
 - quantity movement source ke destination
 - paired transaction creation
 - guard terhadap invalid state dan insufficient stock
 
-### Level 3: View and Endpoint Tests
+### Tingkat 3: Pengujian View dan Endpoint
 
 Fokus:
 
@@ -120,21 +120,21 @@ Fokus:
 - response contract JSON
 - running balance di stock card
 
-### Level 4: Admin Policy Tests
+### Tingkat 4: Pengujian Kebijakan Admin
 
 Fokus:
 
-- `TransactionAdmin` immutable policy
-- `StockTransferAdmin` inline behavior dasar
-- import resource behavior untuk `Stock`
+- `TransactionAdmin` kebijakan immutable
+- `StockTransferAdmin` perilaku dasar inline
+- perilaku resource impor untuk `Stock`
 
-## Scenario Matrix
+## Matriks Skenario
 
 ### A. Stock Model
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. `available_quantity` mengembalikan `quantity - reserved`.
 2. `total_value` mengembalikan `quantity * unit_price`.
@@ -146,9 +146,9 @@ Scenarios:
 
 ### B. Transaction Model
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. Ordering default newest-first tetap konsisten.
 2. String representation tidak kosong dan mengandung identitas transaksi.
@@ -157,9 +157,9 @@ Scenarios:
 
 ### C. Stock Transfer Model Rules
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. `generate_document_number()` menghasilkan format `TRF-YYYY-NNNNN`.
 2. Save tanpa nomor dokumen menghasilkan nomor otomatis.
@@ -169,9 +169,9 @@ Scenarios:
 
 ### D. Transfer Create Workflow
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. User berizin dapat membuat transfer draft dengan minimal satu line valid.
 2. Line dengan quantity kosong dilewati, bukan membuat line invalid.
@@ -183,9 +183,9 @@ Scenarios:
 
 ### E. Transfer Complete Workflow
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. Draft valid dapat di-complete dan status berubah ke `COMPLETED`.
 2. Completion mengurangi source stock sesuai quantity.
@@ -197,13 +197,13 @@ Scenarios:
 8. Transfer tanpa item ditolak.
 9. Transfer gagal bila source stock tidak cukup.
 10. Transfer gagal bila batch ternyata bukan milik source location dokumen.
-11. Kegagalan pada satu line membatalkan seluruh atomic workflow.
+11. Kegagalan pada satu line membatalkan seluruh atomik workflow.
 
 ### F. Stock Card Views
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. `stock_card_select` tampil untuk user login.
 2. Recent item session hanya memuat item aktif.
@@ -216,9 +216,9 @@ Scenarios:
 
 ### G. List and Search Views
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. `stock_list` hanya menampilkan stok dengan `quantity > 0`.
 2. Search di `stock_list` bekerja untuk kode barang, nama, dan batch.
@@ -228,9 +228,9 @@ Scenarios:
 
 ### H. JSON API Contracts
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. `api_item_search` mengembalikan result kosong saat query kosong.
 2. `api_item_search` hanya mengembalikan item aktif.
@@ -244,16 +244,16 @@ Scenarios:
 
 ### I. Admin Policy
 
-Priority: Medium
+Prioritas: Menengah
 
-Scenarios:
+Skenario:
 
 1. `TransactionAdmin.has_change_permission()` selalu false.
 2. `TransactionAdmin.has_delete_permission()` selalu false.
 3. `StockResource` import identifier sesuai tuple import yang didefinisikan.
 4. `StockTransferAdmin` menampilkan inline item tanpa membuka hak edit yang tidak semestinya.
 
-## Test Data Strategy
+## Strategi Data Uji
 
 Gunakan data minimal tetapi representatif:
 
@@ -272,7 +272,7 @@ Prinsip data:
 - Gunakan `setUp()` hanya untuk state yang dimutasi test tertentu.
 - Hindari pembuatan fixture berulang jika helper test dapat dipakai ulang.
 
-## Recommended Test File Layout
+## Struktur File Test Yang Direkomendasikan
 
 Struktur yang direkomendasikan untuk implementasi modul ini:
 
@@ -288,33 +288,33 @@ backend/apps/stock/tests/
 
 Jika repo belum dipecah ke package test per modul, transisi dapat dilakukan bertahap dengan menjaga backward compatibility import Django test discovery.
 
-## Entry Criteria
+## Kriteria Masuk
 
-Plan ini siap dieksekusi bila:
+Rencana ini siap dieksekusi bila:
 
 - fixture dasar item, lokasi, funding source, dan user sudah bisa dibuat konsisten
 - command test per app berjalan stabil
 - tidak ada migration pending yang mempengaruhi model `stock`
 
-## Exit Criteria
+## Kriteria Selesai
 
-Modul `stock` dianggap memenuhi baseline plan ini bila:
+Modul `stock` dianggap memenuhi rencana dasar ini bila:
 
 - semua critical scenario punya automated test
 - minimal 80 persen high-priority scenario punya automated test
 - workflow `transfer_complete` memiliki success, rejection, dan rollback test
 - stock card memiliki test running balance dan filter utama
-- JSON API memiliki contract test untuk response shape dan filtering penting
+- JSON API memiliki uji kontrak untuk bentuk response dan filtering penting
 
-## Deliverables
+## Hasil Akhir Yang Diharapkan
 
-Deliverable yang diharapkan dari implementasi plan ini:
+Hasil akhir yang diharapkan dari implementasi rencana ini:
 
 1. File test baru atau refactor file test lama sesuai layout yang disetujui.
 2. Shared helper atau factory bila dibutuhkan oleh lebih dari satu file stock test.
 3. Catatan regression untuk defect yang ditemukan selama implementasi.
 
-## Recommended Execution Order
+## Urutan Pelaksanaan Yang Direkomendasikan
 
 Urutan implementasi test untuk modul `stock`:
 
@@ -325,4 +325,4 @@ Urutan implementasi test untuk modul `stock`:
 5. `test_list_views.py`
 6. `test_admin.py`
 
-Urutan ini dipilih agar rule inti dan workflow stok tervalidasi sebelum view-level dan admin-level coverage ditambah.
+Urutan ini dipilih agar aturan inti dan workflow stok tervalidasi sebelum cakupan tingkat view dan admin ditambah.

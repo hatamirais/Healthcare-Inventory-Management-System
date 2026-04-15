@@ -1,10 +1,10 @@
-# Items Module Test Plan
+# Rencana Pengujian Modul `items`
 
-## Objective
+## Tujuan
 
-Memastikan modul `items` menjaga kualitas master data, menerapkan rule bisnis item program secara konsisten, dan mencegah referensi tidak valid masuk ke workflow hilir seperti stock, receiving, distribution, recall, expired, puskesmas, lplpo, dan reports.
+Memastikan modul `items` menjaga kualitas master data, menerapkan aturan bisnis item program secara konsisten, dan mencegah referensi tidak valid masuk ke alur kerja hilir seperti stock, receiving, distribution, recall, expired, puskesmas, lplpo, dan reports.
 
-## Scope In
+## Cakupan Yang Diuji
 
 Komponen dalam cakupan plan ini:
 
@@ -34,21 +34,21 @@ Komponen dalam cakupan plan ini:
 - endpoint `quick_create_facility`
 - import-export resource di admin untuk lookup master dan `ItemResource`
 
-## Scope Out
+## Di Luar Cakupan
 
 Di luar plan ini:
 
-- behavior penuh receiving, distribution, stock, recall, expired, puskesmas, lplpo, dan reports
+- perilaku penuh receiving, distribution, stock, recall, expired, puskesmas, lplpo, dan reports
 - integrasi UI typeahead atau selector yang berada di app lain
 - permission matrix lintas sistem secara penuh
 
 Catatan:
 
-Plan ini menguji kontrak master data yang dipakai modul lain, bukan workflow lengkap modul-modul tersebut.
+Rencana ini menguji kontrak master data yang dipakai modul lain, bukan workflow lengkap modul-modul tersebut.
 
-## Related Modules and Dependencies
+## Modul Terkait dan Dependency
 
-Related modules yang harus diperhatikan ketika test disusun:
+Modul terkait yang perlu diperhatikan saat menyusun pengujian:
 
 - `stock`: `Item`, `Location`, dan `FundingSource` dipakai sebagai foreign key inti
 - `receiving`: validitas item, supplier, location, facility, dan sumber dana
@@ -65,41 +65,41 @@ Dependency teknis utama:
 - import hook `ItemResource.before_import_row()`
 - paginator dan query filtering pada list view
 
-## Business Risks
+## Risiko Bisnis
 
-### Critical Risks
+### Risiko Kritis
 
 1. Item program dapat tersimpan tanpa `program` saat `is_program_item=True`.
 2. Item non-program tetap menyimpan `program` dan menimbulkan data kotor lintas laporan.
 3. `kode_barang` tidak unik atau auto-generation melompat ke format salah.
 4. Lookup master data duplikat secara case-insensitive sehingga referensi menjadi ambigu.
 
-### High Risks
+### Risiko Tinggi
 
 1. Soft delete tidak konsisten sehingga item inactive masih muncul di list dan selector.
 2. Quick-create endpoint membuat data duplikat atau menerima tipe fasilitas tidak valid.
 3. Filter list item tidak akurat untuk kategori dan program item.
 4. Import item program tidak mengisi `DEFAULT` program saat kolom `program` kosong.
 
-### Medium Risks
+### Risiko Menengah
 
 1. Form lookup gagal menormalkan kode dan nama dengan benar.
 2. Redirect `next` pada lookup create tidak konsisten.
 3. Admin import resource atau list filter tidak lagi sesuai kontrak data master.
 
-## Quality Targets
+## Sasaran Mutu
 
 Target kualitas untuk modul ini:
 
-- Semua rule bisnis item dan lookup master memiliki unit test eksplisit.
-- Semua entry point pembuatan data master memiliki positive path dan duplicate/invalid path.
+- Semua aturan bisnis item dan lookup master memiliki unit test eksplisit.
+- Semua entry point pembuatan data master memiliki jalur sukses dan duplicate/invalid path.
 - Soft-delete behavior pada `Item` dan entitas reference aktif memiliki baseline regression test.
-- Import behavior penting untuk item program memiliki coverage otomatis.
+- Import behavior penting untuk item program memiliki cakupan otomatis.
 - List view tidak hanya diuji `200`, tetapi juga search, filter, pagination, dan exclusion rule.
 
-## Test Levels
+## Tingkat Pengujian
 
-### Level 1: Model and Rule Tests
+### Tingkat 1: Pengujian Model dan Aturan
 
 Fokus:
 
@@ -109,7 +109,7 @@ Fokus:
 - rule program item
 - soft-delete semantics dasar
 
-### Level 2: Form Validation Tests
+### Tingkat 2: Pengujian Validasi Form
 
 Fokus:
 
@@ -118,7 +118,7 @@ Fokus:
 - program clearing untuk non-program item
 - normalized code/name output
 
-### Level 3: View and Endpoint Tests
+### Tingkat 3: Pengujian View dan Endpoint
 
 Fokus:
 
@@ -128,7 +128,7 @@ Fokus:
 - redirect behavior
 - permission guard dasar
 
-### Level 4: Admin and Import Tests
+### Tingkat 4: Pengujian Admin dan Impor
 
 Fokus:
 
@@ -136,13 +136,13 @@ Fokus:
 - default program injection
 - admin policy dan baseline list/search contract untuk master data
 
-## Scenario Matrix
+## Matriks Skenario
 
 ### A. Lookup Model Normalization
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. `Unit.save()` menormalkan `code` menjadi uppercase dan `name` menjadi single-space.
 2. `Category.save()` menormalkan `code` dan `name`.
@@ -153,9 +153,9 @@ Scenarios:
 
 ### B. Item Model Rules
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. `Item.save()` membuat `kode_barang` otomatis saat kosong.
 2. Format kode mengikuti `ITM-YYYY-NNNNN`.
@@ -167,21 +167,21 @@ Scenarios:
 
 ### C. Item Form Validation
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. `ItemForm` valid untuk item non-program tanpa `program`.
 2. `ItemForm` menolak item program tanpa `program`.
 3. `ItemForm` membersihkan `program` saat `is_program_item=False` meskipun request mengirim nilai program.
 4. `ItemForm` menetapkan `satuan` dan `kategori` tanpa empty choice.
-5. `program` tetap optional pada form sampai rule bisnis memerlukannya.
+5. `program` tetap optional pada form sampai aturan bisnis memerlukannya.
 
 ### D. Lookup Form Validation
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. `UnitForm.clean_code()` meng-uppercase dan trim input.
 2. `UnitForm.clean_name()` menormalkan spasi dan menolak duplicate case-insensitive.
@@ -191,9 +191,9 @@ Scenarios:
 
 ### E. Item List View
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. `item_list` hanya menampilkan item active.
 2. Search bekerja pada `kode_barang`, `nama_barang`, `program__name`, dan `program__code`.
@@ -205,9 +205,9 @@ Scenarios:
 
 ### F. Item CRUD Views
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. User berizin dapat membuat item valid.
 2. User tanpa permission create ditolak.
@@ -219,9 +219,9 @@ Scenarios:
 
 ### G. Lookup Create Views
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. `unit_create` berhasil dan menghormati parameter `next`.
 2. `category_create` berhasil dan menghormati parameter `next`.
@@ -231,9 +231,9 @@ Scenarios:
 
 ### H. Quick-Create AJAX Endpoints
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. `quick_create_unit` membuat unit valid dan mengembalikan contract JSON `id` dan `text`.
 2. `quick_create_unit` menolak code kosong atau name kosong.
@@ -248,9 +248,9 @@ Scenarios:
 
 ### I. Import and Admin Resources
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. `ItemResource.before_import_row()` membuat atau memakai program `DEFAULT` bila item program tidak memiliki kolom program.
 2. Import item non-program tidak memaksa `DEFAULT` program.
@@ -260,21 +260,21 @@ Scenarios:
 
 ### J. Soft-Delete and Active Reference Rules
 
-Priority: Medium
+Prioritas: Menengah
 
-Scenarios:
+Skenario:
 
 1. `FundingSource`, `Location`, `Supplier`, `Facility`, dan `Program` inactive tetap tersimpan tanpa hard delete.
 2. Form atau query yang memang membatasi ke active records tetap mengecualikan entitas inactive.
 3. `item_list` tidak bocor menampilkan item inactive walaupun direct URL diakses setelah delete.
 
-## Test Data Strategy
+## Strategi Data Uji
 
 Gunakan data minimal tetapi representatif:
 
 - 1 superuser
 - 1 user dengan permission `items.add_item`, `items.change_item`, dan `items.delete_item`
-- 1 user tanpa permission untuk negative path
+- 1 user tanpa permission untuk jalur gagal
 - 2 kategori aktif
 - 2 satuan aktif
 - 2 program aktif termasuk satu program `DEFAULT` pada test tertentu
@@ -289,7 +289,7 @@ Prinsip data:
 - Gunakan helper untuk membuat item program dan non-program agar test tetap eksplisit.
 - Pisahkan data yang dipakai test import dari data CRUD biasa untuk menghindari coupling tidak perlu.
 
-## Recommended Test File Layout
+## Struktur File Test Yang Direkomendasikan
 
 Struktur yang direkomendasikan untuk implementasi modul ini:
 
@@ -305,17 +305,17 @@ backend/apps/items/tests/
 
 Jika masih memakai satu file `tests.py`, pemisahan dapat dilakukan bertahap selama Django test discovery tetap stabil.
 
-## Entry Criteria
+## Kriteria Masuk
 
-Plan ini siap dieksekusi bila:
+Rencana ini siap dieksekusi bila:
 
 - lookup master dasar dapat dibuat konsisten di fixture test
 - tidak ada migration pending pada app `items`
 - permission app `items` tersedia dan dapat dipakai untuk guard view
 
-## Exit Criteria
+## Kriteria Selesai
 
-Modul `items` dianggap memenuhi baseline plan ini bila:
+Modul `items` dianggap memenuhi rencana dasar ini bila:
 
 - semua critical scenario punya automated test
 - minimal 80 persen high-priority scenario punya automated test
@@ -323,15 +323,15 @@ Modul `items` dianggap memenuhi baseline plan ini bila:
 - quick-create endpoints memiliki contract dan validation test
 - import item program dengan `DEFAULT` program memiliki regression test stabil
 
-## Deliverables
+## Hasil Akhir Yang Diharapkan
 
-Deliverable yang diharapkan dari implementasi plan ini:
+Hasil akhir yang diharapkan dari implementasi rencana ini:
 
 1. File test baru atau refactor file test lama sesuai layout yang disetujui.
 2. Shared helper kecil untuk item program vs non-program jika diperlukan.
-3. Regression notes untuk defect master data yang ditemukan selama implementasi.
+3. Catatan regresi untuk defect master data yang ditemukan selama implementasi.
 
-## Recommended Execution Order
+## Urutan Pelaksanaan Yang Direkomendasikan
 
 Urutan implementasi test untuk modul `items`:
 
@@ -342,4 +342,4 @@ Urutan implementasi test untuk modul `items`:
 5. `test_quick_create_api.py`
 6. `test_admin_import.py`
 
-Urutan ini dipilih agar rule data master tervalidasi terlebih dahulu, lalu entry point UI dan import mengikuti kontrak yang sudah terkunci.
+Urutan ini dipilih agar aturan data master tervalidasi terlebih dahulu, lalu entry point UI dan import mengikuti kontrak yang sudah terkunci.

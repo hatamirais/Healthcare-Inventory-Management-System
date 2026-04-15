@@ -1,10 +1,10 @@
-# Core Module Test Plan
+# Rencana Pengujian Modul `core`
 
-## Objective
+## Tujuan
 
-Memastikan modul `core` berfungsi sebagai platform layer yang stabil untuk seluruh aplikasi, dengan kontrak yang benar pada authorization decorator, dashboard bersama, context processor global, singleton system settings, dan utility versioning.
+Memastikan modul `core` berfungsi sebagai lapisan platform yang stabil untuk seluruh aplikasi, dengan kontrak yang benar pada decorator otorisasi, dashboard bersama, context processor global, singleton system settings, dan utilitas versioning.
 
-## Scope In
+## Cakupan Yang Diuji
 
 Komponen dalam cakupan plan ini:
 
@@ -20,33 +20,33 @@ Komponen dalam cakupan plan ini:
   - `perm_required`
   - `role_required`
   - `module_scope_required`
-- utility versioning:
+- utilitas versioning:
   - `SemanticVersion`
   - `read_version`
   - `write_version`
   - `get_version_file`
 
-## Scope Out
+## Di Luar Cakupan
 
 Di luar plan ini:
 
 - workflow CRUD atau transaksi bisnis di app lain
-- full authorization matrix `users` selain kontrak yang disentuh decorator `core`
-- report-specific aggregation
+- full matriks otorisasi `users` selain kontrak yang disentuh decorator `core`
+- agregasi khusus laporan
 - template styling atau visual presentation
 
 Catatan:
 
-Plan ini menguji `core` sebagai shared infrastructure layer. Behavior detail pada `stock`, `items`, `users`, `receiving`, `distribution`, dan modul lain tetap dimiliki oleh plan modul masing-masing.
+Rencana ini menguji `core` sebagai lapisan infrastruktur bersama. Behavior detail pada `stock`, `items`, `users`, `receiving`, `distribution`, dan modul lain tetap dimiliki oleh plan modul masing-masing.
 
-## Related Modules and Dependencies
+## Modul Terkait dan Dependency
 
-Related modules yang harus diperhatikan ketika test disusun:
+Modul terkait yang perlu diperhatikan saat menyusun pengujian:
 
-- `users`: role, `ModuleAccess`, dan helper access layer dipakai langsung oleh decorator dan notification logic
+- `users`: role, `ModuleAccess`, dan helper lapisan akses dipakai langsung oleh decorator dan logika notifikasi
 - `stock`: data stok, transaksi, low stock, expiring stock
 - `distribution`: outstanding RS summary dan distribusi dashboard
-- `receiving`: notification bell untuk receiving plan dan regular receiving
+- `receiving`: lonceng notifikasi untuk receiving plan dan regular receiving
 - `puskesmas`: dashboard Puskesmas dan notification item
 - `lplpo`: dashboard Puskesmas dan notification item
 - `items`: data item untuk low-stock dan stock summary
@@ -56,42 +56,42 @@ Dependency teknis utama:
 - Django auth middleware dan `login_required`
 - context processor execution pada setiap request
 - query aggregation dengan `Count`, `Sum`, `Coalesce`, dan filter expression
-- singleton persistence untuk `SystemSettings`
-- filesystem access pada utility versioning
+- singleton persistensi untuk `SystemSettings`
+- filesystem access pada utilitas versioning
 
-## Business Risks
+## Risiko Bisnis
 
-### Critical Risks
+### Risiko Kritis
 
-1. Decorator authorization salah sehingga akses ke view lintas modul bocor atau terblokir keliru.
+1. Decorator otorisasi salah sehingga akses ke view lintas modul bocor atau terblokir keliru.
 2. Dashboard utama menampilkan agregasi stok atau outstanding RS yang salah dan menyesatkan operasi.
 3. Dashboard Puskesmas membocorkan data lintas fasilitas.
 4. Singleton `SystemSettings` rusak sehingga header/facility identity sistem tidak konsisten.
 
-### High Risks
+### Risiko Tinggi
 
 1. Notification bell menghitung dokumen actionable secara salah, menyebabkan pekerjaan terlewat atau false alarm.
-2. Context processor global gagal dan merusak rendering layout aplikasi.
+2. Context processor global gagal dan merusak perenderan layout aplikasi.
 3. Non-admin dapat mengubah system settings.
 4. Utility versioning membaca atau menulis versi secara tidak valid.
 
-### Medium Risks
+### Risiko Menengah
 
 1. `role_required` lama berperilaku tidak konsisten dibanding ekspektasi backward compatibility.
 2. `TimeStampedModel` tidak memuat timestamp dengan konsisten pada model turunan.
 3. `app_version` atau `system_settings_processor` gagal dalam kondisi fallback.
 
-## Quality Targets
+## Sasaran Mutu
 
 Target kualitas untuk modul ini:
 
-- Semua shared contract yang dipakai lintas app memiliki automated test eksplisit.
-- Dashboard dan notification logic tidak hanya diuji status `200`, tetapi juga isi agregasi dan scoping data.
-- Decorator authorization memiliki deny-path dan allow-path yang jelas.
-- `SystemSettings` singleton dan update flow memiliki regression coverage.
+- Semua kontrak bersama yang dipakai lintas app memiliki automated test eksplisit.
+- Dashboard dan logika notifikasi tidak hanya diuji status `200`, tetapi juga isi agregasi dan scoping data.
+- Decorator otorisasi memiliki deny-path dan allow-path yang jelas.
+- `SystemSettings` singleton dan update flow memiliki cakupan regresi.
 - Utility versioning tetap menjadi unit-test layer yang cepat dan stabil.
 
-## Test Levels
+## Tingkat Pengujian
 
 ### Level 1: Utility and Model Tests
 
@@ -99,9 +99,9 @@ Fokus:
 
 - semantic version parsing dan bumping
 - singleton behavior `SystemSettings`
-- baseline timestamp behavior
+- perilaku dasar timestamp
 
-### Level 2: Authorization Contract Tests
+### Tingkat 2: Pengujian Kontrak Otorisasi
 
 Fokus:
 
@@ -111,30 +111,30 @@ Fokus:
 - module scope fallback path
 - forbidden path
 
-### Level 3: Context and Aggregation Tests
+### Tingkat 3: Pengujian Context dan Agregasi
 
 Fokus:
 
-- dashboard summary
+- ringkasan dashboard
 - facility scoping
 - notification counts
 - context processor resilience
 
-### Level 4: View Access and Update Flow Tests
+### Tingkat 4: Pengujian Akses View dan Alur Pembaruan
 
 Fokus:
 
 - system settings update access
-- message and persistence behavior
+- message and persistensi behavior
 - dashboard template split between user types
 
-## Scenario Matrix
+## Matriks Skenario
 
 ### A. Versioning Utilities
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. `SemanticVersion.parse()` menerima format semver valid.
 2. `SemanticVersion.parse()` menolak format invalid.
@@ -145,9 +145,9 @@ Scenarios:
 
 ### B. SystemSettings Singleton
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. `SystemSettings.get_settings()` selalu mengembalikan instance singleton.
 2. Pemanggilan berulang tidak membuat row duplikat.
@@ -156,18 +156,18 @@ Scenarios:
 
 ### C. TimeStampedModel Baseline
 
-Priority: Medium
+Prioritas: Menengah
 
-Scenarios:
+Skenario:
 
 1. Model turunan `TimeStampedModel` memiliki `created_at` saat create.
 2. `updated_at` berubah saat record di-update.
 
 ### D. Authorization Decorators
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. `perm_required` meloloskan superuser.
 2. `perm_required` meloloskan user dengan Django permission yang sesuai.
@@ -181,9 +181,9 @@ Scenarios:
 
 ### E. Main Dashboard Aggregation
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. User non-Puskesmas menerima template dashboard utama.
 2. `total_items` hanya menghitung item aktif.
@@ -198,9 +198,9 @@ Scenarios:
 
 ### F. Puskesmas Dashboard Scoping
 
-Priority: Critical
+Prioritas: Kritis
 
-Scenarios:
+Skenario:
 
 1. User `PUSKESMAS` menerima template dashboard khusus.
 2. Bila user tidak punya facility, dashboard tetap render dengan data kosong aman.
@@ -210,9 +210,9 @@ Scenarios:
 
 ### G. Notification Context Processor
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. Anonymous user menerima notifikasi kosong.
 2. User `PUSKESMAS` menerima notifikasi kosong.
@@ -227,9 +227,9 @@ Scenarios:
 
 ### H. Global Context Processors
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. `app_version` mengembalikan `APP_VERSION` dari settings.
 2. `system_settings_processor` mengembalikan singleton settings saat tersedia.
@@ -237,9 +237,9 @@ Scenarios:
 
 ### I. System Settings Update View
 
-Priority: High
+Prioritas: Tinggi
 
-Scenarios:
+Skenario:
 
 1. Hanya role `ADMIN` yang dapat mengakses update view.
 2. Non-admin ditolak dari update view.
@@ -248,7 +248,7 @@ Scenarios:
 5. Submit valid menampilkan success message.
 6. `success_url` kembali ke dashboard.
 
-## Test Data Strategy
+## Strategi Data Uji
 
 Gunakan data minimal tetapi representatif:
 
@@ -271,7 +271,7 @@ Prinsip data:
 - Pisahkan fixture decorator tests dari fixture dashboard tests agar debugging lebih mudah.
 - Gunakan data sekecil mungkin tetapi tetap cukup untuk memverifikasi perhitungan agregasi.
 
-## Recommended Test File Layout
+## Struktur File Test Yang Direkomendasikan
 
 Struktur yang direkomendasikan untuk implementasi modul ini:
 
@@ -286,33 +286,33 @@ backend/apps/core/tests/
 
 Jika test tetap dipertahankan dalam satu file sementara waktu, grouping class test sebaiknya mengikuti struktur area di atas.
 
-## Entry Criteria
+## Kriteria Masuk
 
-Plan ini siap dieksekusi bila:
+Rencana ini siap dieksekusi bila:
 
 - app `core` sudah termigrasi penuh
 - data fixture lintas modul dasar dapat dibuat di test database
-- utility versioning dapat diuji secara file-based pada temporary directory
+- utilitas versioning dapat diuji secara file-based pada temporary directory
 
-## Exit Criteria
+## Kriteria Selesai
 
-Modul `core` dianggap memenuhi baseline plan ini bila:
+Modul `core` dianggap memenuhi rencana dasar ini bila:
 
 - semua critical scenario punya automated test
 - minimal 80 persen high-priority scenario punya automated test
-- decorator authorization contract tervalidasi dengan allow-path dan deny-path
+- decorator otorisasi contract tervalidasi dengan allow-path dan deny-path
 - dashboard dan notification processor memiliki assertion data agregasi, bukan hanya response sukses
-- singleton settings dan update view memiliki regression coverage
+- singleton settings dan update view memiliki cakupan regresi
 
-## Deliverables
+## Hasil Akhir Yang Diharapkan
 
-Deliverable yang diharapkan dari implementasi plan ini:
+Hasil akhir yang diharapkan dari implementasi rencana ini:
 
 1. File test baru atau refactor file test lama sesuai layout yang disetujui.
 2. Helper kecil untuk request factory atau dummy decorated views bila dibutuhkan.
-3. Regression notes untuk bug platform-level yang ditemukan selama implementasi.
+3. Catatan regresi untuk bug platform-level yang ditemukan selama implementasi.
 
-## Recommended Execution Order
+## Urutan Pelaksanaan Yang Direkomendasikan
 
 Urutan implementasi test untuk modul `core`:
 

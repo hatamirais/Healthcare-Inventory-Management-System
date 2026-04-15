@@ -38,7 +38,7 @@ Setiap file rencana pengujian modul wajib memuat:
 
 ## Urutan Tahap Semua Modul
 
-Urutan ini disusun dari fondasi sistem ke workflow bisnis tingkat atas.
+Urutan ini disusun dari fondasi sistem ke alur kerja bisnis tingkat atas.
 
 ### Tahap 1: Fondasi Integritas Inventaris
 
@@ -47,7 +47,7 @@ Urutan ini disusun dari fondasi sistem ke workflow bisnis tingkat atas.
 Alasan:
 
 - Menjadi fondasi mutasi stok, buku besar transaksi, kartu stok, mutasi lokasi, dan API pencarian stok.
-- Hampir semua workflow lain bergantung pada ketepatan modul ini.
+- Hampir semua alur kerja lain bergantung pada ketepatan modul ini.
 
 ### Tahap 2: Fondasi Keandalan Data Master
 
@@ -82,7 +82,7 @@ Alasan:
 
 Alasan:
 
-- Merupakan workflow stok keluar paling penting dan paling sensitif secara operasional.
+- Merupakan alur kerja stok keluar paling penting dan paling sensitif secara operasional.
 - Memiliki cabang bisnis tambahan: `LPLPO`, `BORROW_RS`, dan `SWAP_RS`.
 
 ### Tahap 6: Alur Retur dan Pemusnahan
@@ -110,7 +110,7 @@ Alasan:
 
 Alasan:
 
-- Sangat bergantung pada isolasi fasilitas, workflow lintas modul, dan tautan ke `distribution`.
+- Sangat bergantung pada isolasi fasilitas, alur kerja lintas modul, dan tautan ke `distribution`.
 
 ### Tahap 9: Pelaporan dan Dukungan Keputusan
 
@@ -119,7 +119,7 @@ Alasan:
 Alasan:
 
 - Bergantung pada akurasi semua modul di hulu.
-- Paling tepat direncanakan setelah transaksi inti memiliki baseline coverage yang kuat.
+- Paling tepat direncanakan setelah transaksi inti memiliki cakupan dasar yang kuat.
 
 ## Alur Review
 
