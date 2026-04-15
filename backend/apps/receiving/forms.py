@@ -61,6 +61,9 @@ class ReceivingForm(BaseReceivingForm):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("include_return_rs", False)
         super().__init__(*args, **kwargs)
+        self.fields["document_number"].widget.attrs["placeholder"] = (
+            "Kosongkan untuk generate otomatis"
+        )
 
     class Meta:
         model = Receiving
@@ -69,7 +72,6 @@ class ReceivingForm(BaseReceivingForm):
             "receiving_type",
             "receiving_date",
             "supplier",
-            "facility",
             "sumber_dana",
             "notes",
         ]
@@ -80,7 +82,6 @@ class ReceivingForm(BaseReceivingForm):
                 attrs={"class": "form-control", "type": "date"}
             ),
             "supplier": forms.Select(attrs={"class": "form-select"}),
-            "facility": forms.Select(attrs={"class": "form-select"}),
             "sumber_dana": forms.Select(attrs={"class": "form-select"}),
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
