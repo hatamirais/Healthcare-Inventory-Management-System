@@ -710,9 +710,13 @@ def receiving_plan_receive(request, pk):
         )
         return redirect("receiving:receiving_plan_detail", pk=pk)
 
-    planned_order_items = list(
-        receiving.order_items.filter(is_cancelled=False).select_related("item")
-    )
+    planned_order_items = [
+        order_item
+        for order_item in receiving.order_items.filter(is_cancelled=False).select_related(
+            "item"
+        )
+        if order_item.remaining_quantity > 0
+    ]
     if not planned_order_items:
         messages.error(request, "Rencana tidak memiliki item aktif untuk diterima.")
         return redirect("receiving:receiving_plan_detail", pk=pk)
@@ -740,7 +744,15 @@ def receiving_plan_receive(request, pk):
         )
         if not formset.is_valid():
             messages.error(request, "Periksa kembali isian penerimaan.")
-            return redirect("receiving:receiving_plan_receive", pk=pk)
+            return render(
+                request,
+                "receiving/receiving_plan_receive.html",
+                {
+                    "receiving": receiving,
+                    "formset": formset,
+                },
+                status=200,
+            )
 
         totals = {}
         has_receipt_row = False
@@ -749,13 +761,16 @@ def receiving_plan_receive(request, pk):
                 continue
             order_item = form.cleaned_data.get("order_item")
             quantity = form.cleaned_data.get("quantity")
-            if not order_item or quantity is None:
+            if not order_item or quantity is None or quantity <= 0:
                 continue
             has_receipt_row = True
             totals[order_item.pk] = totals.get(order_item.pk, 0) + quantity
 
         if not has_receipt_row:
-            messages.error(request, "Tambahkan minimal 1 item penerimaan.")
+            messages.info(
+                request,
+                "Belum ada item dengan jumlah diterima di atas 0 untuk disimpan.",
+            )
             return redirect("receiving:receiving_plan_receive", pk=pk)
 
         if totals:
@@ -766,7 +781,15 @@ def receiving_plan_receive(request, pk):
                         request,
                         f"Jumlah penerimaan untuk {order_item.item} melebihi sisa pesanan.",
                     )
-                    return redirect("receiving:receiving_plan_receive", pk=pk)
+                    return render(
+                        request,
+                        "receiving/receiving_plan_receive.html",
+                        {
+                            "receiving": receiving,
+                            "formset": formset,
+                        },
+                        status=200,
+                    )
 
         try:
             with transaction.atomic():
@@ -835,7 +858,15 @@ def receiving_plan_receive(request, pk):
 
         except ValueError as exc:
             messages.error(request, str(exc))
-            return redirect("receiving:receiving_plan_receive", pk=pk)
+            return render(
+                request,
+                "receiving/receiving_plan_receive.html",
+                {
+                    "receiving": receiving,
+                    "formset": formset,
+                },
+                status=200,
+            )
 
         messages.success(
             request, f"Penerimaan {receiving.document_number} berhasil dicatat."

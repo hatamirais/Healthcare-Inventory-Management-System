@@ -22,12 +22,19 @@
                 <form method="post" novalidate>
                     {% csrf_token %}
                     {{ formset.management_form }}
+                    {% if formset.non_form_errors %}
+                    <div class="alert alert-danger py-2">
+                        {% for error in formset.non_form_errors %}
+                        <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                     <div class="table-responsive">
                         <table class="table table-sm w-100 align-middle">
                             <thead>
                                 <tr>
                                     <th style="min-width: 260px;">Item Pesanan</th>
-                                    <th style="width:170px;">Kuantitas Rencana</th>
+                                    <th style="width:170px;">Sisa Rencana</th>
                                     <th style="width:180px;">Kuantitas Diterima</th>
                                     <th style="width:170px;">Batch/Lot</th>
                                     <th style="width:190px;">Tanggal Kedaluwarsa</th>
@@ -51,6 +58,11 @@
                                     {{ item_form.id }}
                                 </tr>
                                 {% for error in item_form.errors.values %}
+                                <tr>
+                                    <td colspan="7" class="text-danger small py-1">{{ error }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% for error in item_form.non_field_errors %}
                                 <tr>
                                     <td colspan="7" class="text-danger small py-1">{{ error }}</td>
                                 </tr>

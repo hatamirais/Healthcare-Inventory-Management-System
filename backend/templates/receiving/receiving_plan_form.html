@@ -9,7 +9,7 @@
                 <span><i class="bi bi-clipboard-check me-2"></i>{{ title }}</span>
             </div>
             <div class="card-body">
-                <form method="post" novalidate>
+                <form method="post" novalidate data-confirm-submit="Pastikan harga satuan setiap item sudah benar. Setelah rencana penerimaan disimpan, harga satuan pada item rencana tidak dapat diubah.">
                     {% csrf_token %}
                     <div class="row g-3 mb-4">
                         {% for field in form %}

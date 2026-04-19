@@ -9,7 +9,12 @@ from django.urls import reverse
 from apps.distribution.models import Distribution, DistributionItem
 from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
 from apps.receiving.admin import ReceivingAdmin
-from apps.receiving.forms import PlannedReceivingForm, ReceivingForm, RsReturnReceivingForm
+from apps.receiving.forms import (
+    PlannedReceivingForm,
+    ReceivingForm,
+    ReceivingOrderItemForm,
+    RsReturnReceivingForm,
+)
 from apps.receiving.models import (
     Receiving,
     ReceivingItem,
@@ -588,7 +593,7 @@ class ReceivingWorkflowCleanupTest(TestCase):
             reverse("receiving:receiving_plan_receive", args=[receiving.pk])
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Kuantitas Rencana")
+        self.assertContains(response, "Sisa Rencana")
         self.assertContains(response, "Kuantitas Diterima")
         self.assertContains(response, self.item.nama_barang)
         self.assertNotContains(response, self.item.kode_barang)
@@ -597,6 +602,52 @@ class ReceivingWorkflowCleanupTest(TestCase):
         self.assertContains(response, self.location.name)
         self.assertNotContains(response, self.location.code)
         self.assertNotContains(response, "Hapus")
+
+    def test_plan_receive_page_shows_only_outstanding_items_and_remaining_quantity(self):
+        receiving = Receiving.objects.create(
+            document_number="RCV-2026-99988",
+            receiving_type=Receiving.ReceivingType.PROCUREMENT,
+            receiving_date=date(2026, 3, 16),
+            sumber_dana=self.funding,
+            status=Receiving.Status.PARTIAL,
+            is_planned=True,
+            created_by=self.user,
+            approved_by=self.user,
+        )
+        partial_order = ReceivingOrderItem.objects.create(
+            receiving=receiving,
+            item=self.item,
+            planned_quantity=Decimal("10000"),
+            received_quantity=Decimal("5000"),
+            unit_price=Decimal("1000"),
+            is_cancelled=False,
+        )
+        second_item = Item.objects.create(
+            kode_barang="ITM-TEST-0103",
+            nama_barang="Alopurinol 100 mg",
+            satuan=self.item.satuan,
+            kategori=self.item.kategori,
+            minimum_stock=Decimal("0"),
+        )
+        ReceivingOrderItem.objects.create(
+            receiving=receiving,
+            item=second_item,
+            planned_quantity=Decimal("20000"),
+            received_quantity=Decimal("20000"),
+            unit_price=Decimal("2000"),
+            is_cancelled=False,
+        )
+
+        response = self.client.get(
+            reverse("receiving:receiving_plan_receive", args=[receiving.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.item.nama_barang)
+        self.assertContains(response, 'value="5.000,00"', html=False)
+        self.assertNotContains(response, second_item.nama_barang)
+        self.assertNotContains(response, 'value="20.000,00"', html=False)
+        self.assertContains(response, f'value="{partial_order.pk}"', html=False)
 
     def test_plan_receive_accepts_zero_qty_as_no_receipt_for_row(self):
         receiving = Receiving.objects.create(
@@ -638,6 +689,143 @@ class ReceivingWorkflowCleanupTest(TestCase):
         receiving.refresh_from_db()
         self.assertEqual(receiving.status, Receiving.Status.APPROVED)
         self.assertEqual(ReceivingItem.objects.filter(receiving=receiving).count(), 0)
+
+    def test_plan_receive_allows_partial_and_full_receipt_mix(self):
+        receiving = Receiving.objects.create(
+            document_number="RCV-2026-99990",
+            receiving_type=Receiving.ReceivingType.PROCUREMENT,
+            receiving_date=date(2026, 3, 16),
+            sumber_dana=self.funding,
+            status=Receiving.Status.APPROVED,
+            is_planned=True,
+            created_by=self.user,
+            approved_by=self.user,
+        )
+        amoxicillin_order = ReceivingOrderItem.objects.create(
+            receiving=receiving,
+            item=self.item,
+            planned_quantity=Decimal("10000"),
+            received_quantity=Decimal("0"),
+            unit_price=Decimal("100"),
+            is_cancelled=False,
+        )
+        second_item = Item.objects.create(
+            kode_barang="ITM-TEST-0102",
+            nama_barang="Alopurinol 100 mg",
+            satuan=self.item.satuan,
+            kategori=self.item.kategori,
+            minimum_stock=Decimal("0"),
+        )
+        alopurinol_order = ReceivingOrderItem.objects.create(
+            receiving=receiving,
+            item=second_item,
+            planned_quantity=Decimal("20000"),
+            received_quantity=Decimal("0"),
+            unit_price=Decimal("0"),
+            is_cancelled=False,
+        )
+
+        response = self.client.post(
+            reverse("receiving:receiving_plan_receive", args=[receiving.pk]),
+            {
+                "items-TOTAL_FORMS": "2",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-order_item": str(amoxicillin_order.pk),
+                "items-0-quantity": "5000",
+                "items-0-batch_lot": "AHSGK",
+                "items-0-expiry_date": "2030-11-30",
+                "items-0-unit_price": "100.00",
+                "items-0-location": str(self.location.pk),
+                "items-1-order_item": str(alopurinol_order.pk),
+                "items-1-quantity": "20000",
+                "items-1-batch_lot": "DSAGJK",
+                "items-1-expiry_date": "2030-12-02",
+                "items-1-unit_price": "200.00",
+                "items-1-location": str(self.location.pk),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        receiving.refresh_from_db()
+        amoxicillin_order.refresh_from_db()
+        alopurinol_order.refresh_from_db()
+        self.assertEqual(receiving.status, Receiving.Status.PARTIAL)
+        self.assertEqual(amoxicillin_order.received_quantity, Decimal("5000"))
+        self.assertEqual(alopurinol_order.received_quantity, Decimal("20000"))
+        self.assertEqual(ReceivingItem.objects.filter(receiving=receiving).count(), 2)
+        self.assertTrue(
+            Stock.objects.filter(
+                item=self.item,
+                batch_lot="AHSGK",
+                quantity=Decimal("5000"),
+            ).exists()
+        )
+        self.assertTrue(
+            Stock.objects.filter(
+                item=second_item,
+                batch_lot="DSAGJK",
+                quantity=Decimal("20000"),
+                unit_price=Decimal("200.00"),
+            ).exists()
+        )
+
+    def test_plan_receive_invalid_post_rerenders_row_errors(self):
+        receiving = Receiving.objects.create(
+            document_number="RCV-2026-99989",
+            receiving_type=Receiving.ReceivingType.PROCUREMENT,
+            receiving_date=date(2026, 3, 16),
+            sumber_dana=self.funding,
+            status=Receiving.Status.APPROVED,
+            is_planned=True,
+            created_by=self.user,
+            approved_by=self.user,
+        )
+        oi = ReceivingOrderItem.objects.create(
+            receiving=receiving,
+            item=self.item,
+            planned_quantity=Decimal("5"),
+            received_quantity=Decimal("0"),
+            unit_price=Decimal("1000"),
+            is_cancelled=False,
+        )
+
+        response = self.client.post(
+            reverse("receiving:receiving_plan_receive", args=[receiving.pk]),
+            {
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-order_item": str(oi.pk),
+                "items-0-quantity": "3",
+                "items-0-batch_lot": "BATCH-ERR",
+                "items-0-expiry_date": "2030-01-01",
+                "items-0-unit_price": "1000",
+                "items-0-location": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Lokasi wajib dipilih.")
+        self.assertContains(response, 'value="3"', html=False)
+
+    def test_receiving_order_item_form_rejects_zero_unit_price(self):
+        form = ReceivingOrderItemForm(
+            data={
+                "item": self.item.pk,
+                "planned_quantity": "5",
+                "unit_price": "0",
+                "notes": "",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["unit_price"],
+            ["Harga satuan harus lebih dari 0."],
+        )
 
     def test_gudang_cannot_approve_receiving_plan(self):
         receiving = Receiving.objects.create(

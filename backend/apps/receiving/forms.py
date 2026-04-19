@@ -484,6 +484,12 @@ class ReceivingOrderItemForm(forms.ModelForm):
             raise forms.ValidationError("Jumlah rencana harus lebih dari 0.")
         return quantity
 
+    def clean_unit_price(self):
+        unit_price = self.cleaned_data.get("unit_price")
+        if unit_price is None or unit_price <= 0:
+            raise forms.ValidationError("Harga satuan harus lebih dari 0.")
+        return unit_price
+
 
 ReceivingOrderItemFormSet = inlineformset_factory(
     Receiving,
@@ -500,10 +506,9 @@ class ReceivingReceiptItemForm(forms.ModelForm):
         disabled=True,
         widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
     )
-    planned_quantity = forms.DecimalField(
+    planned_quantity = forms.CharField(
         required=False,
         disabled=True,
-        decimal_places=2,
         widget=forms.TextInput(
             attrs={"class": "form-control form-control-sm text-end", "readonly": True}
         ),
@@ -575,13 +580,17 @@ class ReceivingReceiptItemForm(forms.ModelForm):
                 selected_order_item.item.nama_barang
             )
             self.fields["planned_quantity"].initial = _format_id_decimal(
-                selected_order_item.planned_quantity
+                selected_order_item.remaining_quantity
             )
 
         if self.lock_order_item:
             self.fields["order_item"].widget = forms.HiddenInput()
             self.fields["quantity"].required = False
             self.fields["quantity"].widget.attrs["min"] = "0"
+            self.fields["batch_lot"].required = False
+            self.fields["expiry_date"].required = False
+            self.fields["unit_price"].required = False
+            self.fields["location"].required = False
         self.fields["order_item"].label_from_instance = lambda obj: (
             f"{obj.item} (Sisa: {obj.remaining_quantity})"
         )
