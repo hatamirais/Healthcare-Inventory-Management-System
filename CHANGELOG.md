@@ -5,6 +5,37 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.12.3] - 2026-04-19
+
+### Changed
+
+- Planned `Penerimaan` follow-up screens now focus only on outstanding order
+  lines. Fully received items are removed from the `Terima Barang` page, while
+  partially received items now show only the remaining quantity under `Sisa
+  Rencana`.
+- Planned receiving line labels on the `Terima Barang` page were simplified for
+  faster operator scanning: `Item Pesanan` and `Lokasi` now display names only,
+  without internal reference codes.
+- Saving a planned receiving document now presents an explicit confirmation
+  warning so operators re-check `Harga Satuan` before the plan is created.
+
+### Fixed
+
+- Planned receiving submissions no longer fail because formatted read-only
+  quantity displays such as `10.000,00` were being re-validated as raw numeric
+  input during POST processing.
+- Mixed partial and full receipt submissions now complete correctly in one
+  transaction, preserving the intended `PARTIAL` workflow when only some order
+  quantities remain outstanding.
+- Invalid planned receipt submissions now re-render with bound field values and
+  inline row-level errors, replacing the previous generic toast-only failure
+  path that discarded user input and obscured the actual validation problem.
+- Zero-quantity receipt rows are now treated as intentional no-op lines instead
+  of forcing supporting fields or incorrectly pushing the parent plan into
+  `PARTIAL` state.
+- Planned receiving line items now reject empty or zero `Harga Satuan` during
+  plan creation, preventing ambiguous downstream receipt pricing.
+
 ## [1.12.1] - 2026-04-16
 
 ### Changed
