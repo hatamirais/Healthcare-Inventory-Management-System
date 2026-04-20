@@ -58,7 +58,7 @@
                         {% endif %}
                     </td>
                     <td>{{ r.supplier.name|default:"-" }}</td>
-                    <td>{{ r.sumber_dana.code }}</td>
+                    <td>{{ r.sumber_dana.name }}</td>
                     <td>
                         <span class="badge-status badge-{{ r.status|lower }}">{{ r.get_status_display }}</span>
                     </td>
