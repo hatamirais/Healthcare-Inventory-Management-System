@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "apps.stock",
     "apps.receiving",
     "apps.distribution",
+    "apps.allocation",
     "apps.recall",
     "apps.expired",
     "apps.reports",

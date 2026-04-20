@@ -44,6 +44,7 @@ def nav_notifications(request):
 
     receiving_scope = get_user_module_scope(user, ModuleAccess.Module.RECEIVING)
     distribution_scope = get_user_module_scope(user, ModuleAccess.Module.DISTRIBUTION)
+    allocation_scope = get_user_module_scope(user, ModuleAccess.Module.ALLOCATION)
     recall_scope = get_user_module_scope(user, ModuleAccess.Module.RECALL)
     expired_scope = get_user_module_scope(user, ModuleAccess.Module.EXPIRED)
     stock_opname_scope = get_user_module_scope(user, ModuleAccess.Module.STOCK_OPNAME)
@@ -119,6 +120,29 @@ def nav_notifications(request):
             ).count(),
             reverse("distribution:distribution_list"),
             "bi-box-arrow-up-right",
+        )
+
+    if allocation_scope >= ModuleAccess.Scope.OPERATE:
+        from apps.allocation.models import Allocation
+
+        allocation_statuses = []
+        if allocation_scope >= ModuleAccess.Scope.APPROVE:
+            allocation_statuses.append(Allocation.Status.SUBMITTED)
+        if allocation_scope in (ModuleAccess.Scope.OPERATE, ModuleAccess.Scope.MANAGE):
+            allocation_statuses.extend(
+                [Allocation.Status.APPROVED, Allocation.Status.PREPARED]
+            )
+
+        count = (
+            Allocation.objects.filter(status__in=allocation_statuses).count()
+            if allocation_statuses
+            else 0
+        )
+        add_notification_item(
+            "Alokasi",
+            count,
+            reverse("allocation:allocation_list"),
+            "bi-diagram-3",
         )
 
     if recall_scope >= ModuleAccess.Scope.APPROVE:

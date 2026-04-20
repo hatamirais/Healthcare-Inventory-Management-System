@@ -46,6 +46,7 @@ class ModuleAccess(models.Model):
         STOCK = "stock", "Stok"
         RECEIVING = "receiving", "Penerimaan"
         DISTRIBUTION = "distribution", "Distribusi"
+        ALLOCATION = "allocation", "Alokasi"
         RECALL = "recall", "Recall / Retur"
         EXPIRED = "expired", "Kadaluarsa"
         STOCK_OPNAME = "stock_opname", "Stock Opname"
