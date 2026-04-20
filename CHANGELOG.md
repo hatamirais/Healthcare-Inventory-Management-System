@@ -5,6 +5,30 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.13.0] - 2026-04-20
+
+### Changed
+
+- LPLPO-generated distributions are now treated as system-generated workflow
+  outputs instead of a normal manual distribution method in the generic
+  Distribusi form.
+- Instalasi Farmasi navigation now surfaces submitted LPLPO processing under the
+  outbound transaction flow instead of placing it in the Puskesmas section.
+- The main LPLPO queue for Instalasi Farmasi now focuses on documents that have
+  already been submitted by Puskesmas operators.
+
+### Added
+
+- Submission-month and submission-year filters on the Instalasi Farmasi LPLPO
+  queue for faster operational review.
+- Printable submitted-LPLPO report view based on the current queue filters.
+
+### Fixed
+
+- Manual creation of `distribution_type=LPLPO` is now blocked for regular
+  distribution create/edit flows, ensuring the type is reserved for finalized
+  LPLPO documents only.
+
 ## [1.12.3] - 2026-04-19
 
 ### Changed
