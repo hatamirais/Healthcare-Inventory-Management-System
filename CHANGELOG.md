@@ -9,6 +9,14 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 ### Changed
 
+- New `allocation` module foundation with dedicated models, migrations, module
+  access scope, admin registration, and separate routing from generic
+  Distribusi.
+- Initial Alokasi list, detail, create, and edit screens with header-level
+  multi-facility selection, multi-staff `Petugas` assignment, and one-row-one-
+  facility item entry.
+- Allocation-specific tests covering document numbering, validation, routing,
+  access control, create flow, and edit flow behavior.
 - LPLPO-generated distributions are now treated as system-generated workflow
   outputs instead of a normal manual distribution method in the generic
   Distribusi form.
