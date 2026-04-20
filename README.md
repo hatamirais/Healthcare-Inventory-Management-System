@@ -81,6 +81,7 @@ Rincian skema kanonis tersedia di `SYSTEM_MODEL.md`.
 ## Dokumentasi
 
 - `docs/developer_guide.md`: panduan developer untuk setup lokal, testing, versioning, seed, import, dan tata kelola dokumentasi.
+- `docs/ALLOCATION_IMPLEMENTATION.md`: draft rancangan pemisahan modul Alokasi dari Distribusi.
 - `SYSTEM_MODEL.md`: referensi skema data dan peta workflow.
 - `CHANGELOG.md`: riwayat perubahan dan rilis.
 - `backend/seed/README.md`: spesifikasi template CSV seed.

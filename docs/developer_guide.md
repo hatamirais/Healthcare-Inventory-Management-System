@@ -161,6 +161,7 @@ Saat file `VERSION` berubah di branch `main`, GitHub Actions menjalankan `.githu
 
 Dokumen terkait:
 
+- `docs/ALLOCATION_IMPLEMENTATION.md`
 - `backend/seed/README.md`
 - `README.md`
 - `SYSTEM_MODEL.md`
