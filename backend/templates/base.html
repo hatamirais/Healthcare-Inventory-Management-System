@@ -58,7 +58,7 @@
                 {% endif %}
                 {% endif %}
 
-                {% if can_view_receiving or can_view_distribution or can_view_recall or can_view_expired %}
+                {% if can_view_receiving or can_view_distribution or can_view_allocation or can_view_recall or can_view_expired %}
                 <div class="sidebar-section-title">Transaksi</div>
                 {% if can_view_receiving %}
                 <button class="sidebar-link sidebar-dropdown-toggle {% if request.resolver_match.app_name == 'receiving' %}active{% endif %}"
@@ -82,21 +82,28 @@
                     </a>
                 </div>
                 {% endif %}
-                {% if can_view_distribution or can_view_recall or can_view_expired or can_view_lplpo %}
-                <button class="sidebar-link sidebar-dropdown-toggle {% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}active{% endif %}"
+                {% if can_view_distribution or can_view_allocation or can_view_recall or can_view_expired or can_view_lplpo %}
+                <button class="sidebar-link sidebar-dropdown-toggle {% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'allocation' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}active{% endif %}"
                     data-bs-toggle="collapse"
                     data-bs-target="#sidebar-pengeluaran"
-                    aria-expanded="{% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}true{% else %}false{% endif %}"
+                    aria-expanded="{% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'allocation' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}true{% else %}false{% endif %}"
                     type="button">
                     <i class="bi bi-box-arrow-up-right"></i><span>Pengeluaran</span>
                     <i class="bi bi-chevron-down chevron"></i>
                 </button>
-                <div class="collapse sidebar-submenu {% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}show{% endif %}" id="sidebar-pengeluaran">
+                <div class="collapse sidebar-submenu {% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'allocation' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}show{% endif %}" id="sidebar-pengeluaran">
                     {% if can_view_distribution %}
                     <a href="{% url 'distribution:distribution_list' %}"
                         class="sidebar-link {% if request.resolver_match.app_name == 'distribution' %}active{% endif %}"
                         data-label="Distribusi">
                         <i class="bi bi-send"></i><span>Distribusi</span>
+                    </a>
+                    {% endif %}
+                    {% if can_view_allocation %}
+                    <a href="{% url 'allocation:allocation_list' %}"
+                        class="sidebar-link {% if request.resolver_match.app_name == 'allocation' %}active{% endif %}"
+                        data-label="Alokasi">
+                        <i class="bi bi-diagram-3"></i><span>Alokasi</span>
                     </a>
                     {% endif %}
                     {% if can_view_lplpo and request.user.role != 'PUSKESMAS' %}
@@ -258,6 +265,10 @@
                         {% if request.resolver_match.app_name == 'distribution' and request.resolver_match.url_name != 'distribution_list' %}
                         <a href="{% url 'distribution:distribution_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Distribusi">
                             <i class="bi bi-arrow-left me-1"></i>Distribusi
+                        </a>
+                        {% elif request.resolver_match.app_name == 'allocation' and request.resolver_match.url_name != 'allocation_list' %}
+                        <a href="{% url 'allocation:allocation_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Alokasi">
+                            <i class="bi bi-arrow-left me-1"></i>Alokasi
                         </a>
                         {% elif request.resolver_match.app_name == 'recall' and request.resolver_match.url_name != 'recall_list' %}
                         <a href="{% url 'recall:recall_list' %}" class="btn btn-outline-secondary btn-sm" title="Kembali ke Recall / Retur">

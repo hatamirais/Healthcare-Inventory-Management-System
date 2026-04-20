@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - Healthcare IMS{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="table-container">
+    <div class="table-header">
+        <h5><i class="bi bi-diagram-3 me-2"></i>Daftar Alokasi</h5>
+        <a href="{% url 'allocation:allocation_create' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Buat Alokasi
+        </a>
+    </div>
+
+    <div class="px-3 py-2 border-bottom bg-light">
+        <form method="get" class="filter-form">
+            <input type="text" name="q" class="form-control" placeholder="Cari no. dokumen / fasilitas / petugas / barang..." value="{{ search }}">
+            <select name="status" class="form-select">
+                <option value="">Semua Status</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-search"></i></button>
+                {% if search or selected_status %}
+                <a href="{% url 'allocation:allocation_list' %}" class="btn btn-outline-danger btn-sm"><i class="bi bi-x-lg"></i></a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>No. Dokumen</th>
+                    <th>Tanggal</th>
+                    <th>Fasilitas</th>
+                    <th>Petugas</th>
+                    <th>Item</th>
+                    <th>Status</th>
+                    <th>Dibuat oleh</th>
+                    <th class="text-end">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for allocation in allocations %}
+                <tr>
+                    <td>
+                        <a href="{% url 'allocation:allocation_detail' allocation.pk %}" class="fw-semibold text-decoration-none">{{ allocation.document_number }}</a>
+                    </td>
+                    <td>{{ allocation.allocation_date|date:"d/m/Y" }}</td>
+                    <td>{{ allocation.facility_count }} fasilitas</td>
+                    <td>{{ allocation.staff_count }} petugas</td>
+                    <td>{{ allocation.item_count }} baris</td>
+                    <td><span class="badge-status badge-{{ allocation.status|lower }}">{{ allocation.get_status_display }}</span></td>
+                    <td>{{ allocation.created_by }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'allocation:allocation_detail' allocation.pk %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8">
+                        <div class="empty-state">
+                            <i class="bi bi-diagram-3 d-block"></i>
+                            <p>Belum ada data alokasi</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

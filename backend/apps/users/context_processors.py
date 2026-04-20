@@ -12,6 +12,7 @@ def access_flags(request):
             "can_view_stock": False,
             "can_view_receiving": False,
             "can_view_distribution": False,
+            "can_view_allocation": False,
             "can_view_recall": False,
             "can_view_expired": False,
             "can_view_stock_opname": False,
@@ -38,6 +39,9 @@ def access_flags(request):
         ),
         "can_view_distribution": has_module_scope(
             user, ModuleAccess.Module.DISTRIBUTION, ModuleAccess.Scope.VIEW
+        ),
+        "can_view_allocation": has_module_scope(
+            user, ModuleAccess.Module.ALLOCATION, ModuleAccess.Scope.VIEW
         ),
         "can_view_recall": has_module_scope(
             user, ModuleAccess.Module.RECALL, ModuleAccess.Scope.VIEW
