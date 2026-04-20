@@ -4,6 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.distribution.forms import DistributionItemForm
 from apps.distribution.models import Distribution, DistributionItem
 from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
 from apps.stock.models import Stock, Transaction
@@ -135,6 +136,81 @@ class DistributionWorkflowTest(TestCase):
         self.assertEqual(response.status_code, 302)
         dist.refresh_from_db()
         self.assertEqual(dist.status, Distribution.Status.SUBMITTED)
+
+    # --- Form validation ---
+
+    def test_distribution_item_form_rejects_non_positive_approved_quantity(self):
+        form = DistributionItemForm(
+            data={
+                "item": self.item.pk,
+                "quantity_requested": "10",
+                "quantity_approved": "0",
+                "stock": self.stock.pk,
+                "notes": "",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("quantity_approved", form.errors)
+
+    def test_distribution_item_form_rejects_approved_quantity_above_requested(self):
+        form = DistributionItemForm(
+            data={
+                "item": self.item.pk,
+                "quantity_requested": "10",
+                "quantity_approved": "12",
+                "stock": self.stock.pk,
+                "notes": "",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("quantity_approved", form.errors)
+
+    def test_distribution_item_form_rejects_approved_quantity_above_available_stock(self):
+        self.stock.quantity = Decimal("8")
+        self.stock.save(update_fields=["quantity", "updated_at"])
+
+        form = DistributionItemForm(
+            data={
+                "item": self.item.pk,
+                "quantity_requested": "10",
+                "quantity_approved": "9",
+                "stock": self.stock.pk,
+                "notes": "",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("quantity_approved", form.errors)
+
+    def test_distribution_item_form_stock_queryset_filters_and_orders_fefo(self):
+        early_stock = Stock.objects.create(
+            item=self.item,
+            location=self.location,
+            batch_lot="BATCH-D00",
+            expiry_date="2027-01-01",
+            quantity=Decimal("25"),
+            reserved=Decimal("0"),
+            unit_price=Decimal("5000"),
+            sumber_dana=self.funding_source,
+        )
+        depleted_stock = Stock.objects.create(
+            item=self.item,
+            location=Location.objects.create(code="LOC-02", name="Gudang Cadangan"),
+            batch_lot="BATCH-ZERO",
+            expiry_date="2027-06-01",
+            quantity=Decimal("5"),
+            reserved=Decimal("5"),
+            unit_price=Decimal("5000"),
+            sumber_dana=self.funding_source,
+        )
+
+        form = DistributionItemForm()
+        stock_ids = list(form.fields["stock"].queryset.values_list("id", flat=True))
+
+        self.assertEqual(stock_ids[:2], [early_stock.id, self.stock.id])
+        self.assertNotIn(depleted_stock.id, stock_ids)
 
     # --- Verify workflow ---
 

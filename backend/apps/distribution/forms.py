@@ -116,15 +116,41 @@ class DistributionItemForm(forms.ModelForm):
         cleaned_data = super().clean()
         item = cleaned_data.get("item")
         stock = cleaned_data.get("stock")
-        quantity = cleaned_data.get("quantity_requested")
+        quantity_requested = cleaned_data.get("quantity_requested")
+        quantity_approved = cleaned_data.get("quantity_approved")
 
         if stock and item and stock.item_id != item.id:
             self.add_error(
                 "stock", "Batch stok harus sesuai dengan barang yang dipilih."
             )
 
-        if quantity is not None and quantity <= 0:
+        if quantity_requested is not None and quantity_requested <= 0:
             self.add_error("quantity_requested", "Jumlah harus lebih dari 0.")
+
+        if quantity_approved is not None and quantity_approved <= 0:
+            self.add_error(
+                "quantity_approved", "Jumlah disetujui harus lebih dari 0."
+            )
+
+        if (
+            quantity_requested is not None
+            and quantity_approved is not None
+            and quantity_approved > quantity_requested
+        ):
+            self.add_error(
+                "quantity_approved",
+                "Jumlah disetujui tidak boleh melebihi jumlah diminta.",
+            )
+
+        if (
+            stock is not None
+            and quantity_approved is not None
+            and quantity_approved > stock.available_quantity
+        ):
+            self.add_error(
+                "quantity_approved",
+                "Jumlah disetujui melebihi stok batch yang tersedia.",
+            )
 
         return cleaned_data
 
