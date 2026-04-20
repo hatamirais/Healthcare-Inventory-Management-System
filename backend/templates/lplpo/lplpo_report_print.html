@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Laporan LPLPO Diajukan</title>
+    <style>
+        @page { size: A4 landscape; margin: 10mm; }
+        body { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; color: #111; }
+        h2 { margin: 0 0 6px; text-align: center; font-size: 18px; }
+        .subtitle { margin-bottom: 14px; text-align: center; color: #555; }
+        .filters { margin-bottom: 14px; font-size: 10px; }
+        .filters span { margin-right: 14px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #333; padding: 6px 8px; }
+        th { background: #eceff3; text-align: left; }
+        td.num, th.num { text-align: right; }
+        .empty { padding: 18px; text-align: center; color: #666; }
+        .no-print { margin-bottom: 12px; text-align: center; }
+        @media print {
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <button type="button" onclick="window.print()">Cetak</button>
+    </div>
+
+    <h2>Laporan LPLPO Diajukan Puskesmas</h2>
+    <div class="subtitle">Daftar dokumen LPLPO yang sudah diajukan dan masuk antrean Instalasi Farmasi</div>
+
+    <div class="filters">
+        <span>Status: <strong>{{ selected_status|default:"Semua" }}</strong></span>
+        <span>Bulan Pengajuan: <strong>{% if selected_submitted_month %}{{ selected_submitted_month }}{% else %}Semua{% endif %}</strong></span>
+        <span>Tahun Pengajuan: <strong>{{ selected_submitted_year|default:"Semua" }}</strong></span>
+        <span>Total Dokumen: <strong>{{ lplpos|length }}</strong></span>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">No</th>
+                <th style="width: 18%;">Nomor Dokumen</th>
+                <th style="width: 22%;">Puskesmas</th>
+                <th style="width: 14%;">Periode</th>
+                <th style="width: 16%;">Tanggal Pengajuan</th>
+                <th style="width: 12%;">Status</th>
+                <th>Dibuat Oleh</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lp in lplpos %}
+            <tr>
+                <td class="num">{{ forloop.counter }}</td>
+                <td>{{ lp.document_number }}</td>
+                <td>{{ lp.facility.name }}</td>
+                <td>{{ lp.period_display }}</td>
+                <td>{{ lp.submitted_at|date:"d/m/Y H:i" }}</td>
+                <td>{{ lp.get_status_display }}</td>
+                <td>{{ lp.created_by }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="empty">Tidak ada LPLPO yang sesuai dengan filter.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

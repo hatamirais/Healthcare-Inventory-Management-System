@@ -82,21 +82,28 @@
                     </a>
                 </div>
                 {% endif %}
-                {% if can_view_distribution or can_view_recall or can_view_expired %}
-                <button class="sidebar-link sidebar-dropdown-toggle {% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' %}active{% endif %}"
+                {% if can_view_distribution or can_view_recall or can_view_expired or can_view_lplpo %}
+                <button class="sidebar-link sidebar-dropdown-toggle {% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}active{% endif %}"
                     data-bs-toggle="collapse"
                     data-bs-target="#sidebar-pengeluaran"
-                    aria-expanded="{% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' %}true{% else %}false{% endif %}"
+                    aria-expanded="{% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}true{% else %}false{% endif %}"
                     type="button">
                     <i class="bi bi-box-arrow-up-right"></i><span>Pengeluaran</span>
                     <i class="bi bi-chevron-down chevron"></i>
                 </button>
-                <div class="collapse sidebar-submenu {% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' %}show{% endif %}" id="sidebar-pengeluaran">
+                <div class="collapse sidebar-submenu {% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}show{% endif %}" id="sidebar-pengeluaran">
                     {% if can_view_distribution %}
                     <a href="{% url 'distribution:distribution_list' %}"
                         class="sidebar-link {% if request.resolver_match.app_name == 'distribution' %}active{% endif %}"
                         data-label="Distribusi">
                         <i class="bi bi-send"></i><span>Distribusi</span>
+                    </a>
+                    {% endif %}
+                    {% if can_view_lplpo and request.user.role != 'PUSKESMAS' %}
+                    <a href="{% url 'lplpo:lplpo_list' %}"
+                        class="sidebar-link {% if request.resolver_match.app_name == 'lplpo' %}active{% endif %}"
+                        data-label="Daftar LPLPO">
+                        <i class="bi bi-file-earmark-medical"></i><span>Daftar LPLPO</span>
                     </a>
                     {% endif %}
                     {% if can_view_recall %}
@@ -148,7 +155,7 @@
                 {% endif %}
                 {% endif %}
 
-                {% if can_view_puskesmas or can_view_lplpo %}
+                {% if can_view_puskesmas or can_view_lplpo and request.user.role == 'PUSKESMAS' %}
                 <div class="sidebar-section-title">Puskesmas</div>
                 {% if can_view_puskesmas %}
                 <a href="{% url 'puskesmas:request_list' %}"
@@ -157,7 +164,7 @@
                     <i class="bi bi-file-earmark-arrow-up"></i><span>Permintaan Barang</span>
                 </a>
                 {% endif %}
-                {% if can_view_lplpo %}
+                {% if can_view_lplpo and request.user.role == 'PUSKESMAS' %}
                 <a href="{% url 'lplpo:lplpo_list' %}"
                     class="sidebar-link {% if request.resolver_match.app_name == 'lplpo' %}active{% endif %}"
                     data-label="LPLPO">

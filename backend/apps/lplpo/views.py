@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+import calendar
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -60,18 +61,15 @@ def _check_puskesmas_creator_access(request):
     return None
 
 
-# ══════════════════════════ List Views ══════════════════════════
+def _get_submission_month_choices():
+    return [(str(month), calendar.month_name[month]) for month in range(1, 13)]
 
 
-@login_required
-@perm_required("lplpo.view_lplpo")
-def lplpo_list(request):
-    """All LPLPOs — for Instalasi Farmasi staff."""
-    if getattr(request.user, "role", "") == "PUSKESMAS":
-        return redirect("lplpo:lplpo_my_list")
-
-    queryset = LPLPO.objects.select_related("facility", "created_by").order_by(
-        "-tahun", "-bulan"
+def _get_submitted_lplpo_queryset(request):
+    queryset = (
+        LPLPO.objects.select_related("facility", "created_by", "reviewed_by")
+        .filter(submitted_at__isnull=False)
+        .order_by("-submitted_at", "-tahun", "-bulan", "facility__name")
     )
 
     q = request.GET.get("q", "").strip()
@@ -80,13 +78,39 @@ def lplpo_list(request):
             Q(document_number__icontains=q) | Q(facility__name__icontains=q)
         )
 
-    status = request.GET.get("status", "")
+    status = request.GET.get("status", "").strip()
     if status:
         queryset = queryset.filter(status=status)
 
-    tahun = request.GET.get("tahun", "")
-    if tahun:
-        queryset = queryset.filter(tahun=tahun)
+    submitted_month = request.GET.get("submitted_month", "").strip()
+    if submitted_month:
+        queryset = queryset.filter(submitted_at__month=submitted_month)
+
+    submitted_year = request.GET.get("submitted_year", "").strip()
+    if submitted_year:
+        queryset = queryset.filter(submitted_at__year=submitted_year)
+
+    return queryset, {
+        "search": q,
+        "selected_status": status,
+        "selected_submitted_month": submitted_month,
+        "selected_submitted_year": submitted_year,
+        "status_choices": LPLPO.Status.choices,
+        "submission_month_choices": _get_submission_month_choices(),
+    }
+
+
+# ══════════════════════════ List Views ══════════════════════════
+
+
+@login_required
+@perm_required("lplpo.view_lplpo")
+def lplpo_list(request):
+    """Submitted LPLPO queue for Instalasi Farmasi staff."""
+    if getattr(request.user, "role", "") == "PUSKESMAS":
+        return redirect("lplpo:lplpo_my_list")
+
+    queryset, filter_context = _get_submitted_lplpo_queryset(request)
 
     paginator = Paginator(queryset, 25)
     page = paginator.get_page(request.GET.get("page"))
@@ -96,10 +120,7 @@ def lplpo_list(request):
         "lplpo/lplpo_list.html",
         {
             "lplpos": page,
-            "search": q,
-            "selected_status": status,
-            "selected_tahun": tahun,
-            "status_choices": LPLPO.Status.choices,
+            **filter_context,
             "is_all": True,
         },
     )
@@ -649,6 +670,25 @@ def lplpo_print(request, pk):
         {
             "lplpo": lplpo_obj,
             "grouped_items": grouped_items,
+        },
+    )
+
+
+@login_required
+@perm_required("lplpo.view_lplpo")
+def lplpo_print_report(request):
+    """Print-friendly report for submitted LPLPO queue."""
+    if getattr(request.user, "role", "") == "PUSKESMAS":
+        return redirect("lplpo:lplpo_my_list")
+
+    queryset, filter_context = _get_submitted_lplpo_queryset(request)
+
+    return render(
+        request,
+        "lplpo/lplpo_report_print.html",
+        {
+            "lplpos": queryset,
+            **filter_context,
         },
     )
 

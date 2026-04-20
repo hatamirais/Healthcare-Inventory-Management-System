@@ -345,6 +345,7 @@ Add `LPLPO = 'lplpo', 'LPLPO'` to `ModuleAccess.Module` choices.
 /lplpo/                                    → lplpo_list (Instalasi Farmasi sees all)
 /lplpo/my/                                 → lplpo_my_list (Puskesmas sees own)
 /lplpo/create/                             → lplpo_create
+/lplpo/print-report/                       → lplpo_print_report (printable filtered submitted queue)
 /lplpo/<int:pk>/                           → lplpo_detail
 /lplpo/<int:pk>/edit/                      → lplpo_edit (Puskesmas, DRAFT only)
 /lplpo/<int:pk>/submit/                    → lplpo_submit (Puskesmas)
@@ -424,6 +425,13 @@ App namespace: `lplpo`
 - Redirects to the created Distribution detail view
 - LPLPO transitions to CLOSED automatically via a signal or explicit check
   when the linked Distribution reaches DISTRIBUTED status
+- `DistributionType.LPLPO` should not be available in the manual Distribution create/edit form; it is reserved for documents generated from finalized LPLPO submissions.
+
+### 6.5.1 Submitted Queue for Instalasi Farmasi
+
+- The main Instalasi Farmasi LPLPO submenu should show only documents that have already been submitted by Puskesmas (`submitted_at is not null`).
+- Operators can filter this queue by submission month and submission year.
+- The queue provides a printable report view based on the current filters.
 
 ### 6.6 Auto-fill Penerimaan Logic (helper function)
 

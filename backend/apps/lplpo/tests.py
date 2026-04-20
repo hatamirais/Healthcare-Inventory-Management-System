@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from django.db import IntegrityError
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.distribution.models import Distribution, DistributionItem
 from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
@@ -122,6 +123,10 @@ class LPLPOTestCase(TestCase):
 		defaults.update(kwargs)
 		return LPLPO.objects.create(**defaults)
 
+	def set_submitted_at(self, lplpo, year, month, day):
+		lplpo.submitted_at = timezone.make_aware(datetime(year, month, day))
+		lplpo.save(update_fields=["submitted_at", "updated_at"])
+
 
 class LPLPOWorkflowTests(LPLPOTestCase):
 	def test_auto_generate_items_on_create(self):
@@ -160,6 +165,40 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertNotContains(response, 'id="create-lplpo-btn"')
+		self.assertContains(response, 'id="print-report-btn"')
+
+	def test_instalasi_farmasi_list_only_shows_submitted_documents(self):
+		draft_lplpo = self.create_lplpo(status=LPLPO.Status.DRAFT)
+		submitted_lplpo = self.create_lplpo(
+			bulan=3,
+			tahun=2026,
+			status=LPLPO.Status.SUBMITTED,
+		)
+		self.set_submitted_at(submitted_lplpo, 2026, 4, 5)
+
+		self.client.force_login(self.staff_user)
+		response = self.client.get(reverse("lplpo:lplpo_list"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, submitted_lplpo.document_number)
+		self.assertNotContains(response, draft_lplpo.document_number)
+
+	def test_instalasi_farmasi_list_filters_by_submission_month_and_year(self):
+		march_submission = self.create_lplpo(status=LPLPO.Status.SUBMITTED, bulan=2, tahun=2026)
+		self.set_submitted_at(march_submission, 2026, 3, 15)
+
+		april_submission = self.create_lplpo(status=LPLPO.Status.SUBMITTED, bulan=3, tahun=2026)
+		self.set_submitted_at(april_submission, 2026, 4, 10)
+
+		self.client.force_login(self.staff_user)
+		response = self.client.get(
+			reverse("lplpo:lplpo_list"),
+			{"submitted_month": "4", "submitted_year": "2026"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, april_submission.document_number)
+		self.assertNotContains(response, march_submission.document_number)
 
 	def test_penerimaan_auto_fill(self):
 		self.create_distribution(
@@ -357,6 +396,24 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertEqual(line.item, self.item_a)
 		self.assertEqual(line.quantity_requested, Decimal("12.00"))
 		self.assertEqual(line.quantity_approved, Decimal("9.00"))
+
+	def test_print_report_uses_current_filters(self):
+		matching = self.create_lplpo(status=LPLPO.Status.SUBMITTED, bulan=4, tahun=2026)
+		self.set_submitted_at(matching, 2026, 4, 18)
+
+		non_matching = self.create_lplpo(status=LPLPO.Status.SUBMITTED, bulan=5, tahun=2026)
+		self.set_submitted_at(non_matching, 2026, 5, 2)
+
+		self.client.force_login(self.staff_user)
+		response = self.client.get(
+			reverse("lplpo:lplpo_print_report"),
+			{"submitted_month": "4", "submitted_year": "2026"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "lplpo/lplpo_report_print.html")
+		self.assertContains(response, matching.document_number)
+		self.assertNotContains(response, non_matching.document_number)
 
 	def test_distribution_distributed_closes_lplpo(self):
 		distribution = Distribution.objects.create(

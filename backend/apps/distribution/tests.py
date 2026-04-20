@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.distribution.forms import DistributionItemForm
+from apps.distribution.forms import DistributionForm, DistributionItemForm
 from apps.distribution.models import Distribution, DistributionItem
 from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
 from apps.stock.models import Stock, Transaction
@@ -211,6 +211,30 @@ class DistributionWorkflowTest(TestCase):
 
         self.assertEqual(stock_ids[:2], [early_stock.id, self.stock.id])
         self.assertNotIn(depleted_stock.id, stock_ids)
+
+    def test_distribution_form_hides_manual_lplpo_type(self):
+        form = DistributionForm(user=self.user)
+
+        type_values = [value for value, _label in form.fields["distribution_type"].choices]
+
+        self.assertNotIn(Distribution.DistributionType.LPLPO, type_values)
+
+    def test_distribution_form_rejects_manual_lplpo_type_submission(self):
+        form = DistributionForm(
+            data={
+                "document_number": "",
+                "distribution_type": Distribution.DistributionType.LPLPO,
+                "request_date": "2026-03-10",
+                "facility": self.facility.pk,
+                "program": "",
+                "notes": "",
+                "assigned_staff": [self.user.pk],
+            },
+            user=self.user,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("distribution_type", form.errors)
 
     # --- Verify workflow ---
 
@@ -508,7 +532,7 @@ class DistributionWorkflowTest(TestCase):
             reverse("distribution:distribution_create"),
             {
                 "document_number": "",
-                "distribution_type": Distribution.DistributionType.LPLPO,
+                "distribution_type": Distribution.DistributionType.ALLOCATION,
                 "request_date": "2026-03-10",
                 "facility": self.facility.pk,
                 "notes": "",
@@ -575,7 +599,7 @@ class DistributionWorkflowTest(TestCase):
             reverse("distribution:distribution_edit", args=[dist.pk]),
             {
                 "document_number": dist.document_number,
-                "distribution_type": dist.distribution_type,
+                "distribution_type": Distribution.DistributionType.ALLOCATION,
                 "request_date": "2026-03-10",
                 "facility": self.facility.pk,
                 "notes": "Direvisi",

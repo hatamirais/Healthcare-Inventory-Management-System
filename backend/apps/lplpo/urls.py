@@ -7,6 +7,7 @@ urlpatterns = [
     path("", views.lplpo_list, name="lplpo_list"),
     path("my/", views.lplpo_my_list, name="lplpo_my_list"),
     path("create/", views.lplpo_create, name="lplpo_create"),
+    path("print-report/", views.lplpo_print_report, name="lplpo_print_report"),
     path(
         "api/prefill-penerimaan/",
         views.api_prefill_penerimaan,

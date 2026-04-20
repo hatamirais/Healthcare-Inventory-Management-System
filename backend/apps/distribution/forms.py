@@ -1,4 +1,5 @@
 from django import forms
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import F
 from django.forms import inlineformset_factory
 from apps.users.models import User
@@ -64,6 +65,12 @@ class DistributionForm(forms.ModelForm):
         user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         self.fields["program"].required = False
+        if not self._is_generated_lplpo_distribution():
+            self.fields["distribution_type"].choices = [
+                choice
+                for choice in self.fields["distribution_type"].choices
+                if choice[0] != Distribution.DistributionType.LPLPO
+            ]
         if self.instance.pk:
             self.fields[
                 "assigned_staff"
@@ -72,6 +79,38 @@ class DistributionForm(forms.ModelForm):
             )
         elif user is not None:
             self.fields["assigned_staff"].initial = [user.pk]
+
+    def _is_generated_lplpo_distribution(self):
+        if not self.instance.pk:
+            return False
+        if self.instance.distribution_type != Distribution.DistributionType.LPLPO:
+            return False
+        try:
+            self.instance.lplpo_source
+        except ObjectDoesNotExist:
+            return False
+        return True
+
+    def clean_distribution_type(self):
+        distribution_type = self.cleaned_data.get("distribution_type")
+        return distribution_type
+
+    def clean(self):
+        cleaned_data = super().clean()
+        submitted_distribution_type = self.data.get(
+            self.add_prefix("distribution_type")
+        )
+        if submitted_distribution_type is not None:
+            submitted_distribution_type = str(submitted_distribution_type)
+        if (
+            submitted_distribution_type == Distribution.DistributionType.LPLPO
+            and not self._is_generated_lplpo_distribution()
+        ):
+            self.add_error(
+                "distribution_type",
+                "Distribusi tipe LPLPO hanya dapat dibuat dari dokumen LPLPO yang sudah diajukan oleh Puskesmas.",
+            )
+        return cleaned_data
 
 
 class DistributionItemForm(forms.ModelForm):
