@@ -30,7 +30,7 @@ Root route include map from `backend/config/urls.py`:
 - `/admin/` -> Django admin
 - `/login/`, `/logout/`, `/password/change/`, `/password/change/done/`
 - `/settings/` -> system settings (`apps.core.views.SystemSettingsUpdateView`)
-- `/users/`, `/items/`, `/stock/`, `/receiving/`, `/distribution/`, `/recall/`, `/expired/`, `/reports/`, `/stock-opname/`, `/puskesmas/`, `/lplpo/`
+- `/users/`, `/items/`, `/stock/`, `/receiving/`, `/distribution/`, `/allocation/`, `/recall/`, `/expired/`, `/reports/`, `/stock-opname/`, `/puskesmas/`, `/lplpo/`
 
 Module highlights:
 
@@ -45,6 +45,7 @@ Module highlights:
 - Reports: `/reports/`, `/reports/rekap/`, `/reports/penerimaan-hibah/`, `/reports/pengadaan/`, `/reports/kadaluarsa/`, `/reports/pengeluaran/`
 - LPLPO lists: `/lplpo/` (All), `/lplpo/my/` (Puskesmas scoped)
 - Puskesmas requests: `/puskesmas/permintaan/`
+- Allocation: `/allocation/`, `/allocation/create/`, `/allocation/<pk>/`, `/allocation/<pk>/edit/`, `/allocation/<pk>/submit/`, `/allocation/<pk>/approve/`, `/allocation/<pk>/reject/`, `/allocation/<pk>/distributions/<dist_pk>/prepare/`, `/allocation/<pk>/distributions/<dist_pk>/deliver/`
 
 ## 3) Permission and Access Model
 
@@ -55,7 +56,7 @@ Hybrid authorization in `@perm_required`:
 
 `ModuleAccess.module` values:
 
-- `users`, `items`, `stock`, `receiving`, `distribution`, `recall`, `expired`, `stock_opname`, `reports`, `puskesmas`, `lplpo`, `admin_panel`
+- `users`, `items`, `stock`, `receiving`, `distribution`, `allocation`, `recall`, `expired`, `stock_opname`, `reports`, `puskesmas`, `lplpo`, `admin_panel`
 
 `ModuleAccess.scope` values:
 
@@ -125,7 +126,7 @@ This section reflects model code in `backend/apps/*/models.py`.
 
 - `stock.Transaction` (`transactions`):
   - Types: `IN`, `OUT`, `ADJUST`, `RETURN`
-  - Reference types: `RECEIVING`, `DISTRIBUTION`, `ADJUSTMENT`, `INITIAL_IMPORT`, `RECALL`, `EXPIRED`, `TRANSFER`
+  - Reference types: `RECEIVING`, `DISTRIBUTION`, `ADJUSTMENT`, `INITIAL_IMPORT`, `RECALL`, `EXPIRED`, `TRANSFER`, `ALLOCATION`
   - FKs: `item`, `location`, `sumber_dana` (nullable), `user`
   - Fields: `batch_lot`, `quantity`, `unit_price` (nullable), `reference_type`, `reference_id`, `notes`, `created_at`
   - Indexes: `idx_trans_item_date`, `idx_trans_reference`, `idx_trans_created`
@@ -177,11 +178,12 @@ This section reflects model code in `backend/apps/*/models.py`.
 
 - `distribution.Distribution` (`distributions`):
   - Type: `LPLPO`, `ALLOCATION`, `SPECIAL_REQUEST`
-  - Status: `DRAFT`, `SUBMITTED`, `VERIFIED`, `PREPARED`, `DISTRIBUTED`, `REJECTED`
-  - Workflow includes manual reset action back to `DRAFT` from `SUBMITTED`, `VERIFIED`, `PREPARED`, and `REJECTED` (but not from `DISTRIBUTED`)
+  - Status: `DRAFT`, `SUBMITTED`, `VERIFIED`, `GENERATED`, `PREPARED`, `DISTRIBUTED`, `REJECTED`
+  - `GENERATED` status is used for allocation-auto-generated distributions (bypasses DRAFT/SUBMITTED/VERIFIED)
+  - Workflow includes manual reset action back to `DRAFT` from `SUBMITTED`, `VERIFIED`, `PREPARED`, and `REJECTED` (but not from `DISTRIBUTED` or `GENERATED`)
   - Provides `kepala_instalasi` and `petugas` assignments logic for print outputs
   - Fields: `document_number` (auto-generated `DIST-YYYYMM-XXXXX` when blank), `request_date`, `program`, `distributed_date`, `notes`, `ocr_text`
-  - FKs: `facility`, `created_by`, `verified_by` (nullable), `approved_by` (nullable)
+  - FKs: `facility`, `created_by`, `verified_by` (nullable), `approved_by` (nullable), `allocation` (nullable, links to parent `allocation.Allocation` for auto-generated distributions)
   - Indexes: `idx_dist_status_date`, `idx_dist_facility_date`
 
 - `distribution.DistributionItem` (`distribution_items`):
@@ -194,7 +196,39 @@ This section reflects model code in `backend/apps/*/models.py`.
   - Purpose: stores staff involved in a distribution document and surfaces them in detail/print output
   - Constraint: unique pair per (`distribution`, `user`)
 
-### 4.7 Recall
+### 4.7 Allocation
+
+- `allocation.Allocation` (`allocations`):
+  - Status: `DRAFT`, `SUBMITTED`, `APPROVED`, `PARTIALLY_FULFILLED`, `FULFILLED`, `REJECTED`
+  - Fields: `document_number` (auto-generated `ALK-YYYY-NNNN` when blank), `allocation_date`, `referensi`, `notes`, `rejection_reason`
+  - FKs: `sumber_dana` → `FundingSource`, `created_by`, `submitted_by` (nullable), `approved_by` (nullable)
+  - Timestamps: `submitted_at`, `approved_at`
+  - Index: `idx_alloc_status_date` on `(status, allocation_date)`
+  - Approval triggers atomic auto-generation of one `Distribution` per facility (type=ALLOCATION, status=GENERATED)
+  - Stock deduction occurs at each child Distribution's delivery confirmation, not on the Allocation itself
+  - Allocation auto-transitions to `PARTIALLY_FULFILLED` / `FULFILLED` based on child Distribution delivery progress
+
+- `allocation.AllocationItem` (`allocation_items`):
+  - FKs: `allocation`, `item`, `stock` (nullable)
+  - Fields: `total_qty_available` (snapshot at draft time), `notes`
+  - Property: `total_qty_allocated` (computed sum of child facility allocations)
+
+- `allocation.AllocationItemFacility` (`allocation_item_facilities`):
+  - FKs: `allocation_item`, `facility`
+  - Fields: `qty_allocated`
+  - Unique: `(allocation_item, facility)`
+  - Quantities are locked after approval
+
+- `allocation.AllocationFacility` (`allocation_facilities`):
+  - FKs: `allocation`, `facility`
+  - Purpose: header-level facility selection for the matrix UI
+  - Unique: `(allocation, facility)`
+
+- `allocation.AllocationStaffAssignment` (`allocation_staff_assignments`):
+  - FKs: `allocation`, `user`
+  - Unique: `(allocation, user)`
+
+### 4.8 Recall
 
 - `recall.Recall` (`recalls`):
   - Status: `DRAFT`, `SUBMITTED`, `VERIFIED`, `COMPLETED`
@@ -206,7 +240,7 @@ This section reflects model code in `backend/apps/*/models.py`.
   - FKs: `recall`, `item`, `stock`
   - Fields: `quantity`, `notes`, `created_at`
 
-### 4.8 Expired
+### 4.9 Expired
 
 - `expired.Expired` (`expired_docs`):
   - Status: `DRAFT`, `SUBMITTED`, `VERIFIED`, `DISPOSED`
@@ -218,7 +252,7 @@ This section reflects model code in `backend/apps/*/models.py`.
   - FKs: `expired`, `item`, `stock`
   - Fields: `quantity`, `notes`, `created_at`
 
-### 4.9 Stock opname
+### 4.10 Stock opname
 
 - `stock_opname.StockOpname` (`stock_opnames`):
   - Period type: `MONTHLY`, `QUARTERLY`, `SEMESTER`, `YEARLY`
@@ -232,11 +266,11 @@ This section reflects model code in `backend/apps/*/models.py`.
   - Fields: `system_quantity`, `actual_quantity` (nullable), `notes`
   - Unique: `(stock_opname, stock)`
 
-### 4.10 Reports
+### 4.11 Reports
 
 - `reports`: Contains views, templates, and services for inventory, expiry, and receiving reporting with Excel export capabilities. No bespoke database models, aggregates data from other apps.
 
-### 4.11 Puskesmas
+### 4.12 Puskesmas
 
 - `puskesmas.PuskesmasRequest` (`puskesmas_requests`):
   - Status: `DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED`
@@ -249,7 +283,7 @@ This section reflects model code in `backend/apps/*/models.py`.
   - FKs: `request`, `item`
   - Fields: `quantity_requested`, `quantity_approved` (nullable), `notes`
 
-### 4.12 LPLPO
+### 4.13 LPLPO
 
 - `lplpo.LPLPO` (`lplpos`):
   - Status: `DRAFT`, `SUBMITTED`, `REVIEWED`, `DISTRIBUTED`, `CLOSED`
@@ -285,6 +319,10 @@ Operational mutation points (from app behavior and admin import logic):
 - Expired verify decreases stock and posts `Transaction(OUT, reference_type=EXPIRED)`
 - Stock transfer complete posts paired `OUT` and `IN` transfer transactions and adjusts source/destination stock
 - Stock opname completion may post adjustment transactions based on discrepancy handling
+- Allocation:
+  - Approval phase auto-generates `Distribution(type=ALLOCATION, status=GENERATED)` per facility — no stock mutation at this point
+  - Per-distribution delivery confirmation decreases `Stock.quantity` and posts `Transaction(OUT, reference_type=ALLOCATION, reference_id=allocation.pk)`
+  - Parent Allocation auto-transitions to `PARTIALLY_FULFILLED` / `FULFILLED` based on child distribution delivery progress
 
 ## 6) Settings and Security Model
 

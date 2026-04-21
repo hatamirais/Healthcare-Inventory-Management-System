@@ -16,6 +16,7 @@ class Distribution(TimeStampedModel):
         DRAFT = "DRAFT", "Draft"
         SUBMITTED = "SUBMITTED", "Diajukan"
         VERIFIED = "VERIFIED", "Terverifikasi"
+        GENERATED = "GENERATED", "Dibuat Otomatis"
         PREPARED = "PREPARED", "Disiapkan"
         DISTRIBUTED = "DISTRIBUTED", "Terdistribusi"
         REJECTED = "REJECTED", "Ditolak"
@@ -67,6 +68,14 @@ class Distribution(TimeStampedModel):
     ocr_text = models.TextField(
         blank=True,
         help_text="Extracted text from uploaded proof document (Special Request)",
+    )
+    allocation = models.ForeignKey(
+        "allocation.Allocation",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="distributions",
+        help_text="Parent allocation that auto-generated this distribution",
     )
 
     class Meta:

@@ -18,10 +18,15 @@ urlpatterns = [
     path("<int:pk>/submit/", views.allocation_submit, name="allocation_submit"),
     path("<int:pk>/approve/", views.allocation_approve, name="allocation_approve"),
     path("<int:pk>/reject/", views.allocation_reject, name="allocation_reject"),
-    path("<int:pk>/prepare/", views.allocation_prepare, name="allocation_prepare"),
+    # Per-distribution actions
     path(
-        "<int:pk>/distribute/",
-        views.allocation_distribute,
-        name="allocation_distribute",
+        "<int:pk>/distributions/<int:dist_pk>/prepare/",
+        views.allocation_distribution_prepare,
+        name="allocation_distribution_prepare",
+    ),
+    path(
+        "<int:pk>/distributions/<int:dist_pk>/deliver/",
+        views.allocation_distribution_deliver,
+        name="allocation_distribution_deliver",
     ),
 ]

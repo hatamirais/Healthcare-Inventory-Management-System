@@ -7,27 +7,51 @@ from apps.core.models import TimeStampedModel
 
 
 class Allocation(TimeStampedModel):
+    """Pre-distribution planning and orchestration document.
+
+    Approval triggers atomic generation of one Distribution per facility.
+    Stock is deducted at each child distribution's delivery confirmation,
+    not on the Allocation itself.
+    """
+
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
         SUBMITTED = "SUBMITTED", "Diajukan"
         APPROVED = "APPROVED", "Disetujui"
-        PREPARED = "PREPARED", "Disiapkan"
-        DISTRIBUTED = "DISTRIBUTED", "Terdistribusi"
+        PARTIALLY_FULFILLED = "PARTIALLY_FULFILLED", "Sebagian Terpenuhi"
+        FULFILLED = "FULFILLED", "Terpenuhi"
         REJECTED = "REJECTED", "Ditolak"
 
     document_number = models.CharField(
         max_length=100,
         unique=True,
         blank=True,
-        help_text="Leave blank to auto-generate (e.g., ALC-YYYYMM-XXXXX)",
+        help_text="Leave blank to auto-generate (e.g., ALK-2025-0042)",
+    )
+    sumber_dana = models.ForeignKey(
+        "items.FundingSource",
+        on_delete=models.PROTECT,
+        related_name="allocations",
+        help_text="Sumber dana alokasi (APBD, Hibah, Kemenkes, dll.)",
+    )
+    referensi = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Nomor referensi (BAST, SP, dll.)",
     )
     allocation_date = models.DateField()
+    notes = models.TextField(blank=True)
     status = models.CharField(
-        max_length=20,
+        max_length=25,
         choices=Status.choices,
         default=Status.DRAFT,
     )
-    notes = models.TextField(blank=True)
+    rejection_reason = models.TextField(
+        blank=True,
+        help_text="Alasan penolakan dari Kepala Instalasi",
+    )
+
+    # Actor / audit fields
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -47,31 +71,17 @@ class Allocation(TimeStampedModel):
         blank=True,
         related_name="approved_allocations",
     )
-    prepared_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="prepared_allocations",
-    )
-    distributed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="distributed_allocations",
-    )
     submitted_at = models.DateTimeField(null=True, blank=True)
     approved_at = models.DateTimeField(null=True, blank=True)
-    prepared_at = models.DateTimeField(null=True, blank=True)
-    distributed_at = models.DateTimeField(null=True, blank=True)
-    distributed_date = models.DateField(null=True, blank=True)
 
     class Meta:
         db_table = "allocations"
         ordering = ["-allocation_date", "-created_at"]
         indexes = [
-            models.Index(fields=["status", "allocation_date"], name="idx_alloc_status_date"),
+            models.Index(
+                fields=["status", "allocation_date"],
+                name="idx_alloc_status_date",
+            ),
         ]
 
     def __str__(self):
@@ -79,7 +89,8 @@ class Allocation(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         if not self.document_number:
-            prefix = f"ALC-{timezone.now().strftime('%Y%m')}-"
+            year = timezone.now().year
+            prefix = f"ALK-{year}-"
             last = (
                 Allocation.objects.filter(document_number__startswith=prefix)
                 .order_by("-document_number")
@@ -90,11 +101,30 @@ class Allocation(TimeStampedModel):
                 next_number = last_number + 1
             else:
                 next_number = 1
-            self.document_number = f"{prefix}{str(next_number).zfill(5)}"
+            self.document_number = f"{prefix}{str(next_number).zfill(4)}"
         super().save(*args, **kwargs)
+
+    @property
+    def generated_distributions(self):
+        """QuerySet of distributions auto-generated from this allocation."""
+        return self.distributions.all()
+
+    @property
+    def delivery_progress(self):
+        """Tuple (delivered_count, total_count) for progress tracking."""
+        from apps.distribution.models import Distribution
+
+        distributions = self.distributions.all()
+        total = distributions.count()
+        delivered = distributions.filter(
+            status=Distribution.Status.DISTRIBUTED
+        ).count()
+        return delivered, total
 
 
 class AllocationStaffAssignment(TimeStampedModel):
+    """Staff members involved in an allocation workflow."""
+
     allocation = models.ForeignKey(
         Allocation,
         on_delete=models.CASCADE,
@@ -116,6 +146,8 @@ class AllocationStaffAssignment(TimeStampedModel):
 
 
 class AllocationFacility(models.Model):
+    """Header-level facility selection for the allocation matrix UI."""
+
     allocation = models.ForeignKey(
         Allocation,
         on_delete=models.CASCADE,
@@ -137,90 +169,114 @@ class AllocationFacility(models.Model):
 
 
 class AllocationItem(models.Model):
+    """Item-level allocation record. Each row represents one item+batch
+    that will be distributed across multiple facilities."""
+
     allocation = models.ForeignKey(
         Allocation,
         on_delete=models.CASCADE,
         related_name="items",
-    )
-    facility = models.ForeignKey(
-        "items.Facility",
-        on_delete=models.PROTECT,
-        related_name="allocation_items",
     )
     item = models.ForeignKey(
         "items.Item",
         on_delete=models.PROTECT,
         related_name="allocation_items",
     )
-    quantity = models.DecimalField(max_digits=12, decimal_places=2)
     stock = models.ForeignKey(
         "stock.Stock",
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="allocation_items",
+        help_text="Specific batch allocated (FEFO selection)",
     )
-    issued_batch_lot = models.CharField(max_length=100, blank=True)
-    issued_expiry_date = models.DateField(null=True, blank=True)
-    issued_unit_price = models.DecimalField(
-        max_digits=15,
+    total_qty_available = models.DecimalField(
+        max_digits=12,
         decimal_places=2,
-        null=True,
-        blank=True,
-    )
-    issued_sumber_dana = models.ForeignKey(
-        "items.FundingSource",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="issued_allocation_items",
+        default=0,
+        help_text="Snapshot of available stock at draft time",
     )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "allocation_items"
-        ordering = ["facility__name", "item__nama_barang"]
+        ordering = ["item__nama_barang"]
 
     def __str__(self):
-        return f"{self.facility} - {self.item} x {self.quantity}"
+        return f"{self.item} (tersedia: {self.total_qty_available})"
+
+    @property
+    def total_qty_allocated(self):
+        """Sum of all per-facility allocations for this item."""
+        from django.db.models import DecimalField, Sum, Value
+        from django.db.models.functions import Coalesce
+
+        return self.facility_allocations.aggregate(
+            total=Coalesce(
+                Sum("qty_allocated"),
+                Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
+            )
+        )["total"]
+
+    @property
+    def is_over_allocated(self):
+        """Whether total allocated exceeds available stock."""
+        return self.total_qty_allocated > self.total_qty_available
 
     def clean(self):
         errors = {}
 
-        if self.quantity is not None and self.quantity <= 0:
-            errors["quantity"] = "Jumlah harus lebih dari 0."
-
         if self.stock_id and self.item_id and self.stock.item_id != self.item_id:
             errors["stock"] = "Batch stok harus sesuai dengan barang yang dipilih."
 
-        if (
-            self.stock_id
-            and self.quantity is not None
-            and self.stock.available_quantity < self.quantity
-        ):
-            errors["quantity"] = "Jumlah melebihi stok batch yang tersedia."
+        if errors:
+            raise ValidationError(errors)
 
-        if self.facility_id:
-            selected_facility_ids = getattr(
-                self,
-                "_selected_facility_ids_for_validation",
-                None,
+
+class AllocationItemFacility(models.Model):
+    """Per-facility quantity allocation for a specific item.
+    Quantities are locked after approval."""
+
+    allocation_item = models.ForeignKey(
+        AllocationItem,
+        on_delete=models.CASCADE,
+        related_name="facility_allocations",
+    )
+    facility = models.ForeignKey(
+        "items.Facility",
+        on_delete=models.PROTECT,
+        related_name="allocation_item_facilities",
+    )
+    qty_allocated = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text="Quantity allocated to this facility (locked after approval)",
+    )
+
+    class Meta:
+        db_table = "allocation_item_facilities"
+        unique_together = ("allocation_item", "facility")
+        ordering = ["facility__name"]
+
+    def __str__(self):
+        return f"{self.facility} × {self.qty_allocated}"
+
+    def clean(self):
+        errors = {}
+
+        if self.qty_allocated is not None and self.qty_allocated <= 0:
+            errors["qty_allocated"] = "Jumlah alokasi harus lebih dari 0."
+
+        if self.facility_id and self.allocation_item_id:
+            allocation = self.allocation_item.allocation
+            selected_facility_ids = set(
+                allocation.selected_facilities.values_list("facility_id", flat=True)
             )
-            if selected_facility_ids is None and self.allocation_id:
-                selected_facility_ids = set(
-                    self.allocation.selected_facilities.values_list(
-                        "facility_id", flat=True
-                    )
+            if self.facility_id not in selected_facility_ids:
+                errors["facility"] = (
+                    "Fasilitas harus dipilih pada header alokasi."
                 )
-
-            selected = (
-                self.facility_id in selected_facility_ids
-                if selected_facility_ids is not None
-                else True
-            )
-            if not selected:
-                errors["facility"] = "Fasilitas item harus dipilih pada header alokasi."
 
         if errors:
             raise ValidationError(errors)

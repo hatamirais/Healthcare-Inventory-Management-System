@@ -1,194 +1,368 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}{{ page_title }} {{ allocation.document_number }} - Healthcare IMS{% endblock %}
+{% block title %}{{ allocation.document_number }} - Healthcare IMS{% endblock %}
 {% block page_title %}{{ page_title }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .status-timeline {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+    .status-timeline .step {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.82rem;
+        font-weight: 500;
+        background: #f1f5f9;
+        color: #94a3b8;
+    }
+    .status-timeline .step.active {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    .status-timeline .step.done {
+        background: #dcfce7;
+        color: #166534;
+    }
+    .status-timeline .step-divider {
+        color: #cbd5e1;
+    }
+    .alloc-matrix-table th,
+    .alloc-matrix-table td {
+        text-align: center;
+        min-width: 90px;
+        font-variant-numeric: tabular-nums;
+    }
+    .alloc-matrix-table th:first-child,
+    .alloc-matrix-table td:first-child {
+        text-align: left;
+        min-width: 200px;
+    }
+    .dist-tracking-card {
+        border-left: 3px solid #dbeafe;
+        transition: border-color 0.2s ease;
+    }
+    .dist-tracking-card.status-generated { border-left-color: #93c5fd; }
+    .dist-tracking-card.status-prepared { border-left-color: #fbbf24; }
+    .dist-tracking-card.status-distributed { border-left-color: #4ade80; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row g-3">
-    <div class="col-12 col-xl-5">
-        <div class="card content-card">
-            <div class="card-header"><span>Informasi Alokasi</span></div>
-            <div class="card-body">
-                <dl class="row mb-0">
-                    <dt class="col-5 text-muted">No. Dokumen</dt>
-                    <dd class="col-7 fw-semibold">{{ allocation.document_number }}</dd>
-
-                    <dt class="col-5 text-muted">Tanggal</dt>
-                    <dd class="col-7">{{ allocation.allocation_date|date:"d/m/Y" }}</dd>
-
-                    <dt class="col-5 text-muted">Status</dt>
-                    <dd class="col-7"><span class="badge-status badge-{{ allocation.status|lower }}">{{ allocation.get_status_display }}</span></dd>
-
-                    <dt class="col-5 text-muted">Dibuat oleh</dt>
-                    <dd class="col-7">{{ allocation.created_by }}</dd>
-
-                    {% if allocation.submitted_by %}
-                    <dt class="col-5 text-muted">Diajukan oleh</dt>
-                    <dd class="col-7">{{ allocation.submitted_by }}<br><small class="text-muted">{{ allocation.submitted_at|date:"d/m/Y H:i" }}</small></dd>
-                    {% endif %}
-
-                    {% if allocation.approved_by %}
-                    <dt class="col-5 text-muted">Disetujui oleh</dt>
-                    <dd class="col-7">{{ allocation.approved_by }}<br><small class="text-muted">{{ allocation.approved_at|date:"d/m/Y H:i" }}</small></dd>
-                    {% endif %}
-
-                    {% if allocation.prepared_by %}
-                    <dt class="col-5 text-muted">Disiapkan oleh</dt>
-                    <dd class="col-7">{{ allocation.prepared_by }}<br><small class="text-muted">{{ allocation.prepared_at|date:"d/m/Y H:i" }}</small></dd>
-                    {% endif %}
-
-                    {% if allocation.distributed_by %}
-                    <dt class="col-5 text-muted">Didistribusikan oleh</dt>
-                    <dd class="col-7">{{ allocation.distributed_by }}<br><small class="text-muted">{{ allocation.distributed_at|date:"d/m/Y H:i" }}</small></dd>
-                    {% endif %}
-
-                    {% if allocation.distributed_date %}
-                    <dt class="col-5 text-muted">Tgl Distribusi</dt>
-                    <dd class="col-7">{{ allocation.distributed_date|date:"d/m/Y" }}</dd>
-                    {% endif %}
-
-                    <dt class="col-5 text-muted">Petugas</dt>
-                    <dd class="col-7">
-                        {% if assigned_staff %}
-                            {% for staff in assigned_staff %}
-                                <span class="badge text-bg-light border me-1 mb-1">{{ staff }}</span>
-                            {% endfor %}
-                        {% else %}
-                            <span class="text-muted">Belum ditentukan</span>
-                        {% endif %}
-                    </dd>
-
-                    <dt class="col-5 text-muted">Fasilitas</dt>
-                    <dd class="col-7">
-                        {% if selected_facilities %}
-                            {% for facility in selected_facilities %}
-                                <span class="badge text-bg-light border me-1 mb-1">{{ facility.name }}</span>
-                            {% endfor %}
-                        {% else %}
-                            <span class="text-muted">Belum dipilih</span>
-                        {% endif %}
-                    </dd>
-
-                    {% if allocation.notes %}
-                    <dt class="col-5 text-muted">Catatan</dt>
-                    <dd class="col-7">{{ allocation.notes }}</dd>
-                    {% endif %}
-                </dl>
-            </div>
-        </div>
+<div class="card content-card table-container">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-diagram-3 me-2"></i>{{ allocation.document_number }}</span>
+        <span class="badge-status badge-{{ allocation.status|lower }}">{{ allocation.get_status_display }}</span>
     </div>
 
-    <div class="col-12 col-xl-7">
-        <div class="card content-card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span>Item Alokasi</span>
-                <div class="d-flex gap-2">
-                    {% if allocation.status == 'DRAFT' %}
-                    <a href="{% url 'allocation:allocation_edit' allocation.pk %}" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-pencil me-1"></i>Ubah
-                    </a>
-                    {% endif %}
+    <div class="card-body">
+        {# ─── Rejection Alert ─── #}
+        {% if allocation.status == 'REJECTED' and allocation.rejection_reason %}
+        <div class="alert alert-warning py-2 mb-3">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            <strong>Ditolak:</strong> {{ allocation.rejection_reason }}
+        </div>
+        {% endif %}
+
+        {# ─── Status Timeline ─── #}
+        <div class="status-timeline mb-4">
+            {% with s=allocation.status %}
+            <span class="step {% if s == 'DRAFT' %}active{% elif s != 'REJECTED' %}done{% endif %}">
+                <i class="bi bi-pencil"></i> Draft
+            </span>
+            <i class="bi bi-chevron-right step-divider"></i>
+            <span class="step {% if s == 'SUBMITTED' %}active{% elif s == 'APPROVED' or s == 'PARTIALLY_FULFILLED' or s == 'FULFILLED' %}done{% endif %}">
+                <i class="bi bi-send"></i> Diajukan
+            </span>
+            <i class="bi bi-chevron-right step-divider"></i>
+            <span class="step {% if s == 'APPROVED' %}active{% elif s == 'PARTIALLY_FULFILLED' or s == 'FULFILLED' %}done{% endif %}">
+                <i class="bi bi-check-circle"></i> Disetujui
+            </span>
+            <i class="bi bi-chevron-right step-divider"></i>
+            <span class="step {% if s == 'PARTIALLY_FULFILLED' %}active{% elif s == 'FULFILLED' %}done{% endif %}">
+                <i class="bi bi-truck"></i> Distribusi
+            </span>
+            <i class="bi bi-chevron-right step-divider"></i>
+            <span class="step {% if s == 'FULFILLED' %}active{% endif %}">
+                <i class="bi bi-check-all"></i> Terpenuhi
+            </span>
+            {% endwith %}
+        </div>
+
+        {# ─── Header Info ─── #}
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="text-muted small">Tanggal Alokasi</div>
+                <div class="fw-semibold">{{ allocation.allocation_date|date:"d/m/Y" }}</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small">Sumber Dana</div>
+                <div class="fw-semibold">{{ allocation.sumber_dana }}</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small">Referensi</div>
+                <div class="fw-semibold">{{ allocation.referensi|default:"—" }}</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small">Dibuat oleh</div>
+                <div class="fw-semibold">{{ allocation.created_by }}</div>
+            </div>
+            {% if allocation.submitted_by %}
+            <div class="col-md-4">
+                <div class="text-muted small">Diajukan oleh</div>
+                <div class="fw-semibold">{{ allocation.submitted_by }} <small class="text-muted">({{ allocation.submitted_at|date:"d/m/Y H:i" }})</small></div>
+            </div>
+            {% endif %}
+            {% if allocation.approved_by %}
+            <div class="col-md-4">
+                <div class="text-muted small">Disetujui oleh</div>
+                <div class="fw-semibold">{{ allocation.approved_by }} <small class="text-muted">({{ allocation.approved_at|date:"d/m/Y H:i" }})</small></div>
+            </div>
+            {% endif %}
+            {% if allocation.notes %}
+            <div class="col-12">
+                <div class="text-muted small">Catatan</div>
+                <div>{{ allocation.notes }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        {# ─── Fasilitas & Petugas ─── #}
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <h6 class="fw-bold"><i class="bi bi-building me-1"></i>Fasilitas Tujuan</h6>
+                <div class="d-flex flex-wrap gap-1">
+                    {% for facility in selected_facilities %}
+                    <span class="badge bg-light text-dark border">{{ facility.name }}</span>
+                    {% empty %}
+                    <span class="text-muted">—</span>
+                    {% endfor %}
                 </div>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-bordered align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>Fasilitas</th>
-                                <th>Barang</th>
-                                <th class="text-end" style="width: 120px;">Jumlah</th>
-                                <th>Stok (Batch)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in items %}
-                            <tr>
-                                <td>{{ item.facility.name }}</td>
-                                <td>{{ item.item.nama_barang }}</td>
-                                <td class="text-end">{{ item.quantity }}</td>
-                                <td>{% if item.stock %}{{ item.stock.batch_lot }}{% else %}<span class="text-muted">Belum dipilih</span>{% endif %}</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="4">
-                                    <div class="empty-state">
-                                        <i class="bi bi-inbox d-block"></i>
-                                        <p>Belum ada item alokasi</p>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <div class="col-md-6">
+                <h6 class="fw-bold"><i class="bi bi-people me-1"></i>Petugas</h6>
+                <div class="d-flex flex-wrap gap-1">
+                    {% for staff in assigned_staff %}
+                    <span class="badge bg-light text-dark border">{{ staff }}</span>
+                    {% empty %}
+                    <span class="text-muted">—</span>
+                    {% endfor %}
                 </div>
             </div>
         </div>
 
-        <div class="card content-card mt-3">
-            <div class="card-header"><span>Aksi Alokasi</span></div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    {% if allocation.status == 'DRAFT' %}
-                    <form method="post" action="{% url 'allocation:allocation_submit' allocation.pk %}">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-primary btn-sm w-100">
-                            <i class="bi bi-send me-1"></i>Ajukan
-                        </button>
-                    </form>
-                    <form method="post" action="{% url 'allocation:allocation_delete' allocation.pk %}" data-confirm-submit="Hapus alokasi ini? Tindakan ini tidak dapat dibatalkan.">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">
-                            <i class="bi bi-trash me-1"></i>Hapus Dokumen
-                        </button>
-                    </form>
-                    {% elif allocation.status == 'SUBMITTED' %}
-                    <form method="post" action="{% url 'allocation:allocation_approve' allocation.pk %}">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-success btn-sm w-100">
-                            <i class="bi bi-patch-check me-1"></i>Setujui
-                        </button>
-                    </form>
-                    <form method="post" action="{% url 'allocation:allocation_reject' allocation.pk %}" data-confirm-submit="Tolak alokasi ini?">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">
-                            <i class="bi bi-x-circle me-1"></i>Tolak
-                        </button>
-                    </form>
-                    {% elif allocation.status == 'APPROVED' %}
-                    <form method="post" action="{% url 'allocation:allocation_prepare' allocation.pk %}">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-info btn-sm w-100">
-                            <i class="bi bi-box-seam me-1"></i>Siapkan Barang
-                        </button>
-                    </form>
-                    {% elif allocation.status == 'PREPARED' %}
-                    <form method="post" action="{% url 'allocation:allocation_distribute' allocation.pk %}" data-confirm-submit="Distribusikan alokasi ini? Stok akan dikurangi dan tidak dapat dibatalkan.">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-success btn-sm w-100">
-                            <i class="bi bi-truck me-1"></i>Distribusikan
-                        </button>
-                    </form>
-                    {% elif allocation.status == 'REJECTED' %}
-                    <form method="post" action="{% url 'allocation:allocation_delete' allocation.pk %}" data-confirm-submit="Hapus alokasi yang ditolak ini? Tindakan ini tidak dapat dibatalkan.">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">
-                            <i class="bi bi-trash me-1"></i>Hapus Dokumen
-                        </button>
-                    </form>
-                    {% endif %}
+        {# ─── Allocation Matrix ─── #}
+        <h6 class="fw-bold mb-3"><i class="bi bi-grid-3x3 me-1"></i>Matriks Alokasi</h6>
+        {% if items_with_allocations %}
+        <div class="table-responsive mb-4">
+            <table class="table table-sm table-bordered alloc-matrix-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>Barang (Batch)</th>
+                        <th>Tersedia</th>
+                        {% for facility in selected_facilities %}
+                        <th>{{ facility.name }}</th>
+                        {% endfor %}
+                        <th>Total Alokasi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in items_with_allocations %}
+                    <tr>
+                        <td class="text-start">
+                            <div>{{ entry.item.item.nama_barang }}</div>
+                            <small class="text-muted">{{ entry.item.stock.batch_lot|default:"—" }}</small>
+                        </td>
+                        <td>{{ entry.item.total_qty_available }}</td>
+                        {% for facility in selected_facilities %}
+                        {% with fid=facility.pk %}
+                        <td>
+                            {% for fa_id, fa_qty in entry.facility_qtys.items %}
+                                {% if fa_id == fid %}{{ fa_qty }}{% endif %}
+                            {% endfor %}
+                        </td>
+                        {% endwith %}
+                        {% endfor %}
+                        <td class="fw-semibold {% if entry.total_allocated > entry.item.total_qty_available %}text-danger{% endif %}">
+                            {{ entry.total_allocated }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-muted mb-4">Belum ada item alokasi.</div>
+        {% endif %}
 
-                    {% if allocation.status != 'DRAFT' and allocation.status != 'DISTRIBUTED' %}
-                    <form method="post" action="{% url 'allocation:allocation_reset_to_draft' allocation.pk %}" data-confirm-submit="Kembalikan status alokasi ke Draft?">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-outline-warning btn-sm w-100">
-                            <i class="bi bi-arrow-counterclockwise me-1"></i>Kembalikan ke Draft
-                        </button>
-                    </form>
-                    {% endif %}
+        {# ─── Distribution Tracking (post-approval) ─── #}
+        {% if distributions %}
+        <hr>
+        <h6 class="fw-bold mb-3">
+            <i class="bi bi-truck me-1"></i>Tracking Distribusi
+            <small class="text-muted ms-2">({{ delivery_delivered }}/{{ delivery_total }} terkirim)</small>
+        </h6>
+
+        {% if delivery_total > 0 %}
+        <div class="progress mb-3" style="height: 8px;">
+            {% widthratio delivery_delivered delivery_total 100 as pct %}
+            <div class="progress-bar {% if delivery_delivered == delivery_total %}bg-success{% else %}bg-primary{% endif %}"
+                 role="progressbar"
+                 style="width: {{ pct }}%">
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="row g-3">
+            {% for dist in distributions %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card dist-tracking-card status-{{ dist.status|lower }} h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start justify-content-between mb-2">
+                            <div>
+                                <h6 class="fw-semibold mb-1">{{ dist.facility.name }}</h6>
+                                <small class="text-muted">{{ dist.document_number }}</small>
+                            </div>
+                            <span class="badge-status badge-{{ dist.status|lower }}">{{ dist.get_status_display }}</span>
+                        </div>
+
+                        <div class="small text-muted mb-2">
+                            {{ dist.items.count }} item
+                            {% if dist.distributed_date %}
+                            · Dikirim {{ dist.distributed_date|date:"d/m/Y" }}
+                            {% endif %}
+                        </div>
+
+                        {# Action buttons #}
+                        <div class="d-flex gap-2 mt-auto">
+                            {% if dist.status == 'GENERATED' %}
+                            <form method="post" action="{% url 'allocation:allocation_distribution_prepare' allocation.pk dist.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-warning"
+                                        data-confirm-action="Siapkan distribusi ke {{ dist.facility.name }}?">
+                                    <i class="bi bi-box-seam me-1"></i>Siapkan
+                                </button>
+                            </form>
+                            {% elif dist.status == 'PREPARED' %}
+                            <form method="post" action="{% url 'allocation:allocation_distribution_deliver' allocation.pk dist.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-success"
+                                        data-confirm-action="Konfirmasi pengiriman ke {{ dist.facility.name }}? Stok akan dikurangi.">
+                                    <i class="bi bi-check-circle me-1"></i>Konfirmasi Kirim
+                                </button>
+                            </form>
+                            {% elif dist.status == 'DISTRIBUTED' %}
+                            <span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>Terkirim</span>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# ─── Action Buttons ─── #}
+        <hr>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            {% if allocation.status == 'DRAFT' %}
+            <a href="{% url 'allocation:allocation_edit' allocation.pk %}" class="btn btn-primary btn-sm">
+                <i class="bi bi-pencil me-1"></i>Edit
+            </a>
+            <form method="post" action="{% url 'allocation:allocation_submit' allocation.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm"
+                        data-confirm-action="Ajukan alokasi ini untuk persetujuan?">
+                    <i class="bi bi-send me-1"></i>Ajukan
+                </button>
+            </form>
+            <form method="post" action="{% url 'allocation:allocation_delete' allocation.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger btn-sm"
+                        data-confirm-action="Hapus alokasi ini? Tindakan ini tidak dapat dibatalkan.">
+                    <i class="bi bi-trash me-1"></i>Hapus
+                </button>
+            </form>
+            {% endif %}
+
+            {% if allocation.status == 'SUBMITTED' %}
+            <form method="post" action="{% url 'allocation:allocation_approve' allocation.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm"
+                        data-confirm-action="Setujui alokasi ini? Distribusi per fasilitas akan dibuat otomatis.">
+                    <i class="bi bi-check-circle me-1"></i>Setujui
+                </button>
+            </form>
+            <button type="button" class="btn btn-outline-danger btn-sm"
+                    data-bs-toggle="modal" data-bs-target="#rejectModal">
+                <i class="bi bi-x-circle me-1"></i>Tolak
+            </button>
+            <form method="post" action="{% url 'allocation:allocation_reset_to_draft' allocation.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-secondary btn-sm"
+                        data-confirm-action="Kembalikan alokasi ke Draft?">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Kembali ke Draft
+                </button>
+            </form>
+            {% endif %}
+
+            {% if allocation.status == 'REJECTED' %}
+            <a href="{% url 'allocation:allocation_edit' allocation.pk %}" class="btn btn-primary btn-sm">
+                <i class="bi bi-pencil me-1"></i>Edit & Ajukan Ulang
+            </a>
+            <form method="post" action="{% url 'allocation:allocation_reset_to_draft' allocation.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Kembali ke Draft
+                </button>
+            </form>
+            <form method="post" action="{% url 'allocation:allocation_delete' allocation.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger btn-sm"
+                        data-confirm-action="Hapus alokasi ini?">
+                    <i class="bi bi-trash me-1"></i>Hapus
+                </button>
+            </form>
+            {% endif %}
+
+            <a href="{% url 'allocation:allocation_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Kembali ke Daftar
+            </a>
         </div>
     </div>
 </div>
+
+{# ─── Rejection Modal ─── #}
+{% if allocation.status == 'SUBMITTED' %}
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'allocation:allocation_reject' allocation.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h6 class="modal-title" id="rejectModalLabel"><i class="bi bi-x-circle me-1"></i>Tolak Alokasi</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="rejection_reason" class="form-label fw-semibold">Alasan Penolakan <span class="text-danger">*</span></label>
+                    <textarea name="rejection_reason" id="rejection_reason" class="form-control" rows="3" required
+                              placeholder="Jelaskan alasan penolakan alokasi ini..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-x-circle me-1"></i>Tolak</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

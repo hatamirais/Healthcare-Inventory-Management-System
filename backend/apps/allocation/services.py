@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.utils import timezone
 
+from apps.distribution.models import Distribution, DistributionItem
 from apps.stock.models import Stock, Transaction
 
 from .models import Allocation
@@ -16,7 +17,8 @@ def _save_allocation(allocation, update_fields):
 
 def _get_allocation_items(allocation, action_label):
     allocation_items = list(
-        allocation.items.select_related("facility", "item", "stock")
+        allocation.items.select_related("item", "stock")
+        .prefetch_related("facility_allocations__facility")
     )
     if not allocation_items:
         raise AllocationWorkflowError(
@@ -25,30 +27,11 @@ def _get_allocation_items(allocation, action_label):
     return allocation_items
 
 
-def _validate_allocation_item_for_stock_workflow(allocation_item, action_label):
-    if allocation_item.quantity is None or allocation_item.quantity <= 0:
-        raise AllocationWorkflowError(
-            f"Item {allocation_item.item.nama_barang}: jumlah harus diisi dan lebih dari 0."
-        )
+def _validate_submission(allocation, allocation_items):
+    """Validate allocation data before submission."""
+    if not allocation.sumber_dana_id:
+        raise AllocationWorkflowError("Sumber dana harus diisi.")
 
-    if allocation_item.stock is None:
-        raise AllocationWorkflowError(
-            f"Item {allocation_item.item.nama_barang}: batch stok harus dipilih sebelum {action_label}."
-        )
-
-    if allocation_item.stock.item_id != allocation_item.item_id:
-        raise AllocationWorkflowError(
-            f"Item {allocation_item.item.nama_barang}: batch stok tidak sesuai dengan barang yang dipilih."
-        )
-
-    if allocation_item.quantity > allocation_item.stock.available_quantity:
-        raise AllocationWorkflowError(
-            f"Stok tidak cukup untuk {allocation_item.item.nama_barang}. "
-            f"Tersedia {allocation_item.stock.available_quantity}, diminta {allocation_item.quantity}."
-        )
-
-
-def execute_allocation_submission(allocation, user):
     if not allocation.selected_facilities.exists():
         raise AllocationWorkflowError(
             "Pilih minimal 1 fasilitas tujuan sebelum mengajukan alokasi."
@@ -59,130 +42,265 @@ def execute_allocation_submission(allocation, user):
             "Pilih minimal 1 petugas sebelum mengajukan alokasi."
         )
 
-    allocation_items = _get_allocation_items(allocation, "diajukan")
+    for alloc_item in allocation_items:
+        if alloc_item.stock is None:
+            raise AllocationWorkflowError(
+                f"Item {alloc_item.item.nama_barang}: batch stok harus dipilih."
+            )
 
-    for allocation_item in allocation_items:
-        _validate_allocation_item_for_stock_workflow(allocation_item, "pengajuan")
+        facility_allocations = list(alloc_item.facility_allocations.all())
+        if not facility_allocations:
+            raise AllocationWorkflowError(
+                f"Item {alloc_item.item.nama_barang}: belum ada alokasi per fasilitas."
+            )
+
+        total_allocated = sum(fa.qty_allocated for fa in facility_allocations)
+        if total_allocated <= 0:
+            raise AllocationWorkflowError(
+                f"Item {alloc_item.item.nama_barang}: jumlah alokasi harus lebih dari 0."
+            )
+
+        if total_allocated > alloc_item.total_qty_available:
+            raise AllocationWorkflowError(
+                f"Item {alloc_item.item.nama_barang}: total alokasi ({total_allocated}) "
+                f"melebihi stok tersedia ({alloc_item.total_qty_available})."
+            )
+
+        for fa in facility_allocations:
+            if fa.qty_allocated <= 0:
+                raise AllocationWorkflowError(
+                    f"Item {alloc_item.item.nama_barang} untuk {fa.facility.name}: "
+                    f"jumlah alokasi harus lebih dari 0."
+                )
+
+
+def _validate_stock_at_approval(allocation_items):
+    """Re-validate stock availability at approval time (may have changed)."""
+    for alloc_item in allocation_items:
+        if alloc_item.stock is None:
+            raise AllocationWorkflowError(
+                f"Item {alloc_item.item.nama_barang}: batch stok belum dipilih."
+            )
+
+        total_allocated = sum(
+            fa.qty_allocated for fa in alloc_item.facility_allocations.all()
+        )
+
+        current_available = alloc_item.stock.available_quantity
+        if total_allocated > current_available:
+            raise AllocationWorkflowError(
+                f"Stok tidak cukup untuk {alloc_item.item.nama_barang}. "
+                f"Tersedia {current_available}, dialokasikan {total_allocated}. "
+                f"Alokasi dikembalikan ke Draft."
+            )
+
+
+def _generate_distributions(allocation, allocation_items, user):
+    """Auto-generate one Distribution per facility from approved allocation."""
+    from collections import defaultdict
+
+    # Group facility allocations by facility
+    facility_items = defaultdict(list)
+    for alloc_item in allocation_items:
+        for fa in alloc_item.facility_allocations.all():
+            facility_items[fa.facility_id].append((alloc_item, fa))
+
+    for facility_id, items_list in facility_items.items():
+        facility = items_list[0][1].facility
+
+        distribution = Distribution(
+            distribution_type=Distribution.DistributionType.ALLOCATION,
+            request_date=allocation.allocation_date,
+            facility=facility,
+            status=Distribution.Status.GENERATED,
+            created_by=user,
+            allocation=allocation,
+            notes=f"Dibuat otomatis dari alokasi {allocation.document_number}",
+        )
+        distribution.save()  # Auto-generates document_number
+
+        dist_items = []
+        for alloc_item, fa in items_list:
+            dist_items.append(
+                DistributionItem(
+                    distribution=distribution,
+                    item=alloc_item.item,
+                    stock=alloc_item.stock,
+                    quantity_requested=fa.qty_allocated,
+                    quantity_approved=fa.qty_allocated,
+                    issued_batch_lot=alloc_item.stock.batch_lot if alloc_item.stock else "",
+                    issued_expiry_date=alloc_item.stock.expiry_date if alloc_item.stock else None,
+                    issued_unit_price=alloc_item.stock.unit_price if alloc_item.stock else None,
+                    issued_sumber_dana=alloc_item.stock.sumber_dana if alloc_item.stock else None,
+                )
+            )
+        DistributionItem.objects.bulk_create(dist_items)
+
+
+# ──────────────────────────────────────────────────────────────
+# Public service functions
+# ──────────────────────────────────────────────────────────────
+
+def execute_allocation_submission(allocation, user):
+    allocation_items = _get_allocation_items(allocation, "diajukan")
+    _validate_submission(allocation, allocation_items)
+
+    # Re-snapshot available quantities
+    for alloc_item in allocation_items:
+        if alloc_item.stock:
+            alloc_item.total_qty_available = alloc_item.stock.available_quantity
+            alloc_item.save(update_fields=["total_qty_available"])
 
     allocation.status = Allocation.Status.SUBMITTED
     allocation.submitted_by = user
     allocation.submitted_at = timezone.now()
-    _save_allocation(allocation, ["status", "submitted_by", "submitted_at"])
+    allocation.rejection_reason = ""
+    _save_allocation(
+        allocation, ["status", "submitted_by", "submitted_at", "rejection_reason"]
+    )
 
 
 def execute_allocation_approval(allocation, user):
-    _get_allocation_items(allocation, "disetujui")
-
-    allocation.status = Allocation.Status.APPROVED
-    allocation.approved_by = user
-    allocation.approved_at = timezone.now()
-    _save_allocation(allocation, ["status", "approved_by", "approved_at"])
-
-
-def execute_allocation_rejection(allocation):
-    allocation.status = Allocation.Status.REJECTED
-    _save_allocation(allocation, ["status"])
-
-
-def execute_allocation_preparation(allocation, user):
-    _get_allocation_items(allocation, "disiapkan")
-
-    allocation.status = Allocation.Status.PREPARED
-    allocation.prepared_by = user
-    allocation.prepared_at = timezone.now()
-    _save_allocation(allocation, ["status", "prepared_by", "prepared_at"])
-
-
-def execute_allocation_distribution(allocation, user):
-    allocation_items = _get_allocation_items(allocation, "didistribusikan")
-    processed_at = timezone.now()
+    allocation_items = _get_allocation_items(allocation, "disetujui")
 
     with transaction.atomic():
-        for allocation_item in allocation_items:
-            _validate_allocation_item_for_stock_workflow(
-                allocation_item,
-                "distribusi",
-            )
+        _validate_stock_at_approval(allocation_items)
 
-            stock = Stock.objects.select_for_update().get(pk=allocation_item.stock_id)
+        allocation.status = Allocation.Status.APPROVED
+        allocation.approved_by = user
+        allocation.approved_at = timezone.now()
+        _save_allocation(allocation, ["status", "approved_by", "approved_at"])
 
-            if stock.item_id != allocation_item.item_id:
-                raise AllocationWorkflowError(
-                    f"Batch stok tidak sesuai untuk item {allocation_item.item.nama_barang}."
-                )
+        _generate_distributions(allocation, allocation_items, user)
 
-            if allocation_item.quantity > stock.available_quantity:
-                raise AllocationWorkflowError(
-                    f"Stok tidak cukup untuk {allocation_item.item.nama_barang}. "
-                    f"Tersedia {stock.available_quantity}, diminta {allocation_item.quantity}."
-                )
 
-            stock.quantity = stock.quantity - allocation_item.quantity
-            stock.save(update_fields=["quantity", "updated_at"])
-
-            allocation_item.issued_batch_lot = stock.batch_lot
-            allocation_item.issued_expiry_date = stock.expiry_date
-            allocation_item.issued_unit_price = stock.unit_price
-            allocation_item.issued_sumber_dana = stock.sumber_dana
-            allocation_item.save(
-                update_fields=[
-                    "issued_batch_lot",
-                    "issued_expiry_date",
-                    "issued_unit_price",
-                    "issued_sumber_dana",
-                ]
-            )
-
-            Transaction.objects.create(
-                transaction_type=Transaction.TransactionType.OUT,
-                item=allocation_item.item,
-                location=stock.location,
-                batch_lot=stock.batch_lot,
-                quantity=allocation_item.quantity,
-                unit_price=stock.unit_price,
-                sumber_dana=stock.sumber_dana,
-                reference_type=Transaction.ReferenceType.ALLOCATION,
-                reference_id=allocation.id,
-                user=user,
-                notes=(
-                    f"Alokasi {allocation.document_number} ke {allocation_item.facility.name}: "
-                    f"{allocation_item.notes}"
-                ).strip(),
-            )
-
-        allocation.status = Allocation.Status.DISTRIBUTED
-        allocation.distributed_by = user
-        allocation.distributed_at = processed_at
-        allocation.distributed_date = processed_at.date()
-        _save_allocation(
-            allocation,
-            ["status", "distributed_by", "distributed_at", "distributed_date"],
-        )
+def execute_allocation_rejection(allocation, reason):
+    allocation.status = Allocation.Status.DRAFT
+    allocation.rejection_reason = reason
+    allocation.submitted_by = None
+    allocation.submitted_at = None
+    _save_allocation(
+        allocation,
+        ["status", "rejection_reason", "submitted_by", "submitted_at"],
+    )
 
 
 def execute_allocation_reset_to_draft(allocation):
     allocation.status = Allocation.Status.DRAFT
     allocation.submitted_by = None
     allocation.submitted_at = None
-    allocation.approved_by = None
-    allocation.approved_at = None
-    allocation.prepared_by = None
-    allocation.prepared_at = None
-    allocation.distributed_by = None
-    allocation.distributed_at = None
-    allocation.distributed_date = None
+    allocation.rejection_reason = ""
     _save_allocation(
         allocation,
-        [
-            "status",
-            "submitted_by",
-            "submitted_at",
-            "approved_by",
-            "approved_at",
-            "prepared_by",
-            "prepared_at",
-            "distributed_by",
-            "distributed_at",
-            "distributed_date",
-        ],
+        ["status", "submitted_by", "submitted_at", "rejection_reason"],
     )
+
+
+def execute_distribution_preparation(distribution, user):
+    """Mark an allocation-generated distribution as PREPARED."""
+    if distribution.status != Distribution.Status.GENERATED:
+        raise AllocationWorkflowError(
+            "Hanya distribusi berstatus 'Dibuat Otomatis' yang dapat disiapkan."
+        )
+
+    distribution.status = Distribution.Status.PREPARED
+    distribution.save(update_fields=["status", "updated_at"])
+
+
+def execute_distribution_delivery(distribution, user, allocation):
+    """Confirm delivery for an allocation-generated distribution.
+    Deducts stock and writes Transaction(OUT) for each item.
+    Auto-closes parent allocation if all distributions are delivered.
+    """
+    if distribution.status != Distribution.Status.PREPARED:
+        raise AllocationWorkflowError(
+            "Hanya distribusi berstatus 'Disiapkan' yang dapat dikirim."
+        )
+
+    distribution_items = list(
+        distribution.items.select_related("item", "stock")
+    )
+    if not distribution_items:
+        raise AllocationWorkflowError(
+            "Distribusi tidak memiliki item untuk dikirim."
+        )
+
+    processed_at = timezone.now()
+
+    with transaction.atomic():
+        for dist_item in distribution_items:
+            quantity = dist_item.quantity_approved or dist_item.quantity_requested
+            if not quantity or quantity <= 0:
+                continue
+
+            if dist_item.stock is None:
+                raise AllocationWorkflowError(
+                    f"Item {dist_item.item.nama_barang}: batch stok belum dipilih."
+                )
+
+            stock = Stock.objects.select_for_update().get(pk=dist_item.stock_id)
+
+            if quantity > stock.available_quantity:
+                raise AllocationWorkflowError(
+                    f"Stok tidak cukup untuk {dist_item.item.nama_barang}. "
+                    f"Tersedia {stock.available_quantity}, dibutuhkan {quantity}."
+                )
+
+            stock.quantity = stock.quantity - quantity
+            stock.save(update_fields=["quantity", "updated_at"])
+
+            Transaction.objects.create(
+                transaction_type=Transaction.TransactionType.OUT,
+                item=dist_item.item,
+                location=stock.location,
+                batch_lot=stock.batch_lot,
+                quantity=quantity,
+                unit_price=stock.unit_price,
+                sumber_dana=stock.sumber_dana,
+                reference_type=Transaction.ReferenceType.ALLOCATION,
+                reference_id=allocation.id,
+                user=user,
+                notes=(
+                    f"Alokasi {allocation.document_number} → "
+                    f"Distribusi {distribution.document_number} "
+                    f"ke {distribution.facility}: "
+                    f"{dist_item.item.nama_barang}"
+                ).strip(),
+            )
+
+        distribution.status = Distribution.Status.DISTRIBUTED
+        distribution.approved_by = user
+        distribution.approved_at = processed_at
+        distribution.distributed_date = processed_at.date()
+        distribution.save(
+            update_fields=[
+                "status",
+                "approved_by",
+                "approved_at",
+                "distributed_date",
+                "updated_at",
+            ]
+        )
+
+        # Check auto-close: if all sibling distributions are delivered
+        _check_allocation_fulfillment(allocation)
+
+
+def _check_allocation_fulfillment(allocation):
+    """Update allocation status based on delivery progress of child distributions."""
+    total = allocation.distributions.count()
+    if total == 0:
+        return
+
+    delivered = allocation.distributions.filter(
+        status=Distribution.Status.DISTRIBUTED
+    ).count()
+
+    if delivered == total:
+        allocation.status = Allocation.Status.FULFILLED
+    elif delivered > 0:
+        allocation.status = Allocation.Status.PARTIALLY_FULFILLED
+    else:
+        return  # Still APPROVED, no change
+
+    _save_allocation(allocation, ["status"])

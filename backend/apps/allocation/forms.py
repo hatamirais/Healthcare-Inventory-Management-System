@@ -2,11 +2,11 @@ from django import forms
 from django.db.models import F
 from django.forms import inlineformset_factory
 
-from apps.items.models import Facility
+from apps.items.models import Facility, FundingSource
 from apps.stock.models import Stock
 from apps.users.models import User
 
-from .models import Allocation, AllocationItem
+from .models import Allocation, AllocationItem, AllocationItemFacility
 
 
 class StockByItemSelect(forms.Select):
@@ -26,7 +26,7 @@ class AllocationForm(forms.ModelForm):
     selected_facilities = forms.ModelMultipleChoiceField(
         queryset=Facility.objects.filter(is_active=True).order_by("code", "name"),
         required=False,
-        label="Fasilitas",
+        label="Fasilitas Tujuan",
         widget=forms.CheckboxSelectMultiple,
         help_text="Pilih fasilitas tujuan yang akan menerima alokasi.",
     )
@@ -40,12 +40,13 @@ class AllocationForm(forms.ModelForm):
 
     class Meta:
         model = Allocation
-        fields = ["document_number", "allocation_date", "notes"]
+        fields = ["sumber_dana", "referensi", "allocation_date", "notes"]
         widgets = {
-            "document_number": forms.TextInput(
+            "sumber_dana": forms.Select(attrs={"class": "form-select"}),
+            "referensi": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "Kosongkan untuk auto-generate",
+                    "placeholder": "Nomor BAST / SP (opsional)",
                 }
             ),
             "allocation_date": forms.DateInput(
@@ -56,45 +57,44 @@ class AllocationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["selected_facilities"].label_from_instance = lambda facility: facility.name
+        self.fields["sumber_dana"].queryset = FundingSource.objects.filter(
+            is_active=True
+        ).order_by("code")
+        self.fields["selected_facilities"].label_from_instance = (
+            lambda facility: facility.name
+        )
         if self.instance.pk:
-            self.fields["selected_facilities"].initial = self.instance.selected_facilities.values_list(
-                "facility_id", flat=True
+            self.fields["selected_facilities"].initial = (
+                self.instance.selected_facilities.values_list("facility_id", flat=True)
             )
-            self.fields["assigned_staff"].initial = self.instance.staff_assignments.values_list(
-                "user_id", flat=True
+            self.fields["assigned_staff"].initial = (
+                self.instance.staff_assignments.values_list("user_id", flat=True)
             )
 
 
 class AllocationItemForm(forms.ModelForm):
     class Meta:
         model = AllocationItem
-        fields = ["facility", "item", "quantity", "stock", "notes"]
+        fields = ["item", "stock", "total_qty_available", "notes"]
         widgets = {
-            "facility": forms.Select(
-                attrs={
-                    "class": "form-select form-select-sm js-allocation-row-facility"
-                }
-            ),
             "item": forms.Select(
                 attrs={
                     "class": "form-select form-select-sm js-typeahead-select js-item-select"
                 }
             ),
-            "quantity": forms.NumberInput(
-                attrs={"class": "form-control form-control-sm", "min": "1"}
-            ),
             "stock": StockByItemSelect(
                 attrs={"class": "form-select form-select-sm js-stock-select"}
             ),
+            "total_qty_available": forms.HiddenInput(),
             "notes": forms.TextInput(attrs={"class": "form-control form-control-sm"}),
         }
 
     def __init__(self, *args, **kwargs):
-        selected_facility_ids = kwargs.pop("selected_facility_ids", None)
+        kwargs.pop("selected_facility_ids", None)
         super().__init__(*args, **kwargs)
         self.fields["notes"].required = False
         self.fields["stock"].required = False
+        self.fields["total_qty_available"].required = False
 
         available_stock_queryset = (
             Stock.objects.select_related("item")
@@ -102,41 +102,17 @@ class AllocationItemForm(forms.ModelForm):
             .order_by("item_id", "expiry_date", "batch_lot")
         )
 
-        if selected_facility_ids is None:
-            if self.instance.pk and self.instance.allocation_id:
-                selected_facility_ids = list(
-                    self.instance.allocation.selected_facilities.values_list(
-                        "facility_id", flat=True
-                    )
-                )
-            else:
-                selected_facility_ids = []
-
-        posted_facility_id = None
-        if self.is_bound:
-            posted_facility_id = self.data.get(self.add_prefix("facility"))
-
-        facility_ids_for_queryset = list(selected_facility_ids)
-        if posted_facility_id:
-            try:
-                posted_facility_id = int(posted_facility_id)
-            except (TypeError, ValueError):
-                posted_facility_id = None
-            if posted_facility_id and posted_facility_id not in facility_ids_for_queryset:
-                facility_ids_for_queryset.append(posted_facility_id)
-
-        self.fields["facility"].queryset = Facility.objects.filter(
-            pk__in=facility_ids_for_queryset,
-            is_active=True,
-        ).order_by("code", "name")
-        self.fields["facility"].label_from_instance = lambda facility: facility.name
-        self.instance._selected_facility_ids_for_validation = set(selected_facility_ids)
-
-        stock_item_id = self.instance.item_id if self.instance.pk and self.instance.item_id else None
+        stock_item_id = (
+            self.instance.item_id
+            if self.instance.pk and self.instance.item_id
+            else None
+        )
         if self.is_bound:
             posted_item_id = self.data.get(self.add_prefix("item"))
             try:
-                stock_item_id = int(posted_item_id) if posted_item_id else stock_item_id
+                stock_item_id = (
+                    int(posted_item_id) if posted_item_id else stock_item_id
+                )
             except (TypeError, ValueError):
                 stock_item_id = stock_item_id
 
@@ -153,26 +129,17 @@ class AllocationItemForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        facility = cleaned_data.get("facility")
         item = cleaned_data.get("item")
         stock = cleaned_data.get("stock")
-        quantity = cleaned_data.get("quantity")
-
-        if quantity is not None and quantity <= 0:
-            self.add_error("quantity", "Jumlah harus lebih dari 0.")
 
         if stock and item and stock.item_id != item.id:
-            self.add_error("stock", "Batch stok harus sesuai dengan barang yang dipilih.")
+            self.add_error(
+                "stock", "Batch stok harus sesuai dengan barang yang dipilih."
+            )
 
-        if (
-            stock is not None
-            and quantity is not None
-            and quantity > stock.available_quantity
-        ):
-            self.add_error("quantity", "Jumlah melebihi stok batch yang tersedia.")
-
-        if facility is None and item is not None:
-            self.add_error("facility", "Pilih fasilitas tujuan untuk baris item ini.")
+        # Snapshot available quantity from selected stock
+        if stock:
+            cleaned_data["total_qty_available"] = stock.available_quantity
 
         return cleaned_data
 

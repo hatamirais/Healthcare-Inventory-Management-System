@@ -21,9 +21,15 @@
                 <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
+            <select name="sumber_dana" class="form-select">
+                <option value="">Semua Sumber Dana</option>
+                {% for source in sumber_dana_choices %}
+                <option value="{{ source.pk }}" {% if selected_sumber_dana == source.pk|stringformat:"d" %}selected{% endif %}>{{ source.name }}</option>
+                {% endfor %}
+            </select>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-search"></i></button>
-                {% if search or selected_status %}
+                {% if search or selected_status or selected_sumber_dana %}
                 <a href="{% url 'allocation:allocation_list' %}" class="btn btn-outline-danger btn-sm"><i class="bi bi-x-lg"></i></a>
                 {% endif %}
             </div>
@@ -36,10 +42,11 @@
                 <tr>
                     <th>No. Dokumen</th>
                     <th>Tanggal</th>
+                    <th>Sumber Dana</th>
                     <th>Fasilitas</th>
-                    <th>Petugas</th>
                     <th>Item</th>
                     <th>Status</th>
+                    <th>Progress</th>
                     <th>Dibuat oleh</th>
                     <th class="text-end">Aksi</th>
                 </tr>
@@ -51,10 +58,31 @@
                         <a href="{% url 'allocation:allocation_detail' allocation.pk %}" class="fw-semibold text-decoration-none">{{ allocation.document_number }}</a>
                     </td>
                     <td>{{ allocation.allocation_date|date:"d/m/Y" }}</td>
+                    <td>{{ allocation.sumber_dana }}</td>
                     <td>{{ allocation.facility_count }} fasilitas</td>
-                    <td>{{ allocation.staff_count }} petugas</td>
                     <td>{{ allocation.item_count }} baris</td>
                     <td><span class="badge-status badge-{{ allocation.status|lower }}">{{ allocation.get_status_display }}</span></td>
+                    <td>
+                        {% if allocation.status == 'APPROVED' or allocation.status == 'PARTIALLY_FULFILLED' or allocation.status == 'FULFILLED' %}
+                        {% with progress=allocation.delivery_progress %}
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="progress flex-grow-1" style="height: 6px; min-width: 60px;">
+                                {% widthratio progress.0 progress.1 100 as pct %}
+                                <div class="progress-bar {% if progress.0 == progress.1 %}bg-success{% else %}bg-primary{% endif %}"
+                                     role="progressbar"
+                                     style="width: {{ pct }}%"
+                                     aria-valuenow="{{ pct }}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                            <small class="text-muted text-nowrap">{{ progress.0 }}/{{ progress.1 }}</small>
+                        </div>
+                        {% endwith %}
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
                     <td>{{ allocation.created_by }}</td>
                     <td class="text-end">
                         <a href="{% url 'allocation:allocation_detail' allocation.pk %}" class="btn btn-sm btn-outline-secondary">
@@ -64,7 +92,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8">
+                    <td colspan="9">
                         <div class="empty-state">
                             <i class="bi bi-diagram-3 d-block"></i>
                             <p>Belum ada data alokasi</p>
@@ -75,5 +103,21 @@
             </tbody>
         </table>
     </div>
+
+    {% if allocations.has_other_pages %}
+    <nav class="px-3 pb-3">
+        <ul class="pagination pagination-sm justify-content-center mb-0">
+            {% if allocations.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ allocations.previous_page_number }}&q={{ search }}&status={{ selected_status }}&sumber_dana={{ selected_sumber_dana }}">«</a></li>
+            {% endif %}
+            {% for num in allocations.paginator.page_range %}
+            <li class="page-item {% if num == allocations.number %}active{% endif %}"><a class="page-link" href="?page={{ num }}&q={{ search }}&status={{ selected_status }}&sumber_dana={{ selected_sumber_dana }}">{{ num }}</a></li>
+            {% endfor %}
+            {% if allocations.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ allocations.next_page_number }}&q={{ search }}&status={{ selected_status }}&sumber_dana={{ selected_sumber_dana }}">»</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
 </div>
 {% endblock %}

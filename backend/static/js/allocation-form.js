@@ -1,233 +1,339 @@
-document.addEventListener('DOMContentLoaded', function () {
-    function getAllocationStockCatalog() {
-        var stockCatalogNode = document.getElementById('allocation-stock-catalog');
-        if (!stockCatalogNode) return [];
+/**
+ * Allocation Form — 4-step wizard with dynamic allocation matrix.
+ *
+ * Step 1: Info Umum (sumber_dana, referensi, facilities, staff)
+ * Step 2: Item selection (formset with stock/batch selector)
+ * Step 3: Facility allocation matrix (dynamic columns, real-time validation)
+ * Step 4: Read-only review generated from form data
+ */
 
-        try {
-            return JSON.parse(stockCatalogNode.textContent || '[]');
-        } catch (_error) {
-            return [];
-        }
+document.addEventListener('DOMContentLoaded', () => {
+    const stockCatalog = JSON.parse(
+        document.getElementById('allocation-stock-catalog')?.textContent || '[]'
+    );
+
+    let existingAllocations = {};
+    const existingEl = document.getElementById('existing-allocations');
+    if (existingEl) {
+        try { existingAllocations = JSON.parse(existingEl.textContent || '{}'); }
+        catch { existingAllocations = {}; }
     }
 
-    function syncPickerItemState(item) {
-        if (!item) return;
-        var checkbox = item.querySelector('input[type="checkbox"]');
-        if (!checkbox) return;
-        item.classList.toggle('is-selected', checkbox.checked);
+    // ────────────────────────────────────
+    // Wizard navigation
+    // ────────────────────────────────────
+
+    const stepBtns = document.querySelectorAll('.wizard-step-btn');
+    const panels = document.querySelectorAll('.wizard-panel');
+
+    function goToStep(n) {
+        stepBtns.forEach(btn => btn.classList.toggle('active', parseInt(btn.dataset.step) === n));
+        panels.forEach(panel => panel.classList.toggle('active', panel.id === `step-${n}`));
+
+        if (n === 3) buildMatrix();
+        if (n === 4) buildReview();
     }
 
-    function getSelectedFacilityOptions() {
-        var facilityPicker = document.getElementById('allocation-facility-list');
-        if (!facilityPicker) return [];
+    stepBtns.forEach(btn => {
+        btn.addEventListener('click', () => goToStep(parseInt(btn.dataset.step)));
+    });
 
-        return Array.from(
-            facilityPicker.querySelectorAll('.selection-picker-item input[type="checkbox"]:checked')
-        ).map(function (checkbox) {
-            var item = checkbox.closest('.selection-picker-item');
-            var label = item ? item.querySelector('.form-check-label') : null;
-            return {
-                value: checkbox.value,
-                text: label ? label.textContent.trim() : checkbox.value,
-            };
-        });
-    }
+    document.querySelectorAll('.js-wizard-next').forEach(btn => {
+        btn.addEventListener('click', () => goToStep(parseInt(btn.dataset.nextStep)));
+    });
 
-    function syncAllocationFacilitySelect(select) {
-        if (!select) return;
+    document.querySelectorAll('.js-wizard-prev').forEach(btn => {
+        btn.addEventListener('click', () => goToStep(parseInt(btn.dataset.prevStep)));
+    });
 
-        var currentValue = select.value;
-        var facilityOptions = getSelectedFacilityOptions();
-        var placeholderText = facilityOptions.length > 0
-            ? 'Pilih fasilitas'
-            : 'Pilih fasilitas di header';
+    // ────────────────────────────────────
+    // Stock catalog cascading (Step 2)
+    // ────────────────────────────────────
 
-        select.innerHTML = '';
-        select.appendChild(new Option(placeholderText, ''));
-
-        facilityOptions.forEach(function (option) {
-            select.appendChild(new Option(option.text, option.value, false, option.value === currentValue));
-        });
-
-        if (!facilityOptions.some(function (option) { return option.value === currentValue; })) {
-            select.value = '';
-        }
-
-        select.disabled = facilityOptions.length === 0;
-    }
-
-    function syncAllAllocationFacilitySelects() {
-        document.querySelectorAll('select.js-allocation-row-facility').forEach(function (select) {
-            syncAllocationFacilitySelect(select);
-        });
-    }
-
-    function syncAllocationRowStockSelect(row) {
+    function handleItemChange(itemSelect) {
+        const row = itemSelect.closest('tr');
         if (!row) return;
+        const stockSelect = row.querySelector('.js-stock-select');
+        if (!stockSelect) return;
 
-        var itemSelect = row.querySelector('select.js-item-select');
-        var stockSelect = row.querySelector('select.js-stock-select');
-        if (!itemSelect || !stockSelect) return;
+        const selectedItemId = itemSelect.value;
+        stockSelect.innerHTML = '<option value="">---------</option>';
 
-        var catalog = getAllocationStockCatalog();
-        var selectedItemId = itemSelect.value;
-        var currentValue = stockSelect.value;
+        if (!selectedItemId) return;
 
-        stockSelect.innerHTML = '';
-
-        if (!selectedItemId) {
-            stockSelect.appendChild(new Option('Pilih barang terlebih dahulu', ''));
-            stockSelect.disabled = true;
-            return;
-        }
-
-        stockSelect.appendChild(new Option('Pilih batch stok', ''));
-
-        catalog
-            .filter(function (entry) {
-                return String(entry.itemId) === String(selectedItemId);
-            })
-            .forEach(function (entry) {
-                stockSelect.appendChild(
-                    new Option(entry.label, String(entry.id), false, String(entry.id) === String(currentValue))
-                );
-            });
-
-        if (!catalog.some(function (entry) { return String(entry.id) === String(currentValue) && String(entry.itemId) === String(selectedItemId); })) {
-            stockSelect.value = '';
-        }
-
-        stockSelect.disabled = false;
-    }
-
-    function bindAllocationRow(row) {
-        if (!row || row.dataset.allocationRowBound === 'true') return;
-        row.dataset.allocationRowBound = 'true';
-
-        var itemSelect = row.querySelector('select.js-item-select');
-        if (itemSelect) {
-            itemSelect.addEventListener('change', function () {
-                syncAllocationRowStockSelect(row);
-            });
-        }
-
-        syncAllocationRowStockSelect(row);
-    }
-
-    function bindAllAllocationRows() {
-        document.querySelectorAll('tr.formset-row').forEach(function (row) {
-            bindAllocationRow(row);
+        const matchingStocks = stockCatalog.filter(s => String(s.itemId) === String(selectedItemId));
+        matchingStocks.forEach(stock => {
+            const opt = document.createElement('option');
+            opt.value = stock.id;
+            opt.textContent = stock.label;
+            opt.dataset.availableQty = stock.availableQty;
+            stockSelect.appendChild(opt);
         });
     }
 
-    function updateSummary(picker) {
-        var summary = picker.querySelector('.js-selection-summary');
-        if (!summary) return;
+    function handleStockChange(stockSelect) {
+        const row = stockSelect.closest('tr');
+        if (!row) return;
+        const qtyCell = row.querySelector('.js-available-qty');
+        const hiddenQtyInput = row.querySelector('[name$="-total_qty_available"]');
+        const selectedOption = stockSelect.options[stockSelect.selectedIndex];
 
-        var checked = Array.from(picker.querySelectorAll('input[type="checkbox"]:checked'));
-        if (checked.length === 0) {
-            summary.textContent = summary.getAttribute('data-empty-summary') || 'Belum ada dipilih';
-            return;
+        if (selectedOption && selectedOption.dataset.availableQty) {
+            const qty = selectedOption.dataset.availableQty;
+            if (qtyCell) qtyCell.textContent = qty;
+            if (hiddenQtyInput) hiddenQtyInput.value = qty;
+        } else {
+            if (qtyCell) qtyCell.textContent = '—';
+            if (hiddenQtyInput) hiddenQtyInput.value = '0';
         }
-
-        summary.textContent = checked.length + ' dipilih';
     }
 
-    document.querySelectorAll('.selection-picker').forEach(function (picker) {
-        picker.querySelectorAll('.selection-picker-item').forEach(function (item) {
-            var checkbox = item.querySelector('input[type="checkbox"]');
-            if (!checkbox) return;
-
-            var syncState = function () {
-                syncPickerItemState(item);
-                updateSummary(picker);
-                if (picker.querySelector('#allocation-facility-list, input[data-selection-filter-target="allocation-facility-list"]')) {
-                    syncAllAllocationFacilitySelects();
-                }
-            };
-
-            syncState();
-            checkbox.addEventListener('change', syncState);
-        });
-
-        updateSummary(picker);
+    document.addEventListener('change', (e) => {
+        if (e.target.matches('.js-item-select')) handleItemChange(e.target);
+        if (e.target.matches('.js-stock-select')) handleStockChange(e.target);
     });
 
-    document.querySelectorAll('.js-selection-bulk-action').forEach(function (button) {
-        button.addEventListener('click', function (event) {
-            event.preventDefault();
-            event.stopPropagation();
+    // ────────────────────────────────────
+    // Matrix building (Step 3)
+    // ────────────────────────────────────
 
-            var targetId = button.getAttribute('data-selection-target');
-            var action = button.getAttribute('data-selection-action');
-            var container = targetId ? document.getElementById(targetId) : null;
-            var picker = button.closest('.selection-picker');
-            if (!container || !picker) return;
+    function getSelectedFacilities() {
+        const facilities = [];
+        document.querySelectorAll('#allocation-facility-list input[type="checkbox"]:checked')
+            .forEach(cb => {
+                const label = cb.closest('.selection-picker-item');
+                const name = label ? label.querySelector('.form-check-label')?.textContent?.trim() : cb.value;
+                facilities.push({ id: cb.value, name: name });
+            });
+        return facilities;
+    }
 
-            Array.from(container.querySelectorAll('.selection-picker-item input[type="checkbox"]')).forEach(function (checkbox) {
-                var shouldCheck = action === 'select-all';
-                if (checkbox.checked === shouldCheck) {
-                    syncPickerItemState(checkbox.closest('.selection-picker-item'));
-                    return;
+    function getFormsetItems() {
+        const items = [];
+        const formsetContainer = document.querySelector('[data-formset="allocation-items"]');
+        if (!formsetContainer) return items;
+
+        const rows = formsetContainer.querySelectorAll('.formset-row');
+        rows.forEach((row) => {
+            const deleteCheckbox = row.querySelector('[name$="-DELETE"]');
+            if (deleteCheckbox && deleteCheckbox.checked) return;
+            if (row.style.display === 'none') return;
+
+            const itemSelect = row.querySelector('.js-item-select');
+            const stockSelect = row.querySelector('.js-stock-select');
+            const qtyCell = row.querySelector('.js-available-qty');
+            const idField = row.querySelector('[name$="-id"]');
+
+            if (!itemSelect || !itemSelect.value) return;
+
+            const itemText = itemSelect.options[itemSelect.selectedIndex]?.text || '';
+            const stockText = stockSelect?.options[stockSelect.selectedIndex]?.text || '';
+            const available = parseFloat(qtyCell?.textContent) || 0;
+
+            // Try to determine a stable ID for the matrix row
+            const formIndex = idField?.value || itemSelect.name?.match(/items-(\d+)-/)?.[1] || '';
+
+            items.push({
+                formIndex: formIndex,
+                itemId: itemSelect.value,
+                itemName: itemText,
+                stockId: stockSelect?.value || '',
+                stockLabel: stockText,
+                available: available,
+            });
+        });
+        return items;
+    }
+
+    function buildMatrix() {
+        const facilities = getSelectedFacilities();
+        const items = getFormsetItems();
+        const headerRow = document.getElementById('matrix-header-row');
+        const matrixBody = document.getElementById('matrix-body');
+        const emptyMsg = document.getElementById('matrix-empty-msg');
+
+        if (!headerRow || !matrixBody) return;
+
+        // Clear dynamic columns
+        headerRow.querySelectorAll('.js-facility-col').forEach(el => el.remove());
+
+        // Insert facility columns before "Total"
+        const totalTh = headerRow.lastElementChild;
+        facilities.forEach(f => {
+            const th = document.createElement('th');
+            th.textContent = f.name;
+            th.classList.add('js-facility-col');
+            headerRow.insertBefore(th, totalTh);
+        });
+
+        matrixBody.innerHTML = '';
+
+        if (items.length === 0 || facilities.length === 0) {
+            if (emptyMsg) emptyMsg.classList.remove('d-none');
+            return;
+        }
+        if (emptyMsg) emptyMsg.classList.add('d-none');
+
+        items.forEach(item => {
+            const tr = document.createElement('tr');
+
+            // Item name + batch
+            const tdItem = document.createElement('td');
+            tdItem.classList.add('text-start');
+            tdItem.innerHTML = `<div>${escapeHtml(item.itemName)}</div><small class="text-muted">${escapeHtml(item.stockLabel)}</small>`;
+            tr.appendChild(tdItem);
+
+            // Available
+            const tdAvail = document.createElement('td');
+            tdAvail.textContent = item.available;
+            tdAvail.classList.add('fw-semibold');
+            tr.appendChild(tdAvail);
+
+            // Facility quantity inputs
+            let totalAllocated = 0;
+            const inputCells = [];
+            facilities.forEach(f => {
+                const td = document.createElement('td');
+                td.classList.add('js-facility-col');
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.min = '0';
+                input.classList.add('form-control', 'form-control-sm', 'js-matrix-qty');
+                input.name = `alloc_${item.formIndex}_${f.id}`;
+                input.dataset.itemIndex = item.formIndex;
+                input.dataset.facilityId = f.id;
+
+                // Restore existing value
+                const existingKey = `${item.formIndex}_${f.id}`;
+                if (existingAllocations[existingKey]) {
+                    input.value = existingAllocations[existingKey];
+                    totalAllocated += existingAllocations[existingKey];
+                } else {
+                    input.value = '';
                 }
 
-                checkbox.checked = shouldCheck;
-                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                input.addEventListener('input', () => updateRowTotal(tr, item.available));
+                td.appendChild(input);
+                tr.appendChild(td);
+                inputCells.push(input);
             });
 
-            updateSummary(picker);
-            if (targetId === 'allocation-facility-list') {
-                syncAllAllocationFacilitySelects();
+            // Total column
+            const tdTotal = document.createElement('td');
+            tdTotal.classList.add('fw-semibold', 'js-row-total');
+            tdTotal.textContent = totalAllocated || 0;
+            tr.appendChild(tdTotal);
+
+            matrixBody.appendChild(tr);
+            updateRowTotal(tr, item.available);
+        });
+    }
+
+    function updateRowTotal(tr, available) {
+        const inputs = tr.querySelectorAll('.js-matrix-qty');
+        let total = 0;
+        inputs.forEach(input => {
+            total += parseInt(input.value) || 0;
+        });
+
+        const totalCell = tr.querySelector('.js-row-total');
+        if (totalCell) {
+            totalCell.textContent = total;
+            if (total > available) {
+                totalCell.classList.add('text-danger');
+                tr.classList.add('over-allocated');
+            } else {
+                totalCell.classList.remove('text-danger');
+                tr.classList.remove('over-allocated');
             }
-        });
-    });
-
-    var allocationFormsetContainer = document.querySelector('[data-formset="allocation-items"]');
-    if (allocationFormsetContainer) {
-        var tableBody = allocationFormsetContainer.querySelector('tbody');
-        if (tableBody && typeof MutationObserver !== 'undefined') {
-            var observer = new MutationObserver(function () {
-                syncAllAllocationFacilitySelects();
-                bindAllAllocationRows();
-            });
-            observer.observe(tableBody, { childList: true, subtree: true });
         }
     }
 
-    document.querySelectorAll('.formset-add[data-formset-target="allocation-items"]').forEach(function (button) {
-        button.addEventListener('click', function () {
-            window.setTimeout(function () {
-                syncAllAllocationFacilitySelects();
-                bindAllAllocationRows();
-            }, 0);
-        });
-    });
+    // ────────────────────────────────────
+    // Review building (Step 4)
+    // ────────────────────────────────────
 
-    syncAllAllocationFacilitySelects();
-    bindAllAllocationRows();
+    function buildReview() {
+        buildReviewHeader();
+        buildReviewMatrix();
+    }
 
-    document.querySelectorAll('.js-selection-filter').forEach(function (input) {
-        var targetId = input.getAttribute('data-selection-filter-target');
-        var container = targetId ? document.getElementById(targetId) : null;
+    function buildReviewHeader() {
+        const container = document.getElementById('review-header-content');
         if (!container) return;
 
-        var items = Array.from(container.querySelectorAll('.selection-picker-item'));
-        var emptyState = container.querySelector('.selection-picker-empty');
+        const sumberDana = document.getElementById('id_sumber_dana');
+        const tanggal = document.getElementById('id_allocation_date');
+        const referensi = document.getElementById('id_referensi');
+        const notes = document.getElementById('id_notes');
+        const facilities = getSelectedFacilities();
+        const staffChecked = document.querySelectorAll('#allocation-staff-list input[type="checkbox"]:checked');
 
-        input.addEventListener('input', function () {
-            var query = input.value.trim().toLowerCase();
-            var visibleCount = 0;
+        const staffNames = [];
+        staffChecked.forEach(cb => {
+            const label = cb.closest('.selection-picker-item');
+            staffNames.push(label?.querySelector('.form-check-label')?.textContent?.trim() || cb.value);
+        });
 
-            items.forEach(function (item) {
-                var label = item.getAttribute('data-selection-label') || '';
-                var match = !query || label.includes(query);
-                item.classList.toggle('d-none', !match);
-                if (match) visibleCount += 1;
+        container.innerHTML = `
+            <div class="row g-2 small">
+                <div class="col-md-4"><strong>Sumber Dana:</strong> ${escapeHtml(sumberDana?.options[sumberDana.selectedIndex]?.text || '—')}</div>
+                <div class="col-md-4"><strong>Tanggal:</strong> ${escapeHtml(tanggal?.value || '—')}</div>
+                <div class="col-md-4"><strong>Referensi:</strong> ${escapeHtml(referensi?.value || '—')}</div>
+                <div class="col-md-6"><strong>Fasilitas:</strong> ${facilities.map(f => escapeHtml(f.name)).join(', ') || '—'}</div>
+                <div class="col-md-6"><strong>Petugas:</strong> ${staffNames.map(n => escapeHtml(n)).join(', ') || '—'}</div>
+                ${notes?.value ? `<div class="col-12"><strong>Catatan:</strong> ${escapeHtml(notes.value)}</div>` : ''}
+            </div>
+        `;
+    }
+
+    function buildReviewMatrix() {
+        const container = document.getElementById('review-matrix-content');
+        if (!container) return;
+
+        const facilities = getSelectedFacilities();
+        const items = getFormsetItems();
+
+        if (items.length === 0 || facilities.length === 0) {
+            container.innerHTML = '<div class="text-muted small">Tidak ada data untuk ditampilkan.</div>';
+            return;
+        }
+
+        let html = '<div class="table-responsive"><table class="table table-sm table-bordered alloc-matrix">';
+        html += '<thead class="table-light"><tr><th>Barang</th><th>Tersedia</th>';
+        facilities.forEach(f => { html += `<th>${escapeHtml(f.name)}</th>`; });
+        html += '<th>Total</th></tr></thead><tbody>';
+
+        items.forEach(item => {
+            html += '<tr>';
+            html += `<td class="text-start">${escapeHtml(item.itemName)}<br><small class="text-muted">${escapeHtml(item.stockLabel)}</small></td>`;
+            html += `<td>${item.available}</td>`;
+
+            let rowTotal = 0;
+            facilities.forEach(f => {
+                const input = document.querySelector(`input[name="alloc_${item.formIndex}_${f.id}"]`);
+                const val = parseInt(input?.value) || 0;
+                rowTotal += val;
+                html += `<td>${val || '—'}</td>`;
             });
 
-            if (emptyState) {
-                emptyState.classList.toggle('d-none', visibleCount > 0);
-            }
+            const isOver = rowTotal > item.available;
+            html += `<td class="fw-semibold ${isOver ? 'text-danger' : ''}">${rowTotal}</td>`;
+            html += '</tr>';
         });
-    });
+
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    }
+
+    // ────────────────────────────────────
+    // Utility
+    // ────────────────────────────────────
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
 });

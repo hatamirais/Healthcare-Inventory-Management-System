@@ -60,6 +60,7 @@ If documentation conflicts with code, code is authoritative until docs are corre
 - `stock`: stock entries, immutable transactions, stock card, location-based stock search, and stock transfer
 - `receiving`: regular and planned receiving flows, custom CSV import endpoint in admin, quick-create lookup endpoints, and custom `ReceivingTypeOption` support
 - `distribution`: outbound distribution workflow, step-back/reset actions before distribution, and issued batch/value snapshots on `DistributionItem`
+- `allocation`: pre-distribution planning and orchestration. Draft→Submitted→Approved lifecycle auto-generates one `Distribution` per facility on approval. Stock deduction deferred to delivery confirmation per distribution. Feature-flagged via `FEATURE_ALLOCATION_UI_ENABLED`.
 - `recall`: supplier return workflow
 - `expired`: expired/disposal workflow and alerts page
 - `stock_opname`: physical counting workflow
@@ -94,6 +95,9 @@ Default scopes per role are defined in `backend/apps/users/access.py`.
 - Receiving admin CSV import writes `Receiving`, `ReceivingItem`, updates/creates `Stock`, and writes `Transaction(IN)`.
 - Receiving supports built-in and custom type codes; UI labels for non-built-in types are resolved from `ReceivingTypeOption`.
 - `Distribution(distribution_type=LPLPO)` is system-generated from `lplpo_finalize`; do not expose it as a manual distribution type in the generic distribution create/edit flow.
+- `Distribution(distribution_type=ALLOCATION)` is system-generated from `allocation` approval; one per facility, starts in `GENERATED` status, quantities are locked and cannot be edited.
+- Allocation approval atomically creates `Distribution` + `DistributionItem` records for each facility. Stock deduction is deferred to per-distribution delivery confirmation.
+- Allocation auto-transitions to `PARTIALLY_FULFILLED` when any child distribution is delivered, and `FULFILLED` when all are delivered.
 - Availability checks across distribution, recall, expired, transfer, and several selectors use `Stock.available_quantity` (`quantity - reserved`), but current workflows do not automatically increment or decrement `reserved` during distribution processing.
 
 ## Documentation Maintenance Contract

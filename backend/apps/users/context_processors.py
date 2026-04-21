@@ -1,6 +1,5 @@
 from .access import has_module_scope
 from .models import ModuleAccess
-from django.conf import settings
 
 
 def access_flags(request):
@@ -41,8 +40,9 @@ def access_flags(request):
         "can_view_distribution": has_module_scope(
             user, ModuleAccess.Module.DISTRIBUTION, ModuleAccess.Scope.VIEW
         ),
-        "can_view_allocation": settings.FEATURE_ALLOCATION_UI_ENABLED
-        and has_module_scope(user, ModuleAccess.Module.ALLOCATION, ModuleAccess.Scope.VIEW),
+        "can_view_allocation": has_module_scope(
+            user, ModuleAccess.Module.ALLOCATION, ModuleAccess.Scope.VIEW
+        ),
         "can_view_recall": has_module_scope(
             user, ModuleAccess.Module.RECALL, ModuleAccess.Scope.VIEW
         ),

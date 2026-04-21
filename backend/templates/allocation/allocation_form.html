@@ -5,11 +5,60 @@
 
 {% block extra_css %}
 <style>
+    .wizard-steps {
+        display: flex;
+        gap: 0;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .wizard-step-btn {
+        flex: 1;
+        padding: 12px 16px;
+        border: none;
+        background: none;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #94a3b8;
+        cursor: pointer;
+        position: relative;
+        transition: color 0.15s ease;
+    }
+    .wizard-step-btn:hover { color: #475569; }
+    .wizard-step-btn.active {
+        color: #1e40af;
+    }
+    .wizard-step-btn.active::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #3b82f6;
+    }
+    .wizard-step-btn .step-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #e2e8f0;
+        color: #64748b;
+        font-size: 0.75rem;
+        margin-right: 6px;
+    }
+    .wizard-step-btn.active .step-number {
+        background: #3b82f6;
+        color: #fff;
+    }
+    .wizard-panel { display: none; }
+    .wizard-panel.active { display: block; }
+
     .selection-picker {
         background: #fbfdff;
         border-color: #dbe5f0 !important;
     }
-
     .selection-picker-header {
         display: flex;
         align-items: center;
@@ -18,13 +67,7 @@
         padding: 14px 16px;
         border-bottom: 1px solid #dbe5f0;
     }
-
-    .selection-picker-title h6 {
-        margin: 0;
-        font-size: 0.98rem;
-        color: #0f172a;
-    }
-
+    .selection-picker-title h6 { margin: 0; font-size: 0.98rem; color: #0f172a; }
     .selection-picker-summary {
         color: #64748b;
         font-size: 0.85rem;
@@ -33,18 +76,13 @@
         text-overflow: ellipsis;
         max-width: 100%;
     }
-
-    .selection-picker-body {
-        padding: 16px;
-    }
-
+    .selection-picker-body { padding: 16px; }
     .selection-picker-list {
         display: grid;
         gap: 10px;
         max-height: 260px;
         overflow-y: auto;
     }
-
     .selection-picker-item {
         display: block;
         border: 1px solid #e2e8f0;
@@ -54,29 +92,39 @@
         background: #fff;
         transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
     }
-
     .selection-picker-item:hover {
         border-color: #93c5fd;
         box-shadow: 0 6px 16px rgba(59, 130, 246, 0.08);
     }
-
     .selection-picker-item .form-check {
         display: flex;
         align-items: center;
         gap: 10px;
         margin: 0;
     }
-
-    .selection-picker-item .form-check-input {
-        margin: 0;
-        float: none;
-    }
-
+    .selection-picker-item .form-check-input { margin: 0; float: none; }
     .selection-picker-item.is-selected {
         border-color: #60a5fa;
         background: #eff6ff;
         box-shadow: 0 6px 18px rgba(59, 130, 246, 0.12);
     }
+
+    .alloc-matrix th, .alloc-matrix td {
+        text-align: center;
+        min-width: 100px;
+        font-variant-numeric: tabular-nums;
+    }
+    .alloc-matrix th:first-child, .alloc-matrix td:first-child {
+        text-align: left;
+        min-width: 200px;
+    }
+    .alloc-matrix .over-allocated { background-color: #fee2e2 !important; }
+    .alloc-matrix input[type="number"] {
+        width: 80px;
+        text-align: center;
+    }
+
+    .review-section { background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
 </style>
 {% endblock %}
 
@@ -86,7 +134,7 @@
         <span><i class="bi bi-diagram-3 me-2"></i>{{ title }}</span>
     </div>
     <div class="card-body">
-        <form method="post" novalidate>
+        <form method="post" novalidate id="allocation-form">
             {% csrf_token %}
 
             {% if form.non_field_errors %}
@@ -97,200 +145,288 @@
             </div>
             {% endif %}
 
-            <div class="row g-3 mb-4">
-                <div class="col-md-6">
-                    <label for="{{ form.document_number.id_for_label }}" class="form-label fw-semibold">{{ form.document_number.label }}</label>
-                    {{ form.document_number }}
-                    {% if form.document_number.help_text %}<div class="form-text">{{ form.document_number.help_text }}</div>{% endif %}
-                    {% for error in form.document_number.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-                </div>
-                <div class="col-md-6">
-                    <label for="{{ form.allocation_date.id_for_label }}" class="form-label fw-semibold">{{ form.allocation_date.label }}</label>
-                    {{ form.allocation_date }}
-                    {% for error in form.allocation_date.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-                </div>
-                <div class="col-12">
-                    <div class="selection-picker border rounded-3 p-3">
-                        <div class="selection-picker-header">
-                            <div class="selection-picker-title">
-                                <div>
-                                    <h6>Fasilitas</h6>
-                                    <div class="selection-picker-summary js-selection-summary" data-empty-summary="Belum ada fasilitas dipilih">Belum ada fasilitas dipilih</div>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <button type="button" class="btn btn-sm btn-outline-primary js-selection-bulk-action" data-selection-target="allocation-facility-list" data-selection-action="select-all">
-                                    Pilih Semua
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary js-selection-bulk-action" data-selection-target="allocation-facility-list" data-selection-action="clear-all">
-                                    Bersihkan
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#allocation-facility-picker-body" aria-expanded="false" aria-controls="allocation-facility-picker-body">
-                                    <i class="bi bi-chevron-down"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="collapse selection-picker-body" id="allocation-facility-picker-body">
-                            <div class="mb-3">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                                    <input type="text" class="form-control js-selection-filter" data-selection-filter-target="allocation-facility-list" placeholder="Cari fasilitas..." autocomplete="off">
-                                </div>
-                            </div>
-                            <div class="selection-picker-list" id="allocation-facility-list">
-                                {% for checkbox in form.selected_facilities %}
-                                <label class="selection-picker-item" data-selection-label="{{ checkbox.choice_label|lower }}">
-                                    <span class="form-check">
-                                        {{ checkbox.tag }}
-                                        <span class="form-check-label">{{ checkbox.choice_label }}</span>
-                                    </span>
-                                </label>
-                                {% endfor %}
-                                <div class="selection-picker-empty text-muted small d-none">Tidak ada fasilitas yang cocok.</div>
-                            </div>
-                        </div>
-                    </div>
-                    {% if form.selected_facilities.help_text %}<div class="form-text">{{ form.selected_facilities.help_text }}</div>{% endif %}
-                    {% for error in form.selected_facilities.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-                </div>
-                <div class="col-12">
-                    <div class="selection-picker border rounded-3 p-3">
-                        <div class="selection-picker-header">
-                            <div class="selection-picker-title">
-                                <div>
-                                    <h6>Petugas</h6>
-                                    <div class="selection-picker-summary js-selection-summary" data-empty-summary="Belum ada petugas dipilih">Belum ada petugas dipilih</div>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <button type="button" class="btn btn-sm btn-outline-primary js-selection-bulk-action" data-selection-target="allocation-staff-list" data-selection-action="select-all">
-                                    Pilih Semua
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary js-selection-bulk-action" data-selection-target="allocation-staff-list" data-selection-action="clear-all">
-                                    Bersihkan
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#allocation-staff-picker-body" aria-expanded="false" aria-controls="allocation-staff-picker-body">
-                                    <i class="bi bi-chevron-down"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="collapse selection-picker-body" id="allocation-staff-picker-body">
-                            <div class="mb-3">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                                    <input type="text" class="form-control js-selection-filter" data-selection-filter-target="allocation-staff-list" placeholder="Cari petugas..." autocomplete="off">
-                                </div>
-                            </div>
-                            <div class="selection-picker-list" id="allocation-staff-list">
-                                {% for checkbox in form.assigned_staff %}
-                                <label class="selection-picker-item" data-selection-label="{{ checkbox.choice_label|lower }}">
-                                    <span class="form-check">
-                                        {{ checkbox.tag }}
-                                        <span class="form-check-label">{{ checkbox.choice_label }}</span>
-                                    </span>
-                                </label>
-                                {% endfor %}
-                                <div class="selection-picker-empty text-muted small d-none">Tidak ada petugas yang cocok.</div>
-                            </div>
-                        </div>
-                    </div>
-                    {% if form.assigned_staff.help_text %}<div class="form-text">{{ form.assigned_staff.help_text }}</div>{% endif %}
-                    {% for error in form.assigned_staff.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-                </div>
-                <div class="col-12">
-                    <label for="{{ form.notes.id_for_label }}" class="form-label fw-semibold">{{ form.notes.label }}</label>
-                    {{ form.notes }}
-                    {% for error in form.notes.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-                </div>
-            </div>
-
-            <div class="mb-2 small text-muted">Satu baris item mewakili satu fasilitas tujuan.</div>
-
-            <hr>
-            <h6 class="fw-bold mb-3"><i class="bi bi-list-ul me-1"></i>Item Alokasi</h6>
-
-            {{ formset.management_form }}
-
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="text-muted small">Minimal satu baris item harus tersedia.</span>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-danger btn-sm formset-clear" data-formset-target="allocation-items">
-                        <i class="bi bi-trash me-1"></i>Hapus Semua
-                    </button>
-                    <button type="button" class="btn btn-outline-primary btn-sm formset-add" data-formset-target="allocation-items">
-                        <i class="bi bi-plus-lg me-1"></i>Tambah Baris
-                    </button>
-                </div>
-            </div>
-
-            <div class="table-responsive" data-formset="allocation-items" data-formset-prefix="{{ formset.prefix }}">
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>Fasilitas</th>
-                            <th>Barang</th>
-                            <th style="width:110px;">Jumlah</th>
-                            <th>Stok (Batch)</th>
-                            <th style="width:50px;">Hapus</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item_form in formset %}
-                        <tr class="formset-row">
-                            <td>{{ item_form.facility }}</td>
-                            <td>{{ item_form.item }}</td>
-                            <td>{{ item_form.quantity }}</td>
-                            <td>{{ item_form.stock }}</td>
-                            <td class="text-center">
-                                <button type="button" class="btn btn-outline-danger btn-sm formset-remove" title="Hapus Baris">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                                <div class="d-none">{{ item_form.DELETE }}</div>
-                            </td>
-                            <td class="d-none">{{ item_form.notes }}</td>
-                            {{ item_form.id }}
-                        </tr>
-                        {% if item_form.non_field_errors %}
-                        <tr>
-                            <td colspan="{{ item_error_colspan|default:6 }}" class="text-danger small py-1">
-                                {% for error in item_form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
-                            </td>
-                        </tr>
-                        {% endif %}
-                        {% for field in item_form %}
-                            {% for error in field.errors %}
-                            <tr>
-                                <td colspan="{{ item_error_colspan|default:6 }}" class="text-danger small py-1">{{ field.label }}: {{ error }}</td>
-                            </tr>
-                            {% endfor %}
-                        {% endfor %}
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <template id="allocation-items-empty">
-                <tr class="formset-row">
-                    <td>{{ formset.empty_form.facility }}</td>
-                    <td>{{ formset.empty_form.item }}</td>
-                    <td>{{ formset.empty_form.quantity }}</td>
-                    <td>{{ formset.empty_form.stock }}</td>
-                    <td class="text-center">
-                        <button type="button" class="btn btn-outline-danger btn-sm formset-remove" title="Hapus Baris">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                        <div class="d-none">{{ formset.empty_form.DELETE }}</div>
-                    </td>
-                    <td class="d-none">{{ formset.empty_form.notes }}</td>
-                    {{ formset.empty_form.id }}
-                </tr>
-            </template>
-
-            <div class="d-flex gap-2 mt-4">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-check-lg me-1"></i>Simpan
+            {# ─── Wizard Step Tabs ─── #}
+            <div class="wizard-steps">
+                <button type="button" class="wizard-step-btn active" data-step="1">
+                    <span class="step-number">1</span>Info Umum
                 </button>
-                <a href="{% if allocation %}{% url 'allocation:allocation_detail' allocation.pk %}{% else %}{% url 'allocation:allocation_list' %}{% endif %}" class="btn btn-outline-secondary">Batal</a>
+                <button type="button" class="wizard-step-btn" data-step="2">
+                    <span class="step-number">2</span>Pilih Item
+                </button>
+                <button type="button" class="wizard-step-btn" data-step="3">
+                    <span class="step-number">3</span>Alokasi per Fasilitas
+                </button>
+                <button type="button" class="wizard-step-btn" data-step="4">
+                    <span class="step-number">4</span>Review & Simpan
+                </button>
+            </div>
+
+            {# ═══════ STEP 1: Info Umum ═══════ #}
+            <div class="wizard-panel active" id="step-1">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.sumber_dana.id_for_label }}" class="form-label fw-semibold">{{ form.sumber_dana.label }} <span class="text-danger">*</span></label>
+                        {{ form.sumber_dana }}
+                        {% for error in form.sumber_dana.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.allocation_date.id_for_label }}" class="form-label fw-semibold">{{ form.allocation_date.label }}</label>
+                        {{ form.allocation_date }}
+                        {% for error in form.allocation_date.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.referensi.id_for_label }}" class="form-label fw-semibold">{{ form.referensi.label }}</label>
+                        {{ form.referensi }}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label fw-semibold">{{ form.notes.label }}</label>
+                        {{ form.notes }}
+                    </div>
+
+                    {# ─── Facility Picker ─── #}
+                    <div class="col-12">
+                        <div class="selection-picker border rounded-3 p-3">
+                            <div class="selection-picker-header">
+                                <div class="selection-picker-title">
+                                    <div>
+                                        <h6>Fasilitas Tujuan</h6>
+                                        <div class="selection-picker-summary js-selection-summary" data-empty-summary="Belum ada fasilitas dipilih">Belum ada fasilitas dipilih</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary js-selection-bulk-action" data-selection-target="allocation-facility-list" data-selection-action="select-all">
+                                        Pilih Semua
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary js-selection-bulk-action" data-selection-target="allocation-facility-list" data-selection-action="clear-all">
+                                        Bersihkan
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#allocation-facility-picker-body" aria-expanded="false" aria-controls="allocation-facility-picker-body">
+                                        <i class="bi bi-chevron-down"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="collapse selection-picker-body" id="allocation-facility-picker-body">
+                                <div class="mb-3">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                        <input type="text" class="form-control js-selection-filter" data-selection-filter-target="allocation-facility-list" placeholder="Cari fasilitas..." autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="selection-picker-list" id="allocation-facility-list">
+                                    {% for checkbox in form.selected_facilities %}
+                                    <label class="selection-picker-item" data-selection-label="{{ checkbox.choice_label|lower }}">
+                                        <span class="form-check">
+                                            {{ checkbox.tag }}
+                                            <span class="form-check-label">{{ checkbox.choice_label }}</span>
+                                        </span>
+                                    </label>
+                                    {% endfor %}
+                                    <div class="selection-picker-empty text-muted small d-none">Tidak ada fasilitas yang cocok.</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% for error in form.selected_facilities.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    </div>
+
+                    {# ─── Staff Picker ─── #}
+                    <div class="col-12">
+                        <div class="selection-picker border rounded-3 p-3">
+                            <div class="selection-picker-header">
+                                <div class="selection-picker-title">
+                                    <div>
+                                        <h6>Petugas</h6>
+                                        <div class="selection-picker-summary js-selection-summary" data-empty-summary="Belum ada petugas dipilih">Belum ada petugas dipilih</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary js-selection-bulk-action" data-selection-target="allocation-staff-list" data-selection-action="select-all">
+                                        Pilih Semua
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary js-selection-bulk-action" data-selection-target="allocation-staff-list" data-selection-action="clear-all">
+                                        Bersihkan
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#allocation-staff-picker-body" aria-expanded="false" aria-controls="allocation-staff-picker-body">
+                                        <i class="bi bi-chevron-down"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="collapse selection-picker-body" id="allocation-staff-picker-body">
+                                <div class="mb-3">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                        <input type="text" class="form-control js-selection-filter" data-selection-filter-target="allocation-staff-list" placeholder="Cari petugas..." autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="selection-picker-list" id="allocation-staff-list">
+                                    {% for checkbox in form.assigned_staff %}
+                                    <label class="selection-picker-item" data-selection-label="{{ checkbox.choice_label|lower }}">
+                                        <span class="form-check">
+                                            {{ checkbox.tag }}
+                                            <span class="form-check-label">{{ checkbox.choice_label }}</span>
+                                        </span>
+                                    </label>
+                                    {% endfor %}
+                                    <div class="selection-picker-empty text-muted small d-none">Tidak ada petugas yang cocok.</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% for error in form.assigned_staff.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end mt-4">
+                    <button type="button" class="btn btn-primary btn-sm js-wizard-next" data-next-step="2">
+                        Selanjutnya <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
+                </div>
+            </div>
+
+            {# ═══════ STEP 2: Pilih Item ═══════ #}
+            <div class="wizard-panel" id="step-2">
+                <div class="mb-2 small text-muted">Pilih barang dan batch stok yang akan dialokasikan.</div>
+
+                {{ formset.management_form }}
+
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-muted small">Minimal satu baris item harus tersedia.</span>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-danger btn-sm formset-clear" data-formset-target="allocation-items">
+                            <i class="bi bi-trash me-1"></i>Hapus Semua
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm formset-add" data-formset-target="allocation-items">
+                            <i class="bi bi-plus-lg me-1"></i>Tambah Baris
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive" data-formset="allocation-items" data-formset-prefix="{{ formset.prefix }}">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Barang</th>
+                                <th>Stok (Batch)</th>
+                                <th>Tersedia</th>
+                                <th style="width:50px;">Hapus</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item_form in formset %}
+                            <tr class="formset-row">
+                                <td>{{ item_form.item }}</td>
+                                <td>{{ item_form.stock }}</td>
+                                <td class="js-available-qty">{{ item_form.total_qty_available.value|default:"—" }}</td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-outline-danger btn-sm formset-remove" title="Hapus Baris">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    <div class="d-none">{{ item_form.DELETE }}</div>
+                                </td>
+                                <td class="d-none">{{ item_form.notes }}</td>
+                                <td class="d-none">{{ item_form.total_qty_available }}</td>
+                                {{ item_form.id }}
+                            </tr>
+                            {% if item_form.non_field_errors %}
+                            <tr>
+                                <td colspan="4" class="text-danger small py-1">
+                                    {% for error in item_form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% for field in item_form %}
+                                {% for error in field.errors %}
+                                <tr><td colspan="4" class="text-danger small py-1">{{ field.label }}: {{ error }}</td></tr>
+                                {% endfor %}
+                            {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <template id="allocation-items-empty">
+                    <tr class="formset-row">
+                        <td>{{ formset.empty_form.item }}</td>
+                        <td>{{ formset.empty_form.stock }}</td>
+                        <td class="js-available-qty">—</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-outline-danger btn-sm formset-remove" title="Hapus Baris">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            <div class="d-none">{{ formset.empty_form.DELETE }}</div>
+                        </td>
+                        <td class="d-none">{{ formset.empty_form.notes }}</td>
+                        <td class="d-none">{{ formset.empty_form.total_qty_available }}</td>
+                        {{ formset.empty_form.id }}
+                    </tr>
+                </template>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-secondary btn-sm js-wizard-prev" data-prev-step="1">
+                        <i class="bi bi-arrow-left me-1"></i>Sebelumnya
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm js-wizard-next" data-next-step="3">
+                        Selanjutnya <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
+                </div>
+            </div>
+
+            {# ═══════ STEP 3: Alokasi per Fasilitas (Matrix) ═══════ #}
+            <div class="wizard-panel" id="step-3">
+                <div class="mb-2 small text-muted">Tentukan jumlah per fasilitas untuk masing-masing item. Total alokasi tidak boleh melebihi stok tersedia.</div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered alloc-matrix" id="alloc-matrix-table">
+                        <thead class="table-light">
+                            <tr id="matrix-header-row">
+                                <th>Barang (Batch)</th>
+                                <th>Tersedia</th>
+                                {# Facility columns injected by JS #}
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matrix-body">
+                            {# Rows injected by JS from formset data #}
+                        </tbody>
+                    </table>
+                </div>
+                <div id="matrix-empty-msg" class="text-muted small py-3 text-center d-none">
+                    Pilih item pada Step 2 dan fasilitas pada Step 1 terlebih dahulu.
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-secondary btn-sm js-wizard-prev" data-prev-step="2">
+                        <i class="bi bi-arrow-left me-1"></i>Sebelumnya
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm js-wizard-next" data-next-step="4">
+                        Selanjutnya <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
+                </div>
+            </div>
+
+            {# ═══════ STEP 4: Review & Simpan ═══════ #}
+            <div class="wizard-panel" id="step-4">
+                <div class="mb-3 small text-muted">Periksa kembali data alokasi sebelum menyimpan.</div>
+
+                <div class="review-section" id="review-header">
+                    <h6 class="fw-bold mb-2"><i class="bi bi-info-circle me-1"></i>Info Umum</h6>
+                    <div id="review-header-content"></div>
+                </div>
+
+                <div class="review-section" id="review-items">
+                    <h6 class="fw-bold mb-2"><i class="bi bi-list-ul me-1"></i>Item & Alokasi</h6>
+                    <div id="review-matrix-content"></div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-secondary btn-sm js-wizard-prev" data-prev-step="3">
+                        <i class="bi bi-arrow-left me-1"></i>Sebelumnya
+                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Simpan
+                        </button>
+                        <a href="{% if allocation %}{% url 'allocation:allocation_detail' allocation.pk %}{% else %}{% url 'allocation:allocation_list' %}{% endif %}" class="btn btn-outline-secondary">Batal</a>
+                    </div>
+                </div>
             </div>
         </form>
     </div>
@@ -300,5 +436,8 @@
 {% block extra_js %}
 {% load static %}
 {{ stock_catalog|json_script:"allocation-stock-catalog" }}
+{% if existing_allocations %}
+{{ existing_allocations|json_script:"existing-allocations" }}
+{% endif %}
 <script src="{% static 'js/allocation-form.js' %}"></script>
 {% endblock %}
