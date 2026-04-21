@@ -60,7 +60,7 @@ If documentation conflicts with code, code is authoritative until docs are corre
 - `stock`: stock entries, immutable transactions, stock card, location-based stock search, and stock transfer
 - `receiving`: regular and planned receiving flows, custom CSV import endpoint in admin, quick-create lookup endpoints, and custom `ReceivingTypeOption` support
 - `distribution`: outbound distribution workflow, step-back/reset actions before distribution, and issued batch/value snapshots on `DistributionItem`
-- `allocation`: pre-distribution planning and orchestration. Draft→Submitted→Approved lifecycle auto-generates one `Distribution` per facility on approval. Stock deduction deferred to delivery confirmation per distribution. Feature-flagged via `FEATURE_ALLOCATION_UI_ENABLED`.
+- `allocation`: pre-distribution planning and orchestration. Draft→Submitted→Approved lifecycle auto-generates one `Distribution` per facility on approval. Allocation no longer stores a header-level funding source; item batch selection can span all available stock sources. Stock deduction deferred to delivery confirmation per distribution. Feature-flagged via `FEATURE_ALLOCATION_UI_ENABLED`.
 - `recall`: supplier return workflow
 - `expired`: expired/disposal workflow and alerts page
 - `stock_opname`: physical counting workflow

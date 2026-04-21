@@ -28,12 +28,6 @@ class Allocation(TimeStampedModel):
         blank=True,
         help_text="Leave blank to auto-generate (e.g., ALK-2025-0042)",
     )
-    sumber_dana = models.ForeignKey(
-        "items.FundingSource",
-        on_delete=models.PROTECT,
-        related_name="allocations",
-        help_text="Sumber dana alokasi (APBD, Hibah, Kemenkes, dll.)",
-    )
     referensi = models.CharField(
         max_length=255,
         blank=True,

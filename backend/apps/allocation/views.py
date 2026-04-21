@@ -153,7 +153,7 @@ def _save_facility_allocations(allocation, request):
 def allocation_list(request):
 
     queryset = (
-        Allocation.objects.select_related("created_by", "sumber_dana")
+        Allocation.objects.select_related("created_by")
         .annotate(
             facility_count=Count("selected_facilities", distinct=True),
             staff_count=Count("staff_assignments", distinct=True),
@@ -177,13 +177,7 @@ def allocation_list(request):
     if status:
         queryset = queryset.filter(status=status)
 
-    sumber_dana = request.GET.get("sumber_dana", "").strip()
-    if sumber_dana:
-        queryset = queryset.filter(sumber_dana_id=sumber_dana)
-
     allocations = Paginator(queryset, 25).get_page(request.GET.get("page"))
-
-    from apps.items.models import FundingSource
 
     return render(
         request,
@@ -192,11 +186,7 @@ def allocation_list(request):
             "allocations": allocations,
             "search": search,
             "selected_status": status,
-            "selected_sumber_dana": sumber_dana,
             "status_choices": Allocation.Status.choices,
-            "sumber_dana_choices": FundingSource.objects.filter(
-                is_active=True
-            ).order_by("code"),
             "page_title": "Alokasi Barang",
         },
     )
@@ -215,7 +205,6 @@ def allocation_detail(request, pk):
             "created_by",
             "submitted_by",
             "approved_by",
-            "sumber_dana",
         ).prefetch_related(
             "selected_facilities__facility",
             "staff_assignments__user",

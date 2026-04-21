@@ -165,11 +165,6 @@
             <div class="wizard-panel active" id="step-1">
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label for="{{ form.sumber_dana.id_for_label }}" class="form-label fw-semibold">{{ form.sumber_dana.label }} <span class="text-danger">*</span></label>
-                        {{ form.sumber_dana }}
-                        {% for error in form.sumber_dana.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-                    </div>
-                    <div class="col-md-6">
                         <label for="{{ form.allocation_date.id_for_label }}" class="form-label fw-semibold">{{ form.allocation_date.label }}</label>
                         {{ form.allocation_date }}
                         {% for error in form.allocation_date.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}

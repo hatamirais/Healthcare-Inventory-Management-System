@@ -2,7 +2,7 @@ from django import forms
 from django.db.models import F
 from django.forms import inlineformset_factory
 
-from apps.items.models import Facility, FundingSource
+from apps.items.models import Facility
 from apps.stock.models import Stock
 from apps.users.models import User
 
@@ -40,9 +40,8 @@ class AllocationForm(forms.ModelForm):
 
     class Meta:
         model = Allocation
-        fields = ["sumber_dana", "referensi", "allocation_date", "notes"]
+        fields = ["referensi", "allocation_date", "notes"]
         widgets = {
-            "sumber_dana": forms.Select(attrs={"class": "form-select"}),
             "referensi": forms.TextInput(
                 attrs={
                     "class": "form-control",
@@ -57,9 +56,6 @@ class AllocationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["sumber_dana"].queryset = FundingSource.objects.filter(
-            is_active=True
-        ).order_by("code")
         self.fields["selected_facilities"].label_from_instance = (
             lambda facility: facility.name
         )

@@ -201,10 +201,11 @@ This section reflects model code in `backend/apps/*/models.py`.
 - `allocation.Allocation` (`allocations`):
   - Status: `DRAFT`, `SUBMITTED`, `APPROVED`, `PARTIALLY_FULFILLED`, `FULFILLED`, `REJECTED`
   - Fields: `document_number` (auto-generated `ALK-YYYY-NNNN` when blank), `allocation_date`, `referensi`, `notes`, `rejection_reason`
-  - FKs: `sumber_dana` → `FundingSource`, `created_by`, `submitted_by` (nullable), `approved_by` (nullable)
+  - FKs: `created_by`, `submitted_by` (nullable), `approved_by` (nullable)
   - Timestamps: `submitted_at`, `approved_at`
   - Index: `idx_alloc_status_date` on `(status, allocation_date)`
   - Approval triggers atomic auto-generation of one `Distribution` per facility (type=ALLOCATION, status=GENERATED)
+  - Funding source is derived from each selected stock batch rather than stored on the allocation header
   - Stock deduction occurs at each child Distribution's delivery confirmation, not on the Allocation itself
   - Allocation auto-transitions to `PARTIALLY_FULFILLED` / `FULFILLED` based on child Distribution delivery progress
 

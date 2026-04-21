@@ -37,12 +37,11 @@ class AllocationStaffAssignmentInline(admin.TabularInline):
 class AllocationAdmin(admin.ModelAdmin):
     list_display = (
         "document_number",
-        "sumber_dana",
         "allocation_date",
         "status",
         "created_by",
     )
-    list_filter = ("status", "allocation_date", "sumber_dana")
+    list_filter = ("status", "allocation_date")
     search_fields = (
         "document_number",
         "referensi",
@@ -52,7 +51,6 @@ class AllocationAdmin(admin.ModelAdmin):
     )
     date_hierarchy = "allocation_date"
     raw_id_fields = (
-        "sumber_dana",
         "created_by",
         "submitted_by",
         "approved_by",

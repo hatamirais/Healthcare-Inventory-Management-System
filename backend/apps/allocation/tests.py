@@ -81,7 +81,6 @@ def _create_allocation(fixtures, user=None, status=Allocation.Status.DRAFT):
     """Create a complete allocation with items and facility allocations."""
     allocation = Allocation.objects.create(
         allocation_date="2025-06-01",
-        sumber_dana=fixtures["funding"],
         status=status,
         created_by=user or fixtures["admin"],
     )
@@ -116,7 +115,6 @@ class AllocationModelTest(TestCase):
     def test_document_number_auto_generated(self):
         allocation = Allocation.objects.create(
             allocation_date="2025-06-01",
-            sumber_dana=self.fixtures["funding"],
             created_by=self.fixtures["admin"],
         )
         self.assertTrue(allocation.document_number.startswith("ALK-"))
@@ -158,7 +156,6 @@ class AllocationSubmissionTest(TestCase):
     def test_submit_no_items_fails(self):
         allocation = Allocation.objects.create(
             allocation_date="2025-06-01",
-            sumber_dana=self.fixtures["funding"],
             created_by=self.fixtures["admin"],
         )
         AllocationFacility.objects.create(allocation=allocation, facility=self.fixtures["facility1"])
@@ -170,7 +167,6 @@ class AllocationSubmissionTest(TestCase):
     def test_submit_no_facilities_fails(self):
         allocation = Allocation.objects.create(
             allocation_date="2025-06-01",
-            sumber_dana=self.fixtures["funding"],
             created_by=self.fixtures["admin"],
         )
         AllocationStaffAssignment.objects.create(allocation=allocation, user=self.fixtures["operator"])

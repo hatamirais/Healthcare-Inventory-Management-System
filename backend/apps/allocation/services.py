@@ -29,9 +29,6 @@ def _get_allocation_items(allocation, action_label):
 
 def _validate_submission(allocation, allocation_items):
     """Validate allocation data before submission."""
-    if not allocation.sumber_dana_id:
-        raise AllocationWorkflowError("Sumber dana harus diisi.")
-
     if not allocation.selected_facilities.exists():
         raise AllocationWorkflowError(
             "Pilih minimal 1 fasilitas tujuan sebelum mengajukan alokasi."
