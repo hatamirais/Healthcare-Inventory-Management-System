@@ -1,11 +1,13 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import F
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from apps.core.decorators import module_scope_required, perm_required
+from apps.stock.models import Stock
 from apps.users.models import ModuleAccess
 
 from .forms import AllocationForm, AllocationItemFormSet
@@ -23,6 +25,24 @@ from .services import (
 
 def _redirect_allocation_detail(pk):
     return redirect("allocation:allocation_detail", pk=pk)
+
+
+def _build_allocation_stock_catalog():
+    available_stocks = (
+        Stock.objects.select_related("item")
+        .filter(quantity__gt=F("reserved"))
+        .order_by("item_id", "expiry_date", "batch_lot")
+    )
+    return [
+        {
+            "id": stock.pk,
+            "itemId": stock.item_id,
+            "label": (
+                f"{stock.batch_lot} | Tersedia: {stock.available_quantity} | Exp: {stock.expiry_date}"
+            ),
+        }
+        for stock in available_stocks
+    ]
 
 
 def sync_allocation_staff_assignments(allocation, staff_users):
@@ -205,6 +225,7 @@ def allocation_create(request):
             "formset": formset,
             "is_edit": False,
             "item_error_colspan": 5,
+            "stock_catalog": _build_allocation_stock_catalog(),
         },
     )
 
@@ -261,6 +282,7 @@ def allocation_edit(request, pk):
             "formset": formset,
             "is_edit": True,
             "item_error_colspan": 5,
+            "stock_catalog": _build_allocation_stock_catalog(),
         },
     )
 

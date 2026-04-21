@@ -299,5 +299,6 @@
 
 {% block extra_js %}
 {% load static %}
+{{ stock_catalog|json_script:"allocation-stock-catalog" }}
 <script src="{% static 'js/allocation-form.js' %}"></script>
 {% endblock %}

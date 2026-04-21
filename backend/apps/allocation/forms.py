@@ -71,7 +71,11 @@ class AllocationItemForm(forms.ModelForm):
         model = AllocationItem
         fields = ["facility", "item", "quantity", "stock", "notes"]
         widgets = {
-            "facility": forms.Select(attrs={"class": "form-select form-select-sm"}),
+            "facility": forms.Select(
+                attrs={
+                    "class": "form-select form-select-sm js-allocation-row-facility"
+                }
+            ),
             "item": forms.Select(
                 attrs={
                     "class": "form-select form-select-sm js-typeahead-select js-item-select"
@@ -91,6 +95,12 @@ class AllocationItemForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["notes"].required = False
         self.fields["stock"].required = False
+
+        available_stock_queryset = (
+            Stock.objects.select_related("item")
+            .filter(quantity__gt=F("reserved"))
+            .order_by("item_id", "expiry_date", "batch_lot")
+        )
 
         if selected_facility_ids is None:
             if self.instance.pk and self.instance.allocation_id:
@@ -122,11 +132,21 @@ class AllocationItemForm(forms.ModelForm):
         self.fields["facility"].label_from_instance = lambda facility: facility.name
         self.instance._selected_facility_ids_for_validation = set(selected_facility_ids)
 
-        self.fields["stock"].queryset = (
-            Stock.objects.select_related("item")
-            .filter(quantity__gt=F("reserved"))
-            .order_by("item_id", "expiry_date", "batch_lot")
-        )
+        stock_item_id = self.instance.item_id if self.instance.pk and self.instance.item_id else None
+        if self.is_bound:
+            posted_item_id = self.data.get(self.add_prefix("item"))
+            try:
+                stock_item_id = int(posted_item_id) if posted_item_id else stock_item_id
+            except (TypeError, ValueError):
+                stock_item_id = stock_item_id
+
+        if stock_item_id:
+            self.fields["stock"].queryset = available_stock_queryset.filter(
+                item_id=stock_item_id
+            )
+        else:
+            self.fields["stock"].queryset = Stock.objects.none()
+
         self.fields["stock"].label_from_instance = lambda obj: (
             f"{obj.batch_lot} | Tersedia: {obj.available_quantity} | Exp: {obj.expiry_date}"
         )
@@ -161,6 +181,6 @@ AllocationItemFormSet = inlineformset_factory(
     Allocation,
     AllocationItem,
     form=AllocationItemForm,
-    extra=3,
+    extra=1,
     can_delete=True,
 )
