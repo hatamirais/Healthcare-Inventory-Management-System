@@ -1,4 +1,10 @@
 document.addEventListener('DOMContentLoaded', function () {
+    function syncPickerItemState(item) {
+        var checkbox = item?.querySelector('input[type="checkbox"]');
+        if (!checkbox) return;
+        item.classList.toggle('is-selected', checkbox.checked);
+    }
+
     function updateSummary(picker) {
         var summary = picker.querySelector('.js-selection-summary');
         if (!summary) return;
@@ -25,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!checkbox) return;
 
             var syncState = function () {
-                item.classList.toggle('is-selected', checkbox.checked);
+                syncPickerItemState(item);
                 updateSummary(picker);
             };
 
@@ -34,6 +40,23 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         updateSummary(picker);
+    });
+
+    document.querySelectorAll('.js-selection-bulk-action').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var targetId = button.getAttribute('data-selection-target');
+            var action = button.getAttribute('data-selection-action');
+            var container = targetId ? document.getElementById(targetId) : null;
+            var picker = button.closest('.selection-picker');
+            if (!container || !picker) return;
+
+            container.querySelectorAll('.selection-picker-item input[type="checkbox"]').forEach(function (checkbox) {
+                checkbox.checked = action === 'select-all';
+                syncPickerItemState(checkbox.closest('.selection-picker-item'));
+            });
+
+            updateSummary(picker);
+        });
     });
 
     document.querySelectorAll('.js-selection-filter').forEach(function (input) {

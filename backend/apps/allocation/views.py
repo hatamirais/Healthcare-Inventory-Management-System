@@ -204,7 +204,7 @@ def allocation_create(request):
             "form": form,
             "formset": formset,
             "is_edit": False,
-            "item_error_colspan": 6,
+            "item_error_colspan": 5,
         },
     )
 
@@ -260,7 +260,7 @@ def allocation_edit(request, pk):
             "form": form,
             "formset": formset,
             "is_edit": True,
-            "item_error_colspan": 6,
+            "item_error_colspan": 5,
         },
     )
 

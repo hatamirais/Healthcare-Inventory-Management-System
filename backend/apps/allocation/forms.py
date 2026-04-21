@@ -56,6 +56,7 @@ class AllocationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["selected_facilities"].label_from_instance = lambda facility: facility.name
         if self.instance.pk:
             self.fields["selected_facilities"].initial = self.instance.selected_facilities.values_list(
                 "facility_id", flat=True
@@ -118,6 +119,7 @@ class AllocationItemForm(forms.ModelForm):
             pk__in=facility_ids_for_queryset,
             is_active=True,
         ).order_by("code", "name")
+        self.fields["facility"].label_from_instance = lambda facility: facility.name
         self.instance._selected_facility_ids_for_validation = set(selected_facility_ids)
 
         self.fields["stock"].queryset = (
