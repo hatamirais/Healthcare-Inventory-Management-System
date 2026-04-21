@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.15.0] - 2026-04-21
+
+### Added
+
+- **Orchestrator Architecture**: `Allocation` approval now atomically auto-generates `Distribution` records (status: `GENERATED`) for each facility.
+- **Wizard Form**: Replaced the previous single-page entry with a robust 4-step wizard form for Allocation creation featuring a dynamic client-side allocation matrix.
+- **Auto-closing Lifecycle**: Allocations automatically transition to `PARTIALLY_FULFILLED` and `FULFILLED` based on child distribution delivery progress.
+- **UI Enhancements**: Visual status timeline and interactive distribution tracking cards added to the detail view; delivery progress visualization and `sumber_dana` filtering added to the list view.
+
+### Changed
+
+- **Deferred Stock Deduction**: Stock is no longer deducted at Allocation approval. It is now correctly deducted only when individual child `Distribution` records are marked as delivered.
+- **Feature Flag Removal**: Removed the `FEATURE_ALLOCATION_UI_ENABLED` feature flag. The Allocation module is now fully active and gated by `ModuleAccess` scopes exactly like all other modules.
+
 ## [1.13.0] - 2026-04-20
 
 ### Changed
