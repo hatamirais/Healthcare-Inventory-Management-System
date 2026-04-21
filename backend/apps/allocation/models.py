@@ -28,6 +28,11 @@ class Allocation(TimeStampedModel):
         blank=True,
         help_text="Leave blank to auto-generate (e.g., ALK-2025-0042)",
     )
+    title = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Judul dokumen alokasi untuk header atau kebutuhan cetak.",
+    )
     referensi = models.CharField(
         max_length=255,
         blank=True,

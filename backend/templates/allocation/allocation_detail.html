@@ -63,6 +63,13 @@
     </div>
 
     <div class="card-body">
+        {% if allocation.title %}
+        <div class="mb-3">
+            <div class="text-muted small">Judul Alokasi</div>
+            <h5 class="mb-0">{{ allocation.title }}</h5>
+        </div>
+        {% endif %}
+
         {# ─── Rejection Alert ─── #}
         {% if allocation.status == 'REJECTED' and allocation.rejection_reason %}
         <div class="alert alert-warning py-2 mb-3">

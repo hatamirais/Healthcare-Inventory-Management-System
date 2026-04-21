@@ -103,6 +103,22 @@
         margin: 0;
     }
     .selection-picker-item .form-check-input { margin: 0; float: none; }
+    .selection-item-text {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+    .selection-item-title {
+        font-weight: 600;
+        color: #0f172a;
+        line-height: 1.2;
+    }
+    .selection-item-description {
+        font-size: 0.82rem;
+        color: #64748b;
+        line-height: 1.2;
+        margin-top: 2px;
+    }
     .selection-picker-item.is-selected {
         border-color: #60a5fa;
         background: #eff6ff;
@@ -164,6 +180,11 @@
             {# ═══════ STEP 1: Info Umum ═══════ #}
             <div class="wizard-panel active" id="step-1">
                 <div class="row g-3">
+                    <div class="col-12">
+                        <label for="{{ form.title.id_for_label }}" class="form-label fw-semibold">{{ form.title.label }}</label>
+                        {{ form.title }}
+                        {% for error in form.title.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    </div>
                     <div class="col-md-6">
                         <label for="{{ form.allocation_date.id_for_label }}" class="form-label fw-semibold">{{ form.allocation_date.label }}</label>
                         {{ form.allocation_date }}
@@ -431,8 +452,10 @@
 {% block extra_js %}
 {% load static %}
 {{ stock_catalog|json_script:"allocation-stock-catalog" }}
+{{ facility_picker_meta|json_script:"allocation-facility-picker-meta" }}
+{{ staff_picker_meta|json_script:"allocation-staff-picker-meta" }}
 {% if existing_allocations %}
 {{ existing_allocations|json_script:"existing-allocations" }}
 {% endif %}
-<script src="{% static 'js/allocation-form.js' %}"></script>
+<script src="{% static 'js/allocation-form.js' %}?v={{ app_version }}-20260421b"></script>
 {% endblock %}

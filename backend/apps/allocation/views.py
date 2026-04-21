@@ -50,6 +50,28 @@ def _build_allocation_stock_catalog():
     ]
 
 
+def _build_picker_metadata(form):
+    facility_meta = {
+        str(facility.pk): {
+            "title": facility.name,
+            "description": f"{facility.code} | {facility.get_facility_type_display()}",
+        }
+        for facility in form.fields["selected_facilities"].queryset
+    }
+    staff_meta = {}
+    for user in form.fields["assigned_staff"].queryset.select_related("facility"):
+        description_parts = [user.get_role_display()]
+        if user.facility:
+            description_parts.append(user.facility.name)
+        else:
+            description_parts.append(user.username)
+        staff_meta[str(user.pk)] = {
+            "title": user.full_name or user.username,
+            "description": " | ".join(description_parts),
+        }
+    return facility_meta, staff_meta
+
+
 def sync_allocation_staff_assignments(allocation, staff_users):
     selected_users = list(staff_users)
     selected_ids = {user.id for user in selected_users}
@@ -311,6 +333,8 @@ def allocation_create(request):
         )
         formset = AllocationItemFormSet(prefix="items")
 
+    facility_picker_meta, staff_picker_meta = _build_picker_metadata(form)
+
     return render(
         request,
         "allocation/allocation_form.html",
@@ -320,6 +344,8 @@ def allocation_create(request):
             "form": form,
             "formset": formset,
             "is_edit": False,
+            "facility_picker_meta": facility_picker_meta,
+            "staff_picker_meta": staff_picker_meta,
             "stock_catalog": _build_allocation_stock_catalog(),
         },
     )
@@ -377,6 +403,8 @@ def allocation_edit(request, pk):
                 fa.qty_allocated
             )
 
+    facility_picker_meta, staff_picker_meta = _build_picker_metadata(form)
+
     return render(
         request,
         "allocation/allocation_form.html",
@@ -387,6 +415,8 @@ def allocation_edit(request, pk):
             "form": form,
             "formset": formset,
             "is_edit": True,
+            "facility_picker_meta": facility_picker_meta,
+            "staff_picker_meta": staff_picker_meta,
             "stock_catalog": _build_allocation_stock_catalog(),
             "existing_allocations": existing_allocations,
         },

@@ -80,6 +80,7 @@ def _create_test_fixtures():
 def _create_allocation(fixtures, user=None, status=Allocation.Status.DRAFT):
     """Create a complete allocation with items and facility allocations."""
     allocation = Allocation.objects.create(
+        title="Alokasi Buffer Gudang April 2026",
         allocation_date="2025-06-01",
         status=status,
         created_by=user or fixtures["admin"],
@@ -114,10 +115,19 @@ class AllocationModelTest(TestCase):
 
     def test_document_number_auto_generated(self):
         allocation = Allocation.objects.create(
+            title="Alokasi Uji",
             allocation_date="2025-06-01",
             created_by=self.fixtures["admin"],
         )
         self.assertTrue(allocation.document_number.startswith("ALK-"))
+
+    def test_title_is_stored(self):
+        allocation = Allocation.objects.create(
+            title="Alokasi Program Triwulan II",
+            allocation_date="2025-06-01",
+            created_by=self.fixtures["admin"],
+        )
+        self.assertEqual(allocation.title, "Alokasi Program Triwulan II")
 
     def test_delivery_progress_empty(self):
         allocation = _create_allocation(self.fixtures)
@@ -155,6 +165,7 @@ class AllocationSubmissionTest(TestCase):
 
     def test_submit_no_items_fails(self):
         allocation = Allocation.objects.create(
+            title="Alokasi Tanpa Item",
             allocation_date="2025-06-01",
             created_by=self.fixtures["admin"],
         )
@@ -166,6 +177,7 @@ class AllocationSubmissionTest(TestCase):
 
     def test_submit_no_facilities_fails(self):
         allocation = Allocation.objects.create(
+            title="Alokasi Tanpa Fasilitas",
             allocation_date="2025-06-01",
             created_by=self.fixtures["admin"],
         )

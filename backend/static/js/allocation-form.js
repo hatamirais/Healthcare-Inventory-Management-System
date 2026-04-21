@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const stockCatalog = JSON.parse(
         document.getElementById('allocation-stock-catalog')?.textContent || '[]'
     );
+    const facilityPickerMeta = JSON.parse(
+        document.getElementById('allocation-facility-picker-meta')?.textContent || '{}'
+    );
+    const staffPickerMeta = JSON.parse(
+        document.getElementById('allocation-staff-picker-meta')?.textContent || '{}'
+    );
 
     let existingAllocations = {};
     const existingEl = document.getElementById('existing-allocations');
@@ -93,6 +99,138 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.matches('.js-stock-select')) handleStockChange(e.target);
     });
 
+    function refreshDerivedViews() {
+        if (document.getElementById('step-3')?.classList.contains('active')) buildMatrix();
+        if (document.getElementById('step-4')?.classList.contains('active')) buildReview();
+    }
+
+    function getSelectionTitle(item, fallback = '') {
+        return item?.querySelector('.selection-item-title')?.textContent?.trim()
+            || item?.querySelector('.form-check-label')?.textContent?.trim()
+            || fallback;
+    }
+
+    function enhancePickerList(listId, metadata) {
+        const listEl = document.getElementById(listId);
+        if (!listEl) return;
+
+        getPickerItems(listEl).forEach(item => {
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            const label = item.querySelector('.form-check-label');
+            if (!checkbox || !label) return;
+
+            const meta = metadata[String(checkbox.value)];
+            if (!meta) return;
+
+            label.innerHTML = `
+                <span class="selection-item-text">
+                    <span class="selection-item-title">${escapeHtml(meta.title)}</span>
+                    <span class="selection-item-description">${escapeHtml(meta.description)}</span>
+                </span>
+            `;
+            item.dataset.selectionLabel = `${meta.title} ${meta.description}`.toLowerCase();
+        });
+    }
+
+    function getPickerItems(listEl) {
+        return Array.from(listEl.querySelectorAll('.selection-picker-item'));
+    }
+
+    function getVisiblePickerItems(listEl) {
+        return getPickerItems(listEl).filter(item => !item.classList.contains('d-none'));
+    }
+
+    function updatePickerSummary(listEl) {
+        const picker = listEl.closest('.selection-picker');
+        const summaryEl = picker?.querySelector('.js-selection-summary');
+        if (!summaryEl) return;
+
+        const checkedItems = getPickerItems(listEl).filter(item => item.querySelector('input[type="checkbox"]:checked'));
+        const emptySummary = summaryEl.dataset.emptySummary || 'Belum ada pilihan';
+
+        if (checkedItems.length === 0) {
+            summaryEl.textContent = emptySummary;
+            return;
+        }
+
+        summaryEl.textContent = `${checkedItems.length} dipilih`;
+    }
+
+    function updatePickerItemState(checkbox) {
+        const item = checkbox.closest('.selection-picker-item');
+        if (!item) return;
+        item.classList.toggle('is-selected', checkbox.checked);
+    }
+
+    function updatePickerEmptyState(listEl) {
+        const emptyEl = listEl.querySelector('.selection-picker-empty');
+        if (!emptyEl) return;
+        emptyEl.classList.toggle('d-none', getVisiblePickerItems(listEl).length > 0);
+    }
+
+    function handlePickerFilter(input) {
+        const listEl = document.getElementById(input.dataset.selectionFilterTarget || '');
+        if (!listEl) return;
+
+        const term = input.value.trim().toLowerCase();
+        getPickerItems(listEl).forEach(item => {
+            const label = item.dataset.selectionLabel || '';
+            item.classList.toggle('d-none', Boolean(term) && !label.includes(term));
+        });
+
+        updatePickerEmptyState(listEl);
+    }
+
+    function applyBulkSelection(button) {
+        const listEl = document.getElementById(button.dataset.selectionTarget || '');
+        if (!listEl) return;
+
+        const shouldSelect = button.dataset.selectionAction === 'select-all';
+        getVisiblePickerItems(listEl).forEach(item => {
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            if (!checkbox || checkbox.disabled) return;
+            checkbox.checked = shouldSelect;
+            updatePickerItemState(checkbox);
+        });
+
+        updatePickerSummary(listEl);
+        refreshDerivedViews();
+    }
+
+    function initializeSelectionPickers() {
+        enhancePickerList('allocation-facility-list', facilityPickerMeta);
+        enhancePickerList('allocation-staff-list', staffPickerMeta);
+
+        document.querySelectorAll('.selection-picker-list').forEach(listEl => {
+            getPickerItems(listEl).forEach(item => {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                if (checkbox) updatePickerItemState(checkbox);
+            });
+            updatePickerSummary(listEl);
+            updatePickerEmptyState(listEl);
+        });
+
+        document.querySelectorAll('.js-selection-filter').forEach(input => {
+            input.addEventListener('input', () => handlePickerFilter(input));
+        });
+
+        document.querySelectorAll('.js-selection-bulk-action').forEach(button => {
+            button.addEventListener('click', () => applyBulkSelection(button));
+        });
+
+        document.addEventListener('change', (e) => {
+            if (!e.target.matches('.selection-picker input[type="checkbox"]')) return;
+            const listEl = e.target.closest('.selection-picker-list');
+            if (!listEl) return;
+
+            updatePickerItemState(e.target);
+            updatePickerSummary(listEl);
+            refreshDerivedViews();
+        });
+    }
+
+    initializeSelectionPickers();
+
     // ────────────────────────────────────
     // Matrix building (Step 3)
     // ────────────────────────────────────
@@ -102,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('#allocation-facility-list input[type="checkbox"]:checked')
             .forEach(cb => {
                 const label = cb.closest('.selection-picker-item');
-                const name = label ? label.querySelector('.form-check-label')?.textContent?.trim() : cb.value;
+                const name = getSelectionTitle(label, cb.value);
                 facilities.push({ id: cb.value, name: name });
             });
         return facilities;
@@ -262,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('review-header-content');
         if (!container) return;
 
-        const sumberDana = document.getElementById('id_sumber_dana');
+        const title = document.getElementById('id_title');
         const tanggal = document.getElementById('id_allocation_date');
         const referensi = document.getElementById('id_referensi');
         const notes = document.getElementById('id_notes');
@@ -272,12 +410,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const staffNames = [];
         staffChecked.forEach(cb => {
             const label = cb.closest('.selection-picker-item');
-            staffNames.push(label?.querySelector('.form-check-label')?.textContent?.trim() || cb.value);
+            staffNames.push(getSelectionTitle(label, cb.value));
         });
 
         container.innerHTML = `
             <div class="row g-2 small">
-                <div class="col-md-4"><strong>Sumber Dana:</strong> ${escapeHtml(sumberDana?.options[sumberDana.selectedIndex]?.text || '—')}</div>
+                <div class="col-12"><strong>Judul:</strong> ${escapeHtml(title?.value || '—')}</div>
                 <div class="col-md-4"><strong>Tanggal:</strong> ${escapeHtml(tanggal?.value || '—')}</div>
                 <div class="col-md-4"><strong>Referensi:</strong> ${escapeHtml(referensi?.value || '—')}</div>
                 <div class="col-md-6"><strong>Fasilitas:</strong> ${facilities.map(f => escapeHtml(f.name)).join(', ') || '—'}</div>

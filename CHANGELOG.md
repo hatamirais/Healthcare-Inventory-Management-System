@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.15.1] - 2026-04-21
+
+### Changed
+
+- Allocation no longer stores a header-level `sumber_dana`; item selection can now span all available stock sources while downstream distribution and transaction records still inherit funding source from the selected stock batch.
+- Allocation create flow now includes an optional `Judul Alokasi` document header field for clearer reporting and future print output.
+
+### Fixed
+
+- Allocation facility and staff multi-select controls now correctly apply `Pilih Semua`, `Bersihkan`, and selection summary updates.
+- Allocation create form now renders the document date in HTML date input format and shows richer facility and staff picker labels for faster operator review.
+
 ## [1.15.0] - 2026-04-21
 
 ### Added

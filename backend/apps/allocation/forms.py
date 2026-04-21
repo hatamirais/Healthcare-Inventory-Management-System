@@ -40,8 +40,14 @@ class AllocationForm(forms.ModelForm):
 
     class Meta:
         model = Allocation
-        fields = ["referensi", "allocation_date", "notes"]
+        fields = ["title", "referensi", "allocation_date", "notes"]
         widgets = {
+            "title": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Judul alokasi (opsional)",
+                }
+            ),
             "referensi": forms.TextInput(
                 attrs={
                     "class": "form-control",
@@ -49,13 +55,16 @@ class AllocationForm(forms.ModelForm):
                 }
             ),
             "allocation_date": forms.DateInput(
-                attrs={"class": "form-control", "type": "date"}
+                attrs={"class": "form-control", "type": "date"},
+                format="%Y-%m-%d",
             ),
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["title"].label = "Judul Alokasi"
+        self.fields["allocation_date"].input_formats = ["%Y-%m-%d"]
         self.fields["selected_facilities"].label_from_instance = (
             lambda facility: facility.name
         )

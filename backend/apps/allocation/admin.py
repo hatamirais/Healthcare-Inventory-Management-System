@@ -37,6 +37,7 @@ class AllocationStaffAssignmentInline(admin.TabularInline):
 class AllocationAdmin(admin.ModelAdmin):
     list_display = (
         "document_number",
+        "title",
         "allocation_date",
         "status",
         "created_by",
@@ -44,6 +45,7 @@ class AllocationAdmin(admin.ModelAdmin):
     list_filter = ("status", "allocation_date")
     search_fields = (
         "document_number",
+        "title",
         "referensi",
         "notes",
         "created_by__username",
