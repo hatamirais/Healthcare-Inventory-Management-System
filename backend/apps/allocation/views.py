@@ -5,10 +5,24 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from apps.core.decorators import perm_required
+from apps.core.decorators import module_scope_required, perm_required
+from apps.users.models import ModuleAccess
 
 from .forms import AllocationForm, AllocationItemFormSet
 from .models import Allocation
+from .services import (
+    AllocationWorkflowError,
+    execute_allocation_approval,
+    execute_allocation_distribution,
+    execute_allocation_preparation,
+    execute_allocation_rejection,
+    execute_allocation_reset_to_draft,
+    execute_allocation_submission,
+)
+
+
+def _redirect_allocation_detail(pk):
+    return redirect("allocation:allocation_detail", pk=pk)
 
 
 def sync_allocation_staff_assignments(allocation, staff_users):
@@ -199,6 +213,10 @@ def allocation_create(request):
 @perm_required("allocation.change_allocation")
 def allocation_edit(request, pk):
     allocation = get_object_or_404(Allocation, pk=pk)
+    if allocation.status != Allocation.Status.DRAFT:
+        messages.error(request, "Hanya alokasi Draft yang dapat diubah.")
+        return redirect("allocation:allocation_detail", pk=allocation.pk)
+
     selected_facility_ids = _selected_facility_ids_from_request(request, allocation)
 
     if request.method == "POST":
@@ -245,3 +263,163 @@ def allocation_edit(request, pk):
             "item_error_colspan": 6,
         },
     )
+
+
+@login_required
+@perm_required("allocation.change_allocation")
+def allocation_submit(request, pk):
+    allocation = get_object_or_404(Allocation, pk=pk)
+    if request.method != "POST":
+        return _redirect_allocation_detail(pk)
+
+    if allocation.status != Allocation.Status.DRAFT:
+        messages.error(request, "Hanya alokasi Draft yang dapat diajukan.")
+        return _redirect_allocation_detail(pk)
+
+    try:
+        execute_allocation_submission(allocation, request.user)
+    except AllocationWorkflowError as exc:
+        messages.error(request, str(exc))
+        return _redirect_allocation_detail(pk)
+
+    messages.success(request, f"Alokasi {allocation.document_number} berhasil diajukan.")
+    return _redirect_allocation_detail(pk)
+
+
+@login_required
+@perm_required("allocation.change_allocation")
+@module_scope_required(ModuleAccess.Module.ALLOCATION, ModuleAccess.Scope.APPROVE)
+def allocation_approve(request, pk):
+    allocation = get_object_or_404(Allocation, pk=pk)
+    if request.method != "POST":
+        return _redirect_allocation_detail(pk)
+
+    if allocation.status != Allocation.Status.SUBMITTED:
+        messages.error(request, "Hanya alokasi berstatus Diajukan yang dapat disetujui.")
+        return _redirect_allocation_detail(pk)
+
+    try:
+        execute_allocation_approval(allocation, request.user)
+    except AllocationWorkflowError as exc:
+        messages.error(request, str(exc))
+        return _redirect_allocation_detail(pk)
+
+    messages.success(request, f"Alokasi {allocation.document_number} berhasil disetujui.")
+    return _redirect_allocation_detail(pk)
+
+
+@login_required
+@perm_required("allocation.change_allocation")
+@module_scope_required(ModuleAccess.Module.ALLOCATION, ModuleAccess.Scope.APPROVE)
+def allocation_reject(request, pk):
+    allocation = get_object_or_404(Allocation, pk=pk)
+    if request.method != "POST":
+        return _redirect_allocation_detail(pk)
+
+    if allocation.status != Allocation.Status.SUBMITTED:
+        messages.error(request, "Hanya alokasi berstatus Diajukan yang dapat ditolak.")
+        return _redirect_allocation_detail(pk)
+
+    execute_allocation_rejection(allocation)
+    messages.success(request, f"Alokasi {allocation.document_number} ditolak.")
+    return _redirect_allocation_detail(pk)
+
+
+@login_required
+@perm_required("allocation.change_allocation")
+def allocation_prepare(request, pk):
+    allocation = get_object_or_404(Allocation, pk=pk)
+    if request.method != "POST":
+        return _redirect_allocation_detail(pk)
+
+    if allocation.status != Allocation.Status.APPROVED:
+        messages.error(request, "Hanya alokasi disetujui yang dapat disiapkan.")
+        return _redirect_allocation_detail(pk)
+
+    try:
+        execute_allocation_preparation(allocation, request.user)
+    except AllocationWorkflowError as exc:
+        messages.error(request, str(exc))
+        return _redirect_allocation_detail(pk)
+
+    messages.success(request, f"Alokasi {allocation.document_number} ditandai disiapkan.")
+    return _redirect_allocation_detail(pk)
+
+
+@login_required
+@perm_required("allocation.change_allocation")
+def allocation_distribute(request, pk):
+    allocation = get_object_or_404(Allocation, pk=pk)
+    if request.method != "POST":
+        return _redirect_allocation_detail(pk)
+
+    if allocation.status != Allocation.Status.PREPARED:
+        messages.error(
+            request,
+            "Hanya alokasi berstatus Disiapkan yang dapat didistribusikan.",
+        )
+        return _redirect_allocation_detail(pk)
+
+    try:
+        execute_allocation_distribution(allocation, request.user)
+    except AllocationWorkflowError as exc:
+        messages.error(request, str(exc))
+        return _redirect_allocation_detail(pk)
+
+    messages.success(
+        request,
+        f"Alokasi {allocation.document_number} berhasil didistribusikan dan stok diperbarui.",
+    )
+    return _redirect_allocation_detail(pk)
+
+
+@login_required
+@perm_required("allocation.change_allocation")
+def allocation_reset_to_draft(request, pk):
+    allocation = get_object_or_404(Allocation, pk=pk)
+    if request.method != "POST":
+        return _redirect_allocation_detail(pk)
+
+    resettable_statuses = {
+        Allocation.Status.SUBMITTED,
+        Allocation.Status.APPROVED,
+        Allocation.Status.PREPARED,
+        Allocation.Status.REJECTED,
+    }
+
+    if allocation.status not in resettable_statuses:
+        if allocation.status == Allocation.Status.DISTRIBUTED:
+            messages.error(
+                request,
+                "Alokasi yang sudah didistribusikan tidak dapat dikembalikan ke Draft.",
+            )
+        else:
+            messages.error(
+                request,
+                "Status alokasi saat ini tidak dapat dikembalikan ke Draft.",
+            )
+        return _redirect_allocation_detail(pk)
+
+    execute_allocation_reset_to_draft(allocation)
+    messages.success(request, f"Alokasi {allocation.document_number} dikembalikan ke Draft.")
+    return _redirect_allocation_detail(pk)
+
+
+@login_required
+@perm_required("allocation.delete_allocation")
+def allocation_delete(request, pk):
+    allocation = get_object_or_404(Allocation, pk=pk)
+    if request.method != "POST":
+        return _redirect_allocation_detail(pk)
+
+    if allocation.status not in {Allocation.Status.DRAFT, Allocation.Status.REJECTED}:
+        messages.error(
+            request,
+            "Hanya alokasi berstatus Draft atau Ditolak yang dapat dihapus.",
+        )
+        return _redirect_allocation_detail(pk)
+
+    document_number = allocation.document_number
+    allocation.delete()
+    messages.success(request, f"Alokasi {document_number} berhasil dihapus.")
+    return redirect("allocation:allocation_list")

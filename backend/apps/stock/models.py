@@ -105,6 +105,7 @@ class Transaction(models.Model):
     class ReferenceType(models.TextChoices):
         RECEIVING = "RECEIVING", "Penerimaan"
         DISTRIBUTION = "DISTRIBUTION", "Distribusi"
+        ALLOCATION = "ALLOCATION", "Alokasi"
         ADJUSTMENT = "ADJUSTMENT", "Penyesuaian"
         INITIAL_IMPORT = "INITIAL_IMPORT", "Import Awal"
         RECALL = "RECALL", "Recall"

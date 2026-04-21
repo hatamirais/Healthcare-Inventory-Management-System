@@ -22,6 +22,31 @@
                     <dt class="col-5 text-muted">Dibuat oleh</dt>
                     <dd class="col-7">{{ allocation.created_by }}</dd>
 
+                    {% if allocation.submitted_by %}
+                    <dt class="col-5 text-muted">Diajukan oleh</dt>
+                    <dd class="col-7">{{ allocation.submitted_by }}<br><small class="text-muted">{{ allocation.submitted_at|date:"d/m/Y H:i" }}</small></dd>
+                    {% endif %}
+
+                    {% if allocation.approved_by %}
+                    <dt class="col-5 text-muted">Disetujui oleh</dt>
+                    <dd class="col-7">{{ allocation.approved_by }}<br><small class="text-muted">{{ allocation.approved_at|date:"d/m/Y H:i" }}</small></dd>
+                    {% endif %}
+
+                    {% if allocation.prepared_by %}
+                    <dt class="col-5 text-muted">Disiapkan oleh</dt>
+                    <dd class="col-7">{{ allocation.prepared_by }}<br><small class="text-muted">{{ allocation.prepared_at|date:"d/m/Y H:i" }}</small></dd>
+                    {% endif %}
+
+                    {% if allocation.distributed_by %}
+                    <dt class="col-5 text-muted">Didistribusikan oleh</dt>
+                    <dd class="col-7">{{ allocation.distributed_by }}<br><small class="text-muted">{{ allocation.distributed_at|date:"d/m/Y H:i" }}</small></dd>
+                    {% endif %}
+
+                    {% if allocation.distributed_date %}
+                    <dt class="col-5 text-muted">Tgl Distribusi</dt>
+                    <dd class="col-7">{{ allocation.distributed_date|date:"d/m/Y" }}</dd>
+                    {% endif %}
+
                     <dt class="col-5 text-muted">Petugas</dt>
                     <dd class="col-7">
                         {% if assigned_staff %}
@@ -57,9 +82,13 @@
         <div class="card content-card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span>Item Alokasi</span>
-                <a href="{% url 'allocation:allocation_edit' allocation.pk %}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-pencil me-1"></i>Ubah
-                </a>
+                <div class="d-flex gap-2">
+                    {% if allocation.status == 'DRAFT' %}
+                    <a href="{% url 'allocation:allocation_edit' allocation.pk %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-pencil me-1"></i>Ubah
+                    </a>
+                    {% endif %}
+                </div>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -92,6 +121,71 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card content-card mt-3">
+            <div class="card-header"><span>Aksi Alokasi</span></div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if allocation.status == 'DRAFT' %}
+                    <form method="post" action="{% url 'allocation:allocation_submit' allocation.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-send me-1"></i>Ajukan
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'allocation:allocation_delete' allocation.pk %}" data-confirm-submit="Hapus alokasi ini? Tindakan ini tidak dapat dibatalkan.">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                            <i class="bi bi-trash me-1"></i>Hapus Dokumen
+                        </button>
+                    </form>
+                    {% elif allocation.status == 'SUBMITTED' %}
+                    <form method="post" action="{% url 'allocation:allocation_approve' allocation.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-sm w-100">
+                            <i class="bi bi-patch-check me-1"></i>Setujui
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'allocation:allocation_reject' allocation.pk %}" data-confirm-submit="Tolak alokasi ini?">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                            <i class="bi bi-x-circle me-1"></i>Tolak
+                        </button>
+                    </form>
+                    {% elif allocation.status == 'APPROVED' %}
+                    <form method="post" action="{% url 'allocation:allocation_prepare' allocation.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-info btn-sm w-100">
+                            <i class="bi bi-box-seam me-1"></i>Siapkan Barang
+                        </button>
+                    </form>
+                    {% elif allocation.status == 'PREPARED' %}
+                    <form method="post" action="{% url 'allocation:allocation_distribute' allocation.pk %}" data-confirm-submit="Distribusikan alokasi ini? Stok akan dikurangi dan tidak dapat dibatalkan.">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-sm w-100">
+                            <i class="bi bi-truck me-1"></i>Distribusikan
+                        </button>
+                    </form>
+                    {% elif allocation.status == 'REJECTED' %}
+                    <form method="post" action="{% url 'allocation:allocation_delete' allocation.pk %}" data-confirm-submit="Hapus alokasi yang ditolak ini? Tindakan ini tidak dapat dibatalkan.">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                            <i class="bi bi-trash me-1"></i>Hapus Dokumen
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if allocation.status != 'DRAFT' and allocation.status != 'DISTRIBUTED' %}
+                    <form method="post" action="{% url 'allocation:allocation_reset_to_draft' allocation.pk %}" data-confirm-submit="Kembalikan status alokasi ke Draft?">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-warning btn-sm w-100">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Kembalikan ke Draft
+                        </button>
+                    </form>
+                    {% endif %}
                 </div>
             </div>
         </div>

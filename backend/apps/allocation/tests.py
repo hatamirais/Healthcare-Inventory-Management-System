@@ -11,9 +11,9 @@ from apps.allocation.models import (
     AllocationStaffAssignment,
 )
 from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
-from apps.stock.models import Stock
+from apps.stock.models import Stock, Transaction
 from apps.users.access import ensure_default_module_access
-from apps.users.models import User
+from apps.users.models import ModuleAccess, User
 
 
 class AllocationModelTest(TestCase):
@@ -390,3 +390,210 @@ class AllocationRouteTest(TestCase):
             [staff_new.pk],
         )
         self.assertEqual(allocation.items.first().facility_id, facility_b.pk)
+
+
+class AllocationWorkflowTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.operator = User.objects.create_user(
+            username="allocation_operator_flow",
+            password="secret12345",
+            role=User.Role.ADMIN_UMUM,
+            full_name="Operator Flow",
+        )
+        ensure_default_module_access(cls.operator)
+
+        cls.approver = User.objects.create_user(
+            username="allocation_approver_flow",
+            password="secret12345",
+            role=User.Role.KEPALA,
+            full_name="Kepala Instalasi",
+        )
+        ensure_default_module_access(cls.approver)
+
+        cls.unit = Unit.objects.create(code="ALCWF", name="Unit Flow")
+        cls.category = Category.objects.create(code="ALCWF", name="Kategori Flow", sort_order=10)
+        cls.item = Item.objects.create(
+            nama_barang="Item Alokasi Flow",
+            satuan=cls.unit,
+            kategori=cls.category,
+            minimum_stock=Decimal("0"),
+        )
+        cls.location = Location.objects.create(code="LOC-WF", name="Gudang Workflow")
+        cls.funding_source = FundingSource.objects.create(code="WF", name="Workflow Fund")
+        cls.facility = Facility.objects.create(code="PKM-WF", name="Puskesmas Workflow")
+
+    def _create_stock(self, quantity="25"):
+        return Stock.objects.create(
+            item=self.item,
+            location=self.location,
+            batch_lot=f"WF-{Stock.objects.count() + 1:02d}",
+            expiry_date="2028-12-31",
+            quantity=Decimal(quantity),
+            reserved=Decimal("0"),
+            unit_price=Decimal("1500"),
+            sumber_dana=self.funding_source,
+        )
+
+    def _create_allocation(self, status=Allocation.Status.DRAFT, quantity="7"):
+        stock = self._create_stock()
+        allocation = Allocation.objects.create(
+            allocation_date="2026-04-21",
+            created_by=self.operator,
+            status=status,
+        )
+        AllocationFacility.objects.create(allocation=allocation, facility=self.facility)
+        AllocationStaffAssignment.objects.create(allocation=allocation, user=self.operator)
+        AllocationItem.objects.create(
+            allocation=allocation,
+            facility=self.facility,
+            item=self.item,
+            quantity=Decimal(quantity),
+            stock=stock,
+            notes="Catatan workflow",
+        )
+        return allocation, stock
+
+    def test_submit_marks_allocation_submitted_and_records_actor(self):
+        allocation, _stock = self._create_allocation()
+        self.client.force_login(self.operator)
+
+        response = self.client.post(
+            reverse("allocation:allocation_submit", args=[allocation.pk])
+        )
+
+        self.assertEqual(response.status_code, 302)
+        allocation.refresh_from_db()
+        self.assertEqual(allocation.status, Allocation.Status.SUBMITTED)
+        self.assertEqual(allocation.submitted_by, self.operator)
+        self.assertIsNotNone(allocation.submitted_at)
+
+    def test_submit_requires_assigned_staff(self):
+        allocation, _stock = self._create_allocation()
+        allocation.staff_assignments.all().delete()
+        self.client.force_login(self.operator)
+
+        response = self.client.post(
+            reverse("allocation:allocation_submit", args=[allocation.pk]),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        allocation.refresh_from_db()
+        self.assertEqual(allocation.status, Allocation.Status.DRAFT)
+        self.assertContains(response, "Pilih minimal 1 petugas sebelum mengajukan alokasi.")
+
+    def test_operator_cannot_approve_allocation(self):
+        allocation, _stock = self._create_allocation(status=Allocation.Status.SUBMITTED)
+        self.client.force_login(self.operator)
+
+        response = self.client.post(
+            reverse("allocation:allocation_approve", args=[allocation.pk])
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_approve_prepare_and_distribute_updates_stock_and_transaction(self):
+        allocation, stock = self._create_allocation(status=Allocation.Status.DRAFT)
+
+        self.client.force_login(self.operator)
+        self.client.post(reverse("allocation:allocation_submit", args=[allocation.pk]))
+
+        self.client.force_login(self.approver)
+        approve_response = self.client.post(
+            reverse("allocation:allocation_approve", args=[allocation.pk])
+        )
+
+        self.assertEqual(approve_response.status_code, 302)
+        allocation.refresh_from_db()
+        self.assertEqual(allocation.status, Allocation.Status.APPROVED)
+        self.assertEqual(allocation.approved_by, self.approver)
+
+        self.client.force_login(self.operator)
+        prepare_response = self.client.post(
+            reverse("allocation:allocation_prepare", args=[allocation.pk])
+        )
+        distribute_response = self.client.post(
+            reverse("allocation:allocation_distribute", args=[allocation.pk])
+        )
+
+        self.assertEqual(prepare_response.status_code, 302)
+        self.assertEqual(distribute_response.status_code, 302)
+
+        allocation.refresh_from_db()
+        stock.refresh_from_db()
+        item_line = allocation.items.get()
+        transaction = Transaction.objects.get(
+            reference_type=Transaction.ReferenceType.ALLOCATION,
+            reference_id=allocation.pk,
+        )
+
+        self.assertEqual(allocation.status, Allocation.Status.DISTRIBUTED)
+        self.assertEqual(allocation.prepared_by, self.operator)
+        self.assertEqual(allocation.distributed_by, self.operator)
+        self.assertEqual(allocation.distributed_date.isoformat(), "2026-04-21")
+        self.assertEqual(stock.quantity, Decimal("18"))
+        self.assertEqual(item_line.issued_batch_lot, stock.batch_lot)
+        self.assertEqual(transaction.transaction_type, Transaction.TransactionType.OUT)
+        self.assertEqual(transaction.quantity, Decimal("7"))
+        self.assertIn(allocation.document_number, transaction.notes)
+
+    def test_reset_to_draft_clears_workflow_metadata(self):
+        allocation, _stock = self._create_allocation(status=Allocation.Status.REJECTED)
+        allocation.submitted_by = self.operator
+        allocation.approved_by = self.approver
+        allocation.prepared_by = self.operator
+        allocation.distributed_by = self.operator
+        allocation.submitted_at = allocation.approved_at = allocation.prepared_at = allocation.distributed_at = allocation.updated_at
+        allocation.distributed_date = allocation.allocation_date
+        allocation.save(
+            update_fields=[
+                "submitted_by",
+                "approved_by",
+                "prepared_by",
+                "distributed_by",
+                "submitted_at",
+                "approved_at",
+                "prepared_at",
+                "distributed_at",
+                "distributed_date",
+                "updated_at",
+            ]
+        )
+        self.client.force_login(self.operator)
+
+        response = self.client.post(
+            reverse("allocation:allocation_reset_to_draft", args=[allocation.pk])
+        )
+
+        self.assertEqual(response.status_code, 302)
+        allocation.refresh_from_db()
+        self.assertEqual(allocation.status, Allocation.Status.DRAFT)
+        self.assertIsNone(allocation.submitted_by)
+        self.assertIsNone(allocation.approved_by)
+        self.assertIsNone(allocation.prepared_by)
+        self.assertIsNone(allocation.distributed_by)
+        self.assertIsNone(allocation.distributed_date)
+
+    def test_edit_is_blocked_after_submission(self):
+        allocation, _stock = self._create_allocation(status=Allocation.Status.SUBMITTED)
+        self.client.force_login(self.operator)
+
+        response = self.client.get(
+            reverse("allocation:allocation_edit", args=[allocation.pk]),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Hanya alokasi Draft yang dapat diubah.")
+
+    def test_delete_allows_rejected_only(self):
+        allocation, _stock = self._create_allocation(status=Allocation.Status.REJECTED)
+        self.client.force_login(self.operator)
+
+        response = self.client.post(
+            reverse("allocation:allocation_delete", args=[allocation.pk])
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Allocation.objects.filter(pk=allocation.pk).exists())

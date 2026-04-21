@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.db import OperationalError, ProgrammingError
 from django.urls import reverse
 
 
@@ -30,6 +31,17 @@ def nav_notifications(request):
         return {"nav_notification_count": 0, "nav_notification_items": []}
 
     notification_items = []
+
+    def safe_count(queryset_or_factory):
+        try:
+            queryset = (
+                queryset_or_factory()
+                if callable(queryset_or_factory)
+                else queryset_or_factory
+            )
+            return queryset.count()
+        except (OperationalError, ProgrammingError):
+            return 0
 
     def add_notification_item(label, count, url, icon):
         if count > 0:
@@ -134,7 +146,9 @@ def nav_notifications(request):
             )
 
         count = (
-            Allocation.objects.filter(status__in=allocation_statuses).count()
+            safe_count(
+                lambda: Allocation.objects.filter(status__in=allocation_statuses)
+            )
             if allocation_statuses
             else 0
         )

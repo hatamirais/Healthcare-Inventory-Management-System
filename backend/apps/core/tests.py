@@ -1,7 +1,9 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from decimal import Decimal
+from unittest.mock import patch
 
+from django.db import ProgrammingError
 from django.test import TestCase
 from django.test import SimpleTestCase
 from django.test import RequestFactory
@@ -258,6 +260,27 @@ class NavNotificationsContextProcessorTests(TestCase):
         context = nav_notifications(request)
 
         self.assertEqual(context["nav_notification_count"], 1)
+
+    def test_allocation_notifications_ignore_missing_table(self):
+        operator_user = User.objects.create_user(
+            username="nav-allocation-operator",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        self._set_scope(
+            operator_user, ModuleAccess.Module.ALLOCATION, ModuleAccess.Scope.OPERATE
+        )
+        request = self.factory.get("/")
+        request.user = operator_user
+
+        with patch(
+            "apps.allocation.models.Allocation.objects.filter",
+            side_effect=ProgrammingError('relation "allocations" does not exist'),
+        ):
+            context = nav_notifications(request)
+
+        self.assertEqual(context["nav_notification_count"], 0)
+        self.assertEqual(context["nav_notification_items"], [])
 
     def test_verified_regular_receiving_does_not_show_when_only_plan_is_actionable(self):
         operator_user = User.objects.create_user(
