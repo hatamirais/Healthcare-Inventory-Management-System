@@ -162,9 +162,17 @@
                                     <div class="selection-picker-summary js-selection-summary" data-empty-summary="Belum ada petugas dipilih">Belum ada petugas dipilih</div>
                                 </div>
                             </div>
-                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#allocation-staff-picker-body" aria-expanded="false" aria-controls="allocation-staff-picker-body">
-                                <i class="bi bi-chevron-down"></i>
-                            </button>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary js-selection-bulk-action" data-selection-target="allocation-staff-list" data-selection-action="select-all">
+                                    Pilih Semua
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary js-selection-bulk-action" data-selection-target="allocation-staff-list" data-selection-action="clear-all">
+                                    Bersihkan
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#allocation-staff-picker-body" aria-expanded="false" aria-controls="allocation-staff-picker-body">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="collapse selection-picker-body" id="allocation-staff-picker-body">
                             <div class="mb-3">

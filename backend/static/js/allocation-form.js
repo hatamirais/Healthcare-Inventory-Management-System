@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
     function syncPickerItemState(item) {
-        var checkbox = item?.querySelector('input[type="checkbox"]');
+        if (!item) return;
+        var checkbox = item.querySelector('input[type="checkbox"]');
         if (!checkbox) return;
         item.classList.toggle('is-selected', checkbox.checked);
     }
@@ -15,14 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        var names = checked
-            .map(function (input) {
-                var label = input.closest('.selection-picker-item')?.querySelector('.form-check-label');
-                return label ? label.textContent.trim() : '';
-            })
-            .filter(Boolean);
-
-        summary.textContent = checked.length + ' dipilih: ' + names.join(', ');
+        summary.textContent = checked.length + ' dipilih';
     }
 
     document.querySelectorAll('.selection-picker').forEach(function (picker) {
@@ -43,16 +37,25 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.querySelectorAll('.js-selection-bulk-action').forEach(function (button) {
-        button.addEventListener('click', function () {
+        button.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+
             var targetId = button.getAttribute('data-selection-target');
             var action = button.getAttribute('data-selection-action');
             var container = targetId ? document.getElementById(targetId) : null;
             var picker = button.closest('.selection-picker');
             if (!container || !picker) return;
 
-            container.querySelectorAll('.selection-picker-item input[type="checkbox"]').forEach(function (checkbox) {
-                checkbox.checked = action === 'select-all';
-                syncPickerItemState(checkbox.closest('.selection-picker-item'));
+            Array.from(container.querySelectorAll('.selection-picker-item input[type="checkbox"]')).forEach(function (checkbox) {
+                var shouldCheck = action === 'select-all';
+                if (checkbox.checked === shouldCheck) {
+                    syncPickerItemState(checkbox.closest('.selection-picker-item'));
+                    return;
+                }
+
+                checkbox.checked = shouldCheck;
+                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
             });
 
             updateSummary(picker);
