@@ -291,3 +291,75 @@ class ExpiredWorkflowTest(TestCase):
             reverse("expired:expired_verify", args=[expired_doc.pk])
         )
         self.assertEqual(response.status_code, 403)
+
+    # --- Pending quantity handling ---
+
+    def test_expired_create_prefills_only_remaining_quantity_after_submitted_docs(self):
+        self._create_expired(status=Expired.Status.SUBMITTED)
+
+        response = self.client.get(
+            reverse("expired:expired_create") + f"?stocks={self.stock.pk}"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        formset = response.context["formset"]
+        self.assertEqual(formset.forms[0].initial["quantity"], Decimal("45"))
+
+    def test_expired_create_rejects_quantity_reserved_by_other_submitted_docs(self):
+        self._create_expired(status=Expired.Status.SUBMITTED)
+
+        response = self.client.post(
+            reverse("expired:expired_create"),
+            {
+                "document_number": "",
+                "report_date": "2026-03-15",
+                "notes": "Dokumen baru",
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-item": str(self.item.pk),
+                "items-0-stock": str(self.stock.pk),
+                "items-0-quantity": "46",
+                "items-0-notes": "Perlu diproses",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Expired.objects.count(), 1)
+        error_message = response.context["formset"].forms[0].errors["quantity"][0]
+        self.assertIn(
+            "Jumlah melebihi stok yang masih bisa diproses.", error_message
+        )
+        self.assertIn(
+            "dokumen kedaluwarsa yang masih diajukan sebanyak", error_message
+        )
+
+    def test_expired_alerts_show_remaining_actionable_quantity(self):
+        self._create_expired(status=Expired.Status.SUBMITTED)
+
+        response = self.client.get(reverse("expired:expired_alerts") + "?pending=0")
+
+        self.assertEqual(response.status_code, 200)
+        row = response.context["items"].object_list[0]
+        self.assertEqual(row["pending_quantity"], Decimal("5"))
+        self.assertEqual(row["actionable"], Decimal("45"))
+
+    def test_expired_alerts_hide_fully_allocated_batch_when_pending_only(self):
+        expired_doc = Expired.objects.create(
+            report_date="2026-03-10",
+            status=Expired.Status.SUBMITTED,
+            created_by=self.user,
+        )
+        ExpiredItem.objects.create(
+            expired=expired_doc,
+            item=self.item,
+            stock=self.stock,
+            quantity=Decimal("50"),
+            notes="Menunggu verifikasi",
+        )
+
+        response = self.client.get(reverse("expired:expired_alerts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["items"].object_list), [])

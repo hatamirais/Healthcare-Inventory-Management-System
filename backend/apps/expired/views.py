@@ -2,7 +2,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import DecimalField, Exists, ExpressionWrapper, F, OuterRef, Q
+from django.db.models import DecimalField, ExpressionWrapper, F, Q, Sum, Value
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from datetime import timedelta
@@ -80,13 +81,31 @@ def expired_create(request):
                 Stock.objects.filter(pk__in=stock_ids)
                 .select_related("item")
                 .filter(quantity__gt=F("reserved"))
+                .annotate(
+                    pending_quantity=Coalesce(
+                        Sum(
+                            "expired_items__quantity",
+                            filter=Q(
+                                expired_items__expired__status=Expired.Status.SUBMITTED
+                            ),
+                        ),
+                        Value(0),
+                        output_field=DecimalField(max_digits=12, decimal_places=2),
+                    ),
+                    actionable_quantity=ExpressionWrapper(
+                        F("quantity") - F("reserved") - F("pending_quantity"),
+                        output_field=DecimalField(max_digits=12, decimal_places=2),
+                    ),
+                )
             )
             for stock in selected_stocks:
+                if stock.actionable_quantity <= 0:
+                    continue
                 initial_rows.append(
                     {
                         "item": stock.item_id,
                         "stock": stock.id,
-                        "quantity": stock.available_quantity,
+                        "quantity": stock.actionable_quantity,
                     }
                 )
 
@@ -116,22 +135,24 @@ def expired_alerts(request):
         )
         .filter(quantity__gt=F("reserved"))
         .filter(expiry_date__lte=threshold)
-    )
-
-    processed_subquery = ExpiredItem.objects.filter(
-        stock_id=OuterRef("pk"),
-        expired__status__in=[
-            Expired.Status.SUBMITTED,
-            Expired.Status.VERIFIED,
-            Expired.Status.DISPOSED,
-        ],
-    )
-    queryset = queryset.annotate(
-        is_processed=Exists(processed_subquery),
-        available_qty=ExpressionWrapper(
-            F("quantity") - F("reserved"),
-            output_field=DecimalField(max_digits=12, decimal_places=2),
-        ),
+        .annotate(
+            pending_quantity=Coalesce(
+                Sum(
+                    "expired_items__quantity",
+                    filter=Q(expired_items__expired__status=Expired.Status.SUBMITTED),
+                ),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+            available_qty=ExpressionWrapper(
+                F("quantity") - F("reserved"),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+            actionable_quantity=ExpressionWrapper(
+                F("quantity") - F("reserved") - F("pending_quantity"),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+        )
     )
 
     search = request.GET.get("q", "").strip()
@@ -155,7 +176,7 @@ def expired_alerts(request):
 
     pending_only = request.GET.get("pending", "1") == "1"
     if pending_only:
-        queryset = queryset.filter(is_processed=False)
+        queryset = queryset.filter(actionable_quantity__gt=0)
 
     sort = request.GET.get("sort", "expiry").strip()
     direction = request.GET.get("dir", "asc").strip().lower()
@@ -167,7 +188,7 @@ def expired_alerts(request):
         "location": "location__name",
         "expiry": "expiry_date",
         "available": "available_qty",
-        "processed": "is_processed",
+        "processed": "pending_quantity",
     }
     sort_field = sort_map.get(sort, "expiry_date")
     if direction == "desc":
@@ -212,7 +233,9 @@ def expired_alerts(request):
         rows.append(
             {
                 "stock": stock,
-                "available": stock.available_quantity,
+                "available": stock.available_qty,
+                "pending_quantity": stock.pending_quantity,
+                "actionable": max(stock.actionable_quantity, 0),
                 "days_to_expiry": days_to_expiry,
                 "expiry_status": expiry_status,
             }

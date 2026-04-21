@@ -130,7 +130,7 @@
                 {% for row in items %}
                 <tr>
                     <td>
-                        {% if not row.stock.is_processed %}
+                        {% if row.actionable > 0 %}
                         <input type="checkbox" class="expired-stock-check" value="{{ row.stock.id }}">
                         {% endif %}
                     </td>
@@ -155,12 +155,19 @@
                         <span class="badge bg-warning-subtle text-warning">{{ row.days_to_expiry }} hari</span>
                         {% endif %}
                     </td>
-                    <td class="text-end fw-semibold">{{ row.available }}</td>
+                    <td class="text-end">
+                        <div class="fw-semibold">{{ row.actionable }}</div>
+                        {% if row.pending_quantity > 0 %}
+                        <small class="text-muted">Dalam dokumen: {{ row.pending_quantity }}</small>
+                        {% endif %}
+                    </td>
                     <td>
-                        {% if row.stock.is_processed %}
-                        <span class="badge bg-success-subtle text-success">Sudah diproses</span>
+                        {% if row.pending_quantity > 0 and row.actionable > 0 %}
+                        <span class="badge bg-warning-subtle text-warning">Sebagian diajukan</span>
+                        {% elif row.pending_quantity > 0 %}
+                        <span class="badge bg-info-subtle text-info">Sudah diajukan</span>
                         {% else %}
-                        <span class="badge bg-secondary-subtle text-secondary">Belum diproses</span>
+                        <span class="badge bg-secondary-subtle text-secondary">Belum diajukan</span>
                         {% endif %}
                     </td>
                 </tr>
