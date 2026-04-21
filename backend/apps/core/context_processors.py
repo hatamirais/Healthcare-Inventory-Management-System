@@ -125,16 +125,17 @@ def nav_notifications(request):
             reverse("distribution:distribution_list"),
             "bi-send",
         )
-        add_notification_item(
-            "Alokasi",
-            base_qs.filter(
-                distribution_type=Distribution.DistributionType.ALLOCATION
-            ).count(),
-            reverse("distribution:distribution_list"),
-            "bi-box-arrow-up-right",
-        )
+        if settings.FEATURE_ALLOCATION_UI_ENABLED:
+            add_notification_item(
+                "Alokasi",
+                base_qs.filter(
+                    distribution_type=Distribution.DistributionType.ALLOCATION
+                ).count(),
+                reverse("distribution:distribution_list"),
+                "bi-box-arrow-up-right",
+            )
 
-    if allocation_scope >= ModuleAccess.Scope.OPERATE:
+    if settings.FEATURE_ALLOCATION_UI_ENABLED and allocation_scope >= ModuleAccess.Scope.OPERATE:
         from apps.allocation.models import Allocation
 
         allocation_statuses = []

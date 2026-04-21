@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import F
@@ -25,6 +26,14 @@ from .services import (
 
 def _redirect_allocation_detail(pk):
     return redirect("allocation:allocation_detail", pk=pk)
+
+
+def _allocation_module_available(request):
+    if settings.FEATURE_ALLOCATION_UI_ENABLED:
+        return True
+
+    messages.info(request, "Modul Alokasi dinonaktifkan sementara sampai alur final ditetapkan.")
+    return False
 
 
 def _build_allocation_stock_catalog():
@@ -99,6 +108,9 @@ def _selected_facility_ids_from_request(request, instance=None):
 @login_required
 @perm_required("allocation.view_allocation")
 def allocation_list(request):
+    if not _allocation_module_available(request):
+        return redirect("dashboard")
+
     queryset = (
         Allocation.objects.select_related("created_by")
         .annotate(
@@ -144,6 +156,9 @@ def allocation_list(request):
 @login_required
 @perm_required("allocation.view_allocation")
 def allocation_detail(request, pk):
+    if not _allocation_module_available(request):
+        return redirect("dashboard")
+
     allocation = get_object_or_404(
         Allocation.objects.select_related(
             "created_by",
@@ -178,6 +193,9 @@ def allocation_detail(request, pk):
 @login_required
 @perm_required("allocation.add_allocation")
 def allocation_create(request):
+    if not _allocation_module_available(request):
+        return redirect("dashboard")
+
     selected_facility_ids = _selected_facility_ids_from_request(request)
 
     if request.method == "POST":
@@ -233,6 +251,9 @@ def allocation_create(request):
 @login_required
 @perm_required("allocation.change_allocation")
 def allocation_edit(request, pk):
+    if not _allocation_module_available(request):
+        return redirect("dashboard")
+
     allocation = get_object_or_404(Allocation, pk=pk)
     if allocation.status != Allocation.Status.DRAFT:
         messages.error(request, "Hanya alokasi Draft yang dapat diubah.")
@@ -290,6 +311,9 @@ def allocation_edit(request, pk):
 @login_required
 @perm_required("allocation.change_allocation")
 def allocation_submit(request, pk):
+    if not _allocation_module_available(request):
+        return redirect("dashboard")
+
     allocation = get_object_or_404(Allocation, pk=pk)
     if request.method != "POST":
         return _redirect_allocation_detail(pk)
@@ -312,6 +336,9 @@ def allocation_submit(request, pk):
 @perm_required("allocation.change_allocation")
 @module_scope_required(ModuleAccess.Module.ALLOCATION, ModuleAccess.Scope.APPROVE)
 def allocation_approve(request, pk):
+    if not _allocation_module_available(request):
+        return redirect("dashboard")
+
     allocation = get_object_or_404(Allocation, pk=pk)
     if request.method != "POST":
         return _redirect_allocation_detail(pk)
@@ -334,6 +361,9 @@ def allocation_approve(request, pk):
 @perm_required("allocation.change_allocation")
 @module_scope_required(ModuleAccess.Module.ALLOCATION, ModuleAccess.Scope.APPROVE)
 def allocation_reject(request, pk):
+    if not _allocation_module_available(request):
+        return redirect("dashboard")
+
     allocation = get_object_or_404(Allocation, pk=pk)
     if request.method != "POST":
         return _redirect_allocation_detail(pk)
@@ -350,6 +380,9 @@ def allocation_reject(request, pk):
 @login_required
 @perm_required("allocation.change_allocation")
 def allocation_prepare(request, pk):
+    if not _allocation_module_available(request):
+        return redirect("dashboard")
+
     allocation = get_object_or_404(Allocation, pk=pk)
     if request.method != "POST":
         return _redirect_allocation_detail(pk)
@@ -371,6 +404,9 @@ def allocation_prepare(request, pk):
 @login_required
 @perm_required("allocation.change_allocation")
 def allocation_distribute(request, pk):
+    if not _allocation_module_available(request):
+        return redirect("dashboard")
+
     allocation = get_object_or_404(Allocation, pk=pk)
     if request.method != "POST":
         return _redirect_allocation_detail(pk)
@@ -398,6 +434,9 @@ def allocation_distribute(request, pk):
 @login_required
 @perm_required("allocation.change_allocation")
 def allocation_reset_to_draft(request, pk):
+    if not _allocation_module_available(request):
+        return redirect("dashboard")
+
     allocation = get_object_or_404(Allocation, pk=pk)
     if request.method != "POST":
         return _redirect_allocation_detail(pk)
@@ -430,6 +469,9 @@ def allocation_reset_to_draft(request, pk):
 @login_required
 @perm_required("allocation.delete_allocation")
 def allocation_delete(request, pk):
+    if not _allocation_module_available(request):
+        return redirect("dashboard")
+
     allocation = get_object_or_404(Allocation, pk=pk)
     if request.method != "POST":
         return _redirect_allocation_detail(pk)

@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.allocation.models import (
@@ -16,6 +16,7 @@ from apps.users.access import ensure_default_module_access
 from apps.users.models import ModuleAccess, User
 
 
+@override_settings(FEATURE_ALLOCATION_UI_ENABLED=True)
 class AllocationModelTest(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -148,6 +149,7 @@ class AllocationModelTest(TestCase):
             )
 
 
+@override_settings(FEATURE_ALLOCATION_UI_ENABLED=True)
 class AllocationRouteTest(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -392,6 +394,7 @@ class AllocationRouteTest(TestCase):
         self.assertEqual(allocation.items.first().facility_id, facility_b.pk)
 
 
+@override_settings(FEATURE_ALLOCATION_UI_ENABLED=True)
 class AllocationWorkflowTest(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -597,3 +600,26 @@ class AllocationWorkflowTest(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Allocation.objects.filter(pk=allocation.pk).exists())
+
+
+class AllocationDisabledRouteTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(
+            username="allocation_hidden_user",
+            password="secret12345",
+            role=User.Role.ADMIN_UMUM,
+        )
+        ensure_default_module_access(cls.user)
+
+    def test_allocation_list_redirects_to_dashboard_when_feature_disabled(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("allocation:allocation_list"), follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertRedirects(response, reverse("dashboard"))
+        self.assertContains(
+            response,
+            "Modul Alokasi dinonaktifkan sementara sampai alur final ditetapkan.",
+        )

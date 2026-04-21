@@ -24,6 +24,10 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 APP_VERSION = str(read_version(get_version_file(PROJECT_ROOT)))
 
+FEATURE_ALLOCATION_UI_ENABLED = (
+    os.getenv("FEATURE_ALLOCATION_UI_ENABLED", "False") == "True"
+)
+
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 CSRF_TRUSTED_ORIGINS = [
