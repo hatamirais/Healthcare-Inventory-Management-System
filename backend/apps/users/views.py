@@ -1,5 +1,3 @@
-import json
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -12,9 +10,11 @@ from .models import ModuleAccess, User
 
 
 def _role_defaults_json():
-    """Serialize ROLE_DEFAULT_SCOPES to JSON for client-side JS."""
-    return json.dumps({role: {mod: scope for mod, scope in modules.items()}
-                       for role, modules in ROLE_DEFAULT_SCOPES.items()})
+    """Return role default scopes in a shape safe for json_script."""
+    return {
+        role: {module: scope for module, scope in modules.items()}
+        for role, modules in ROLE_DEFAULT_SCOPES.items()
+    }
 
 
 def _can_view_users(user):

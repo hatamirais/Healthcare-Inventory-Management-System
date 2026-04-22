@@ -10,6 +10,7 @@ from apps.users.access import (
     has_module_permission,
 )
 from apps.users.models import ModuleAccess, User
+from apps.users.views import _role_defaults_json
 
 
 class UserManagementViewsTest(TestCase):
@@ -408,6 +409,17 @@ class UACRoleMatrixTest(TestCase):
                 with self.subTest(role=role, module=module):
                     assignment = ModuleAccess.objects.get(user=user, module=module)
                     self.assertEqual(assignment.scope, expected_scope)
+
+    def test_role_defaults_json_returns_mapping_for_template_json_script(self):
+        payload = _role_defaults_json()
+
+        self.assertIsInstance(payload, dict)
+        self.assertEqual(payload, ROLE_DEFAULT_SCOPES)
+        self.assertIsInstance(payload[User.Role.GUDANG], dict)
+        self.assertEqual(
+            payload[User.Role.GUDANG][ModuleAccess.Module.STOCK],
+            ModuleAccess.Scope.OPERATE,
+        )
 
     def test_petugas_gudang_operational_only_for_change_permissions(self):
         user = self._create_user_with_defaults("gudang_matrix", User.Role.GUDANG)

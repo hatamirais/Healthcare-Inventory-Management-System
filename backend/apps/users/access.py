@@ -83,7 +83,7 @@ ROLE_DEFAULT_SCOPES: Dict[str, Dict[str, int]] = {
     },
     User.Role.PUSKESMAS: {
         ModuleAccess.Module.USERS: ModuleAccess.Scope.NONE,
-        ModuleAccess.Module.ITEMS: ModuleAccess.Scope.VIEW,
+        ModuleAccess.Module.ITEMS: ModuleAccess.Scope.NONE,
         ModuleAccess.Module.STOCK: ModuleAccess.Scope.NONE,
         ModuleAccess.Module.RECEIVING: ModuleAccess.Scope.NONE,
         ModuleAccess.Module.DISTRIBUTION: ModuleAccess.Scope.NONE,
