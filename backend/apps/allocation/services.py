@@ -171,6 +171,20 @@ def execute_allocation_approval(allocation, user):
         _generate_distributions(allocation, allocation_items, user)
 
 
+def execute_allocation_step_back_to_submitted(allocation):
+    if allocation.status != Allocation.Status.APPROVED:
+        raise AllocationWorkflowError(
+            "Hanya alokasi berstatus 'Disetujui' yang dapat dikembalikan ke 'Diajukan'."
+        )
+
+    with transaction.atomic():
+        allocation.distributions.all().delete()
+        allocation.status = Allocation.Status.SUBMITTED
+        allocation.approved_by = None
+        allocation.approved_at = None
+        _save_allocation(allocation, ["status", "approved_by", "approved_at"])
+
+
 def execute_allocation_rejection(allocation, reason):
     allocation.status = Allocation.Status.DRAFT
     allocation.rejection_reason = reason

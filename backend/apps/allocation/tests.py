@@ -20,6 +20,7 @@ from .services import (
     execute_allocation_approval,
     execute_allocation_rejection,
     execute_allocation_submission,
+    execute_allocation_step_back_to_submitted,
     execute_distribution_delivery,
     execute_distribution_preparation,
 )
@@ -260,6 +261,21 @@ class AllocationApprovalTest(TestCase):
         with self.assertRaises(AllocationWorkflowError):
             execute_allocation_approval(allocation, self.fixtures["kepala"])
 
+    def test_step_back_to_submitted_removes_generated_distributions(self):
+        allocation = _create_allocation(self.fixtures)
+        execute_allocation_submission(allocation, self.fixtures["admin"])
+        execute_allocation_approval(allocation, self.fixtures["kepala"])
+
+        self.assertEqual(allocation.distributions.count(), 2)
+
+        execute_allocation_step_back_to_submitted(allocation)
+
+        allocation.refresh_from_db()
+        self.assertEqual(allocation.status, Allocation.Status.SUBMITTED)
+        self.assertIsNone(allocation.approved_by)
+        self.assertIsNone(allocation.approved_at)
+        self.assertEqual(allocation.distributions.count(), 0)
+
 
 @override_settings(FEATURE_ALLOCATION_UI_ENABLED=True)
 class AllocationRejectionTest(TestCase):
@@ -392,3 +408,17 @@ class AllocationRouteTest(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Allocation.objects.filter(pk=allocation.pk).exists())
+
+    def test_step_back_approved_to_submitted(self):
+        allocation = _create_allocation(self.fixtures)
+        execute_allocation_submission(allocation, self.fixtures["admin"])
+        execute_allocation_approval(allocation, self.fixtures["admin"])
+
+        response = self.client.post(
+            reverse("allocation:allocation_step_back", args=[allocation.pk])
+        )
+
+        self.assertEqual(response.status_code, 302)
+        allocation.refresh_from_db()
+        self.assertEqual(allocation.status, Allocation.Status.SUBMITTED)
+        self.assertEqual(allocation.distributions.count(), 0)

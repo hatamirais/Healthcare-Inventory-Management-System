@@ -19,6 +19,7 @@ from .services import (
     execute_allocation_approval,
     execute_allocation_rejection,
     execute_allocation_submission,
+    execute_allocation_step_back_to_submitted,
     execute_distribution_delivery,
     execute_distribution_preparation,
 )
@@ -503,6 +504,35 @@ def allocation_reject(request, pk):
     execute_allocation_rejection(allocation, reason)
     messages.success(
         request, f"Alokasi {allocation.document_number} ditolak dan dikembalikan ke Draft."
+    )
+    return _redirect_allocation_detail(pk)
+
+
+@login_required
+@perm_required("allocation.change_allocation")
+@module_scope_required(ModuleAccess.Module.ALLOCATION, ModuleAccess.Scope.APPROVE)
+def allocation_step_back(request, pk):
+
+    allocation = get_object_or_404(Allocation, pk=pk)
+    if request.method != "POST":
+        return _redirect_allocation_detail(pk)
+
+    if allocation.status != Allocation.Status.APPROVED:
+        messages.error(
+            request,
+            "Hanya alokasi berstatus Disetujui yang dapat dikembalikan ke Diajukan.",
+        )
+        return _redirect_allocation_detail(pk)
+
+    try:
+        execute_allocation_step_back_to_submitted(allocation)
+    except AllocationWorkflowError as exc:
+        messages.error(request, str(exc))
+        return _redirect_allocation_detail(pk)
+
+    messages.success(
+        request,
+        f"Alokasi {allocation.document_number} dikembalikan ke status Diajukan.",
     )
     return _redirect_allocation_detail(pk)
 

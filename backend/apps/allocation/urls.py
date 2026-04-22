@@ -17,6 +17,7 @@ urlpatterns = [
     ),
     path("<int:pk>/submit/", views.allocation_submit, name="allocation_submit"),
     path("<int:pk>/approve/", views.allocation_approve, name="allocation_approve"),
+    path("<int:pk>/step-back/", views.allocation_step_back, name="allocation_step_back"),
     path("<int:pk>/reject/", views.allocation_reject, name="allocation_reject"),
     # Per-distribution actions
     path(
