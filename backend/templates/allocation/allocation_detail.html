@@ -46,12 +46,25 @@
         min-width: 200px;
     }
     .dist-tracking-card {
+        position: relative;
         border-left: 3px solid #dbeafe;
         transition: border-color 0.2s ease;
+        cursor: pointer;
     }
     .dist-tracking-card.status-generated { border-left-color: #93c5fd; }
     .dist-tracking-card.status-prepared { border-left-color: #fbbf24; }
     .dist-tracking-card.status-distributed { border-left-color: #4ade80; }
+    .dist-tracking-card .card-body {
+        display: flex;
+        flex-direction: column;
+    }
+    .dist-tracking-card .stretched-link {
+        z-index: 0;
+    }
+        .dist-tracking-card-actions {
+            position: relative;
+            z-index: 1;
+    }
 </style>
 {% endblock %}
 
@@ -228,25 +241,28 @@
             <div class="col-md-6 col-lg-4">
                 <div class="card dist-tracking-card status-{{ dist.status|lower }} h-100">
                     <div class="card-body">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div>
-                                <h6 class="fw-semibold mb-1">{{ dist.facility.name }}</h6>
-                                <small class="text-muted">{{ dist.document_number }}</small>
+                        <a href="{% url 'distribution:distribution_detail' dist.pk %}"
+                           class="stretched-link"
+                           aria-label="Lihat detail distribusi {{ dist.document_number }}"></a>
+                            <div class="d-flex align-items-start justify-content-between mb-2">
+                                <div>
+                                    <h6 class="fw-semibold mb-1">{{ dist.facility.name }}</h6>
+                                    <small class="text-muted">{{ dist.document_number }}</small>
                             </div>
-                            <span class="badge-status badge-{{ dist.status|lower }}">{{ dist.get_status_display }}</span>
-                        </div>
+                                <span class="badge-status badge-{{ dist.status|lower }}">{{ dist.get_status_display }}</span>
+                            </div>
 
-                        <div class="small text-muted mb-2">
-                            {{ dist.items.count }} item
-                            {% if dist.distributed_date %}
-                            · Dikirim {{ dist.distributed_date|date:"d/m/Y" }}
-                            {% endif %}
+                            <div class="small text-muted mb-2">
+                                {{ dist.items.count }} item
+                                {% if dist.distributed_date %}
+                                · Dikirim {{ dist.distributed_date|date:"d/m/Y" }}
+                                {% endif %}
                         </div>
 
                         {# Action buttons #}
-                        <div class="d-flex gap-2 mt-auto">
+                        <div class="d-flex gap-2 mt-auto dist-tracking-card-actions">
                             {% if dist.status == 'GENERATED' %}
-                            <form method="post" action="{% url 'allocation:allocation_distribution_prepare' allocation.pk dist.pk %}">
+                                <form method="post" action="{% url 'allocation:allocation_distribution_prepare' allocation.pk dist.pk %}" data-card-action="true">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-sm btn-outline-warning"
                                         data-confirm-action="Siapkan distribusi ke {{ dist.facility.name }}?">
@@ -254,7 +270,7 @@
                                 </button>
                             </form>
                             {% elif dist.status == 'PREPARED' %}
-                            <form method="post" action="{% url 'allocation:allocation_distribution_deliver' allocation.pk dist.pk %}">
+                                <form method="post" action="{% url 'allocation:allocation_distribution_deliver' allocation.pk dist.pk %}" data-card-action="true">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-sm btn-outline-success"
                                         data-confirm-action="Konfirmasi pengiriman ke {{ dist.facility.name }}? Stok akan dikurangi.">
@@ -367,5 +383,4 @@
     </div>
 </div>
 {% endif %}
-
 {% endblock %}

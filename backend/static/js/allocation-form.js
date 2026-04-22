@@ -31,8 +31,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const stepBtns = document.querySelectorAll('.wizard-step-btn');
     const panels = document.querySelectorAll('.wizard-panel');
+    const wizardValidationAlert = document.getElementById('wizard-validation-alert');
+
+    function hideWizardAlert() {
+        if (!wizardValidationAlert) return;
+        wizardValidationAlert.classList.add('d-none');
+        wizardValidationAlert.textContent = '';
+    }
+
+    function showWizardAlert(message) {
+        if (!wizardValidationAlert) return;
+        wizardValidationAlert.textContent = message;
+        wizardValidationAlert.classList.remove('d-none');
+        wizardValidationAlert.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    function getStepThreeReadiness() {
+        const facilities = getSelectedFacilities();
+        const items = getFormsetItems();
+        return {
+            facilities,
+            items,
+            hasFacilities: facilities.length > 0,
+            hasItems: items.length > 0,
+        };
+    }
+
+    function getStepThreeMissingMessage(readiness) {
+        if (!readiness.hasFacilities && !readiness.hasItems) {
+            return 'Pilih minimal 1 fasilitas pada Step 1 dan minimal 1 item dengan batch pada Step 2 sebelum lanjut ke Step 3.';
+        }
+        if (!readiness.hasFacilities) {
+            return 'Pilih minimal 1 fasilitas pada Step 1 sebelum lanjut ke Step 3.';
+        }
+        if (!readiness.hasItems) {
+            return 'Pilih minimal 1 item dengan batch pada Step 2 sebelum lanjut ke Step 3.';
+        }
+        return '';
+    }
+
+    function canEnterStep(targetStep) {
+        if (targetStep < 3) {
+            hideWizardAlert();
+            return true;
+        }
+
+        const readiness = getStepThreeReadiness();
+        if (readiness.hasFacilities && readiness.hasItems) {
+            hideWizardAlert();
+            return true;
+        }
+
+        showWizardAlert(getStepThreeMissingMessage(readiness));
+        return false;
+    }
 
     function goToStep(n) {
+        if (!canEnterStep(n)) return;
+
         stepBtns.forEach(btn => btn.classList.toggle('active', parseInt(btn.dataset.step) === n));
         panels.forEach(panel => panel.classList.toggle('active', panel.id === `step-${n}`));
 
@@ -630,6 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const idField = row.querySelector('[name$="-id"]');
 
             if (!itemSelect || !itemSelect.value) return;
+            if (!stockSelect || !stockSelect.value) return;
 
             const itemText = itemSelect.options[itemSelect.selectedIndex]?.text || '';
             const stockText = stockSelect?.options[stockSelect.selectedIndex]?.text || '';
@@ -674,7 +731,16 @@ document.addEventListener('DOMContentLoaded', () => {
         matrixBody.innerHTML = '';
 
         if (items.length === 0 || facilities.length === 0) {
-            if (emptyMsg) emptyMsg.classList.remove('d-none');
+            if (emptyMsg) {
+                if (items.length === 0 && facilities.length === 0) {
+                    emptyMsg.textContent = 'Pilih item pada Step 2 dan fasilitas pada Step 1 terlebih dahulu.';
+                } else if (items.length === 0) {
+                    emptyMsg.textContent = 'Pilih item dan batch pada Step 2 terlebih dahulu.';
+                } else {
+                    emptyMsg.textContent = 'Pilih minimal 1 fasilitas pada Step 1 terlebih dahulu.';
+                }
+                emptyMsg.classList.remove('d-none');
+            }
             return;
         }
         if (emptyMsg) emptyMsg.classList.add('d-none');
