@@ -128,7 +128,8 @@ body {
 }
 
 /* Tooltip on hover when collapsed */
-.sidebar.collapsed .sidebar-link::after {
+.sidebar.collapsed .sidebar-link::after,
+.sidebar.collapsed .sidebar-dropdown-toggle::after {
     content: attr(data-label);
     position: absolute;
     left: calc(var(--sidebar-collapsed-width) + 8px);
@@ -147,7 +148,10 @@ body {
     z-index: 1050;
 }
 
-.sidebar.collapsed .sidebar-link:hover::after {
+.sidebar.collapsed .sidebar-link:hover::after,
+.sidebar.collapsed .sidebar-link:focus-visible::after,
+.sidebar.collapsed .sidebar-dropdown-toggle:hover::after,
+.sidebar.collapsed .sidebar-dropdown-toggle:focus-visible::after {
     opacity: 1;
 }
 
