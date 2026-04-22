@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.16.0] - 2026-04-22
+
+### Added
+
+- Allocation approvers can now step an allocation back one stage from `Disetujui` to `Diajukan`, which removes the auto-generated child distributions so approval can be re-run cleanly.
+
+### Changed
+
+- Allocation detail now treats distribution tracking cards as direct navigation targets to the matching `Detail Distribusi` page while preserving the inline workflow action buttons on each card.
+
 ## [1.15.1] - 2026-04-21
 
 ### Changed
