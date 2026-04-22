@@ -172,17 +172,13 @@ detection, and improving production operational logging.
 
 ### Added
 
-- **Dynamic System Settings**: Introduced a centralized configuration module (`SystemSettings`) allowing administrators to personalize the application profile.
-- **Personalized Dashboard & Headers**: Support for custom facility names, logos, and document header titles that automatically propagate to all printable reports (Stock Opname, LPLPO, and Inventory Reports).
 - **Global Context Integration**: Implemented a global context processor ensuring consistent branding across the entire UI lifecycle.
 
 ### Changed
 
-- Refactored all report templates to utilize dynamic system settings instead of hardcoded placeholders.
 - Updated sidebar to include "Pengaturan" module for Admin users.
 
 ## [1.6.1] - 2026-04-03
-
 ### Changed
 
 - Notification UX now uses a compact navbar dropdown that summarizes actionable activity counts per module instead of rendering the full notification panel on the dashboard.
