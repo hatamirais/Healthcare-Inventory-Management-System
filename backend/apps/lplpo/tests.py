@@ -61,10 +61,10 @@ class LPLPOTestCase(TestCase):
 			role=User.Role.PUSKESMAS,
 			facility=cls.other_facility,
 		)
-		cls.staff_user = User.objects.create_user(
+		cls.staff_user = User.objects.create_superuser(
 			username="staff",
+			email="staff@example.com",
 			password="TestPassword123!",
-			role=User.Role.ADMIN,
 		)
 		cls.superuser = User.objects.create_superuser(
 			username="root",

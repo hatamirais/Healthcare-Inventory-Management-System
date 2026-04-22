@@ -63,7 +63,7 @@ def user_list(request):
             "Anda tidak memiliki izin untuk membuka manajemen user.",
         )
 
-    queryset = User.objects.order_by("-date_joined")
+    queryset = User.objects.select_related("facility").order_by("-date_joined")
 
     search = request.GET.get("q", "").strip()
     if search:

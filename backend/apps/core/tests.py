@@ -167,10 +167,10 @@ class NavNotificationsContextProcessorTests(TestCase):
         self.assertEqual(context["nav_notification_count"], 0)
 
     def test_admin_user_counts_pending_receiving_documents(self):
-        admin_user = User.objects.create_user(
+        admin_user = User.objects.create_superuser(
             username="nav-admin",
+            email="nav-admin@example.com",
             password="TestPassword123!",
-            role=User.Role.ADMIN,
         )
         self._set_scope(
             admin_user, ModuleAccess.Module.RECEIVING, ModuleAccess.Scope.MANAGE
@@ -415,10 +415,10 @@ class NavNotificationsContextProcessorTests(TestCase):
         )
 
     def test_admin_user_gets_module_summary_items(self):
-        admin_user = User.objects.create_user(
+        admin_user = User.objects.create_superuser(
             username="nav-admin-summary",
+            email="nav-admin-summary@example.com",
             password="TestPassword123!",
-            role=User.Role.ADMIN,
         )
         facility = Facility.objects.create(
             code="PKM-SUM",

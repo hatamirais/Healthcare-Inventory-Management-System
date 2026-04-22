@@ -103,6 +103,11 @@ Alamat aplikasi: `http://localhost:8000`
 
 Alamat admin: `http://localhost:8000/admin/`
 
+Catatan akun admin:
+
+- Akun dengan role `ADMIN` atau superuser hanya dibuat melalui `python manage.py createsuperuser`.
+- Halaman Manajemen Pengguna di dashboard tidak menyediakan pembuatan role `ADMIN`.
+
 ## Testing
 
 Metode yang direkomendasikan di Windows adalah menggunakan helper script dari root repositori:

@@ -10,16 +10,10 @@ UI_ROLE_CHOICES = [
     (value, label) for value, label in User.Role.choices if value != User.Role.ADMIN
 ]
 
-ROLE_HELP_TEXT = (
-    "Role Admin / Superuser tidak dibuat dari halaman ini. "
-    "Gunakan perintah createsuperuser di server."
-)
-
 FACILITY_HELP_TEXT = "Wajib dipilih untuk Operator Puskesmas."
 
 
 def _configure_user_form_fields(form):
-    form.fields["role"].help_text = ROLE_HELP_TEXT
     form.fields["facility"].help_text = FACILITY_HELP_TEXT
     form.fields["facility"].queryset = form.fields["facility"].queryset.filter(
         is_active=True

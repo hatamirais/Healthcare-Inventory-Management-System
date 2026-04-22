@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
@@ -125,10 +126,10 @@ class UserManagementViewsTest(TestCase):
         self.assertEqual(created.nip, "197912312010011002")
         self.assertTrue(created.check_password("VeryStrongPass123!"))
 
-    def test_user_create_form_explains_admin_cli_path(self):
+    def test_user_create_form_hides_admin_cli_notice(self):
         response = self.client.get(reverse("users:user_create"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "createsuperuser")
+        self.assertNotContains(response, "createsuperuser")
 
     def test_user_create_form_shows_role_guide(self):
         response = self.client.get(reverse("users:user_create"))
@@ -236,6 +237,23 @@ class UserManagementViewsTest(TestCase):
         self.assertContains(response, "NIP")
         self.assertContains(response, self.target.nip)
 
+    def test_user_list_shows_facility_column_and_values(self):
+        facility = Facility.objects.create(code="PKM-LIST", name="Puskesmas List")
+        User.objects.create_user(
+            username="operator_list",
+            password="secret12345",
+            email="operator_list@example.com",
+            role=User.Role.PUSKESMAS,
+            facility=facility,
+            full_name="Operator List",
+        )
+
+        response = self.client.get(reverse("users:user_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Fasilitas")
+        self.assertContains(response, "Instalasi Farmasi")
+        self.assertContains(response, "Puskesmas List")
+
     def test_toggle_active_for_target_user(self):
         response = self.client.post(
             reverse("users:user_toggle_active", args=[self.target.pk])
@@ -273,15 +291,27 @@ class UserManagementViewsTest(TestCase):
 class StaffFlagSyncTest(TestCase):
     """Verify that is_staff is synced correctly based on role via the post_save signal."""
 
-    def test_admin_role_gets_is_staff_true(self):
-        """Dashboard-created ADMIN user must have is_staff=True for Admin panel access."""
-        user = User.objects.create_user(
+    def test_create_superuser_forces_admin_role_and_staff(self):
+        user = User.objects.create_superuser(
             username="new_admin",
+            email="new_admin@example.com",
             password="VeryStrongPass123!",
-            role=User.Role.ADMIN,
         )
         user.refresh_from_db()
-        self.assertTrue(user.is_staff, "ADMIN role user should have is_staff=True")
+        self.assertEqual(user.role, User.Role.ADMIN)
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_superuser)
+
+    def test_create_user_blocks_admin_role(self):
+        with self.assertRaisesMessage(
+            ValueError,
+            "Role Admin hanya dapat dibuat melalui perintah createsuperuser.",
+        ):
+            User.objects.create_user(
+                username="blocked_admin",
+                password="VeryStrongPass123!",
+                role=User.Role.ADMIN,
+            )
 
     def test_non_admin_role_does_not_get_is_staff(self):
         """Non-ADMIN roles should never get is_staff=True through the signal."""
@@ -303,8 +333,7 @@ class StaffFlagSyncTest(TestCase):
                     f"Role {role} should NOT have is_staff=True",
                 )
 
-    def test_changing_role_to_admin_grants_is_staff(self):
-        """Promoting an existing user to ADMIN should flip is_staff to True."""
+    def test_changing_role_to_admin_is_blocked_for_non_superuser(self):
         user = User.objects.create_user(
             username="promoted_user",
             password="VeryStrongPass123!",
@@ -313,27 +342,28 @@ class StaffFlagSyncTest(TestCase):
         user.refresh_from_db()
         self.assertFalse(user.is_staff)
 
-        # Promote to ADMIN
         user.role = User.Role.ADMIN
-        user.save(update_fields=["role"])
-        user.refresh_from_db()
-        self.assertTrue(user.is_staff, "Promoted ADMIN user should have is_staff=True")
+        with self.assertRaises(ValidationError):
+            user.save(update_fields=["role"])
 
-    def test_demoting_admin_removes_is_staff(self):
-        """Demoting an ADMIN to another role should flip is_staff back to False."""
-        user = User.objects.create_user(
+        user.refresh_from_db()
+        self.assertEqual(user.role, User.Role.GUDANG)
+        self.assertFalse(user.is_staff)
+
+    def test_superuser_role_remains_admin_when_saved(self):
+        user = User.objects.create_superuser(
             username="demoted_admin",
+            email="demoted_admin@example.com",
             password="VeryStrongPass123!",
-            role=User.Role.ADMIN,
         )
         user.refresh_from_db()
         self.assertTrue(user.is_staff)
 
-        # Demote to GUDANG
         user.role = User.Role.GUDANG
         user.save(update_fields=["role"])
         user.refresh_from_db()
-        self.assertFalse(user.is_staff, "Demoted user should lose is_staff")
+        self.assertEqual(user.role, User.Role.ADMIN)
+        self.assertTrue(user.is_staff)
 
     def test_admin_panel_save_seeds_module_access(self):
         """
@@ -356,11 +386,18 @@ class StaffFlagSyncTest(TestCase):
 
 class UACRoleMatrixTest(TestCase):
     def _create_user_with_defaults(self, username: str, role: str) -> User:
-        user = User.objects.create_user(
-            username=username,
-            password="VeryStrongPass123!",
-            role=role,
-        )
+        if role == User.Role.ADMIN:
+            user = User.objects.create_superuser(
+                username=username,
+                email=f"{username}@example.com",
+                password="VeryStrongPass123!",
+            )
+        else:
+            user = User.objects.create_user(
+                username=username,
+                password="VeryStrongPass123!",
+                role=role,
+            )
         ensure_default_module_access(user, overwrite=True)
         return user
 

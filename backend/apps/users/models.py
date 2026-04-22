@@ -1,5 +1,22 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager as DjangoUserManager
+from django.core.exceptions import ValidationError
 from django.db import models
+
+
+class UserManager(DjangoUserManager):
+    def _create_user(self, username, email, password, **extra_fields):
+        is_superuser = extra_fields.get("is_superuser", False)
+        role = extra_fields.get("role")
+
+        if is_superuser:
+            extra_fields["role"] = "ADMIN"
+            extra_fields["is_staff"] = True
+        elif role == "ADMIN":
+            raise ValueError(
+                "Role Admin hanya dapat dibuat melalui perintah createsuperuser."
+            )
+
+        return super()._create_user(username, email, password, **extra_fields)
 
 
 class User(AbstractUser):
@@ -30,6 +47,8 @@ class User(AbstractUser):
         help_text="For PUSKESMAS role: the facility this user belongs to",
     )
 
+    objects = UserManager()
+
     class Meta:
         db_table = "users"
         verbose_name = "User"
@@ -37,6 +56,29 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.full_name or self.username
+
+    def save(self, *args, **kwargs):
+        if self.is_superuser:
+            self.role = self.Role.ADMIN
+            self.is_staff = True
+        elif self.role == self.Role.ADMIN:
+            if not self.pk:
+                raise ValidationError(
+                    {"role": "Role Admin hanya dapat dibuat melalui createsuperuser."}
+                )
+
+            previous_state = (
+                type(self)
+                .objects.filter(pk=self.pk)
+                .values_list("role", "is_superuser")
+                .first()
+            )
+            if not previous_state or previous_state != (self.Role.ADMIN, False):
+                raise ValidationError(
+                    {"role": "Role Admin hanya dapat dibuat melalui createsuperuser."}
+                )
+
+        return super().save(*args, **kwargs)
 
 
 class ModuleAccess(models.Model):

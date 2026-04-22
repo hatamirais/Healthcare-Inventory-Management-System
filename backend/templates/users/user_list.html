@@ -44,6 +44,7 @@
                 <tr>
                     <th>Nama Pengguna</th>
                     <th>Nama Lengkap</th>
+                    <th>Fasilitas</th>
                     <th>NIP</th>
                     <th>Email</th>
                     <th>Jabatan</th>
@@ -56,6 +57,15 @@
                 <tr>
                     <td><code>{{ account.username }}</code></td>
                     <td>{{ account.full_name|default:'-' }}</td>
+                    <td>
+                        {% if account.facility %}
+                        {{ account.facility.name }}
+                        {% elif account.role == 'PUSKESMAS' %}
+                        <span class="text-muted">Belum diatur</span>
+                        {% else %}
+                        Instalasi Farmasi
+                        {% endif %}
+                    </td>
                     <td>{{ account.nip|default:'-' }}</td>
                     <td>{{ account.email|default:'-' }}</td>
                     <td><span class="badge bg-light text-dark border">{{ account.get_role_display }}</span></td>
@@ -96,7 +106,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7">
+                    <td colspan="8">
                         <div class="empty-state">
                             <i class="bi bi-person-lines-fill d-block"></i>
                             <p>Belum ada data pengguna</p>

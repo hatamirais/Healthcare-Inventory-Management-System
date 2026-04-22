@@ -14,14 +14,6 @@
                 <form method="post" novalidate>
                     {% csrf_token %}
 
-                    <div class="alert alert-info d-flex align-items-start gap-2" role="alert">
-                        <i class="bi bi-shield-lock"></i>
-                        <div>
-                            Akun Admin / Superuser tidak dibuat dari halaman ini.
-                            Gunakan <code>python manage.py createsuperuser</code> di server.
-                        </div>
-                    </div>
-
                     {% if form.non_field_errors %}
                     <div class="alert alert-danger">
                         {% for err in form.non_field_errors %}

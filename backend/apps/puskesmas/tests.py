@@ -90,10 +90,10 @@ class PuskesmasRequestCreateViewTests(TestCase):
 			role=User.Role.PUSKESMAS,
 			facility=self.facility,
 		)
-		self.staff_user = User.objects.create_user(
+		self.staff_user = User.objects.create_superuser(
 			username="instalasi-admin",
+			email="instalasi-admin@example.com",
 			password="TestPassword123!",
-			role=User.Role.ADMIN,
 		)
 		self.other_user = User.objects.create_user(
 			username="operator-other",
@@ -344,10 +344,10 @@ class PuskesmasRequestApprovalTests(TestCase):
 			password="TestPassword123!",
 			role=User.Role.KEPALA,
 		)
-		self.manager = User.objects.create_user(
+		self.manager = User.objects.create_superuser(
 			username="manager-puskesmas",
+			email="manager-puskesmas@example.com",
 			password="TestPassword123!",
-			role=User.Role.ADMIN,
 		)
 		ModuleAccess.objects.update_or_create(
 			user=self.approver,
