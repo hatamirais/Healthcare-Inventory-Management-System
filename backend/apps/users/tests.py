@@ -130,6 +130,13 @@ class UserManagementViewsTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "createsuperuser")
 
+    def test_user_create_form_shows_role_guide(self):
+        response = self.client.get(reverse("users:user_create"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Panduan Jabatan")
+        self.assertContains(response, "Petugas Gudang")
+        self.assertContains(response, "Operator Puskesmas")
+
     def test_user_create_puskesmas_requires_facility(self):
         payload = {
             "username": "operator_pkm_1",

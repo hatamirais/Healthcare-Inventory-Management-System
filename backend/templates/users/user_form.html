@@ -62,6 +62,18 @@
                         {% if field.help_text %}
                         <div class="form-text">{{ field.help_text }}</div>
                         {% endif %}
+                        {% if field.name == 'role' %}
+                        <div class="mt-2 p-3 border rounded bg-light-subtle">
+                            <div class="small fw-semibold text-uppercase text-muted mb-2">Panduan Jabatan</div>
+                            <div class="small text-muted d-grid gap-2">
+                                <div><strong>Kepala Instalasi</strong>: fokus pada monitoring, persetujuan, dan pengawasan lintas modul.</div>
+                                <div><strong>Admin Umum</strong>: cocok untuk administrasi transaksi harian dan pelaporan dasar.</div>
+                                <div><strong>Petugas Gudang</strong>: untuk operasional stok, penerimaan, distribusi, recall, dan stock opname.</div>
+                                <div><strong>Auditor</strong>: akses baca untuk pemeriksaan data dan penelusuran dokumen.</div>
+                                <div><strong>Operator Puskesmas</strong>: khusus fasilitas Puskesmas, wajib terhubung ke fasilitas tujuan.</div>
+                            </div>
+                        </div>
+                        {% endif %}
                         {% for error in field.errors %}
                         <div class="invalid-feedback d-block">{{ error }}</div>
                         {% endfor %}
