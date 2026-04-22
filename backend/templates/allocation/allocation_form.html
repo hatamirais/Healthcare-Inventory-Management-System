@@ -52,8 +52,25 @@
         background: #3b82f6;
         color: #fff;
     }
+    .form-page-card {
+        min-height: calc(100vh - 150px);
+    }
+    .form-page-card .card-body {
+        display: flex;
+        flex-direction: column;
+    }
+    #allocation-form {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 100%;
+    }
     .wizard-panel { display: none; }
-    .wizard-panel.active { display: block; }
+    .wizard-panel.active {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
 
     .selection-picker {
         background: #fbfdff;
@@ -141,6 +158,156 @@
     }
 
     .review-section { background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+
+    .allocation-item-table {
+        width: 100%;
+        table-layout: fixed;
+    }
+    .allocation-item-table th,
+    .allocation-item-table td {
+        vertical-align: top;
+    }
+    .allocation-item-table .allocation-item-col-item { width: 42%; }
+    .allocation-item-table .allocation-item-col-stock { width: 38%; }
+    .allocation-item-table .allocation-item-col-available { width: 12%; }
+    .allocation-item-table .allocation-item-col-remove { width: 8%; }
+    .allocation-item-table .allocation-item-stock-cell,
+    .allocation-item-table .allocation-item-available-cell,
+    .allocation-item-table .allocation-item-remove-cell {
+        vertical-align: bottom;
+    }
+    .allocation-item-table .typeahead-input,
+    .allocation-item-table .js-stock-select {
+        min-height: 44px;
+    }
+    .allocation-item-stock-shell {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+    }
+    .allocation-item-stock-source {
+        display: none;
+    }
+    .allocation-item-table .js-available-qty {
+        font-weight: 600;
+        padding-top: 12px;
+        padding-bottom: 10px;
+        white-space: nowrap;
+    }
+    .batch-checkbox-picker {
+        position: relative;
+    }
+    .batch-checkbox-trigger {
+        width: 100%;
+        min-height: 44px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        background: #fff;
+        padding: 10px 12px;
+        text-align: left;
+        font-size: 0.9rem;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+    .batch-checkbox-trigger:disabled {
+        background: #f8fafc;
+        color: #94a3b8;
+        cursor: not-allowed;
+    }
+    .batch-checkbox-trigger-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .batch-checkbox-trigger-icon {
+        flex: 0 0 auto;
+        color: #64748b;
+        transition: transform 0.15s ease;
+    }
+    .batch-checkbox-picker.is-open .batch-checkbox-trigger-icon {
+        transform: rotate(180deg);
+    }
+    .batch-checkbox-panel {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        z-index: 25;
+        background: #fff;
+        border: 1px solid #dbe5f0;
+        border-radius: 12px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+        padding: 10px;
+        max-height: 260px;
+        overflow-y: auto;
+    }
+    .batch-checkbox-list {
+        display: grid;
+        gap: 8px;
+    }
+    .batch-checkbox-item {
+        display: block;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: #fff;
+        cursor: pointer;
+        transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .batch-checkbox-item:hover {
+        border-color: #93c5fd;
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.08);
+    }
+    .batch-checkbox-item.is-selected {
+        border-color: #60a5fa;
+        background: #eff6ff;
+    }
+    .batch-checkbox-item .form-check {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin: 0;
+    }
+    .batch-checkbox-item .form-check-input {
+        margin-top: 2px;
+        float: none;
+    }
+    .batch-checkbox-item-title {
+        font-weight: 600;
+        color: #0f172a;
+        line-height: 1.2;
+    }
+    .batch-checkbox-item-description {
+        color: #64748b;
+        font-size: 0.8rem;
+        line-height: 1.3;
+        margin-top: 2px;
+    }
+    .allocation-item-stock-hint {
+        margin-top: 6px;
+        font-size: 0.78rem;
+        color: #64748b;
+        line-height: 1.35;
+    }
+    .batch-checkbox-empty {
+        color: #94a3b8;
+        font-size: 0.82rem;
+        padding: 4px 2px;
+    }
+
+    @media (max-width: 991.98px) {
+        .form-page-card {
+            min-height: auto;
+        }
+        .allocation-item-table {
+            min-width: 980px;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -299,7 +466,7 @@
 
             {# ═══════ STEP 2: Pilih Item ═══════ #}
             <div class="wizard-panel" id="step-2">
-                <div class="mb-2 small text-muted">Pilih barang dan batch stok yang akan dialokasikan.</div>
+                <div class="mb-2 small text-muted">Pilih barang dan batch stok yang akan dialokasikan. Satu barang dapat dipecah ke beberapa batch bila stok tersedia tersebar.</div>
 
                 {{ formset.management_form }}
 
@@ -316,22 +483,37 @@
                 </div>
 
                 <div class="table-responsive" data-formset="allocation-items" data-formset-prefix="{{ formset.prefix }}">
-                    <table class="table table-sm">
+                    <table class="table table-sm allocation-item-table">
                         <thead>
                             <tr>
-                                <th>Barang</th>
-                                <th>Stok (Batch)</th>
-                                <th>Tersedia</th>
-                                <th style="width:50px;">Hapus</th>
+                                <th class="allocation-item-col-item">Barang</th>
+                                <th class="allocation-item-col-stock">Stok (Batch)</th>
+                                <th class="allocation-item-col-available">Tersedia</th>
+                                <th class="allocation-item-col-remove">Hapus</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item_form in formset %}
                             <tr class="formset-row">
                                 <td>{{ item_form.item }}</td>
-                                <td>{{ item_form.stock }}</td>
-                                <td class="js-available-qty">{{ item_form.total_qty_available.value|default:"—" }}</td>
-                                <td class="text-center">
+                                <td class="allocation-item-stock-cell">
+                                    <div class="allocation-item-stock-shell">
+                                        <div class="allocation-item-stock-source">{{ item_form.stock }}</div>
+                                        <div class="batch-checkbox-picker js-batch-picker" data-empty-label="Pilih batch stok">
+                                            <button type="button" class="batch-checkbox-trigger js-batch-picker-toggle" disabled>
+                                                <span class="batch-checkbox-trigger-text js-batch-picker-summary">Pilih barang terlebih dahulu</span>
+                                                <span class="batch-checkbox-trigger-icon">▾</span>
+                                            </button>
+                                            <div class="batch-checkbox-panel js-batch-picker-panel d-none">
+                                                <div class="batch-checkbox-list js-batch-checkbox-list"></div>
+                                                <div class="batch-checkbox-empty js-batch-checkbox-empty">Pilih barang terlebih dahulu.</div>
+                                            </div>
+                                        </div>
+                                        <div class="allocation-item-stock-hint">Centang satu atau lebih batch tanpa menambah baris item secara manual.</div>
+                                    </div>
+                                </td>
+                                <td class="js-available-qty allocation-item-available-cell">{{ item_form.total_qty_available.value|default:"—" }}</td>
+                                <td class="text-center allocation-item-remove-cell">
                                     <button type="button" class="btn btn-outline-danger btn-sm formset-remove" title="Hapus Baris">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -361,9 +543,24 @@
                 <template id="allocation-items-empty">
                     <tr class="formset-row">
                         <td>{{ formset.empty_form.item }}</td>
-                        <td>{{ formset.empty_form.stock }}</td>
-                        <td class="js-available-qty">—</td>
-                        <td class="text-center">
+                        <td class="allocation-item-stock-cell">
+                            <div class="allocation-item-stock-shell">
+                                <div class="allocation-item-stock-source">{{ formset.empty_form.stock }}</div>
+                                <div class="batch-checkbox-picker js-batch-picker" data-empty-label="Pilih batch stok">
+                                    <button type="button" class="batch-checkbox-trigger js-batch-picker-toggle" disabled>
+                                        <span class="batch-checkbox-trigger-text js-batch-picker-summary">Pilih barang terlebih dahulu</span>
+                                        <span class="batch-checkbox-trigger-icon">▾</span>
+                                    </button>
+                                    <div class="batch-checkbox-panel js-batch-picker-panel d-none">
+                                        <div class="batch-checkbox-list js-batch-checkbox-list"></div>
+                                        <div class="batch-checkbox-empty js-batch-checkbox-empty">Pilih barang terlebih dahulu.</div>
+                                    </div>
+                                </div>
+                                <div class="allocation-item-stock-hint">Centang satu atau lebih batch tanpa menambah baris item secara manual.</div>
+                            </div>
+                        </td>
+                        <td class="js-available-qty allocation-item-available-cell">—</td>
+                        <td class="text-center allocation-item-remove-cell">
                             <button type="button" class="btn btn-outline-danger btn-sm formset-remove" title="Hapus Baris">
                                 <i class="bi bi-trash"></i>
                             </button>
@@ -457,5 +654,5 @@
 {% if existing_allocations %}
 {{ existing_allocations|json_script:"existing-allocations" }}
 {% endif %}
-<script src="{% static 'js/allocation-form.js' %}?v={{ app_version }}-20260421b"></script>
+<script src="{% static 'js/allocation-form.js' %}?v={{ app_version }}-20260422b"></script>
 {% endblock %}

@@ -99,6 +99,373 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.matches('.js-stock-select')) handleStockChange(e.target);
     });
 
+    let batchGroupCounter = 0;
+
+    function getAllocationFormsetState() {
+        const formsetContainer = document.querySelector('[data-formset="allocation-items"]');
+        if (!formsetContainer) return null;
+
+        const prefix = formsetContainer.dataset.formsetPrefix;
+        const totalInput = document.querySelector(`input[name="${prefix}-TOTAL_FORMS"]`);
+        const tableBody = formsetContainer.querySelector('tbody');
+        const emptyTemplate = document.getElementById('allocation-items-empty');
+
+        if (!prefix || !totalInput || !tableBody || !emptyTemplate) {
+            return null;
+        }
+
+        return {
+            formsetContainer,
+            prefix,
+            totalInput,
+            tableBody,
+            emptyTemplate,
+        };
+    }
+
+    function isGeneratedBatchRow(row) {
+        return row?.dataset.generatedBatchRow === 'true';
+    }
+
+    function ensureBatchGroupId(row) {
+        if (!row.dataset.batchGroupId) {
+            row.dataset.batchGroupId = `allocation-batch-${batchGroupCounter++}`;
+        }
+        return row.dataset.batchGroupId;
+    }
+
+    function getAllocationRows({ includeGenerated = true } = {}) {
+        const state = getAllocationFormsetState();
+        if (!state) return [];
+        return Array.from(state.tableBody.querySelectorAll('.formset-row')).filter((row) => {
+            const deleteCheckbox = row.querySelector('[name$="-DELETE"]');
+            if (deleteCheckbox && deleteCheckbox.checked) return false;
+            if (!includeGenerated && isGeneratedBatchRow(row)) return false;
+            if (row.classList.contains('d-none') && !isGeneratedBatchRow(row)) return false;
+            return true;
+        });
+    }
+
+    function getPrimaryAllocationRows() {
+        return getAllocationRows({ includeGenerated: false });
+    }
+
+    function getMatchingStocks(itemId) {
+        return stockCatalog.filter((stock) => String(stock.itemId) === String(itemId));
+    }
+
+    function getStockMeta(stockId) {
+        return stockCatalog.find((stock) => String(stock.id) === String(stockId)) || null;
+    }
+
+    function getGeneratedRowsForGroup(row) {
+        const groupId = ensureBatchGroupId(row);
+        return getAllocationRows({ includeGenerated: true }).filter((candidate) => {
+            return candidate !== row && isGeneratedBatchRow(candidate) && candidate.dataset.batchGroupId === groupId;
+        });
+    }
+
+    function setRowDeleted(row, deleted) {
+        const deleteCheckbox = row.querySelector('[name$="-DELETE"]');
+        if (deleteCheckbox) {
+            deleteCheckbox.checked = deleted;
+        }
+        row.classList.toggle('d-none', deleted);
+    }
+
+    function clearGeneratedRowsForGroup(row) {
+        getGeneratedRowsForGroup(row).forEach((generatedRow) => setRowDeleted(generatedRow, true));
+    }
+
+    function syncRowSelection(row, itemId, stockId = '') {
+        const itemSelect = row.querySelector('.js-item-select');
+        const stockSelect = row.querySelector('.js-stock-select');
+        if (!itemSelect || !stockSelect) return;
+
+        itemSelect.value = String(itemId || '');
+        itemSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+        if (stockId) {
+            stockSelect.value = String(stockId);
+        }
+        stockSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function createAllocationItemRow(itemId = '', stockId = '', options = {}) {
+        const state = getAllocationFormsetState();
+        if (!state) return null;
+
+        const index = parseInt(state.totalInput.value, 10);
+        const html = state.emptyTemplate.innerHTML.replace(/__prefix__/g, String(index));
+        const wrapper = document.createElement('tbody');
+        wrapper.innerHTML = html.trim();
+        const row = wrapper.querySelector('tr');
+        if (!row) return null;
+
+        state.tableBody.appendChild(row);
+        state.totalInput.value = String(index + 1);
+
+        if (options.generated) {
+            row.dataset.generatedBatchRow = 'true';
+            row.dataset.batchGroupId = options.groupId || '';
+            row.classList.add('d-none');
+        }
+
+        if (typeof initTypeaheadSelects === 'function') {
+            initTypeaheadSelects();
+        }
+        if (typeof initStockByItemFilter === 'function') {
+            initStockByItemFilter();
+        }
+
+        if (itemId) {
+            syncRowSelection(row, itemId, stockId);
+        }
+
+        return row;
+    }
+
+    function getSelectedStockIdsForGroup(row) {
+        const selectedIds = [];
+        const stockSelect = row.querySelector('.js-stock-select');
+        if (stockSelect?.value) {
+            selectedIds.push(String(stockSelect.value));
+        }
+        getGeneratedRowsForGroup(row).forEach((generatedRow) => {
+            const generatedStockSelect = generatedRow.querySelector('.js-stock-select');
+            if (generatedStockSelect?.value) {
+                selectedIds.push(String(generatedStockSelect.value));
+            }
+        });
+        return selectedIds;
+    }
+
+    function updateVisibleQtyForGroup(row) {
+        const qtyCell = row.querySelector('.js-available-qty');
+        if (!qtyCell) return;
+
+        const totalAvailable = getSelectedStockIdsForGroup(row)
+            .map((stockId) => getStockMeta(stockId)?.availableQty || 0)
+            .reduce((sum, qty) => sum + qty, 0);
+
+        qtyCell.textContent = totalAvailable > 0 ? String(totalAvailable) : '—';
+    }
+
+    function closeBatchPicker(row) {
+        const picker = row.querySelector('.js-batch-picker');
+        const panel = row.querySelector('.js-batch-picker-panel');
+        if (!picker || !panel) return;
+        picker.classList.remove('is-open');
+        panel.classList.add('d-none');
+    }
+
+    function updateBatchPickerSummary(row) {
+        const summaryEl = row.querySelector('.js-batch-picker-summary');
+        const trigger = row.querySelector('.js-batch-picker-toggle');
+        const selectedIds = getSelectedStockIdsForGroup(row);
+        const itemSelect = row.querySelector('.js-item-select');
+        if (!summaryEl || !trigger || !itemSelect) return;
+
+        if (!itemSelect.value) {
+            summaryEl.textContent = 'Pilih barang terlebih dahulu';
+            trigger.disabled = true;
+            return;
+        }
+
+        trigger.disabled = false;
+        if (selectedIds.length === 0) {
+            summaryEl.textContent = 'Pilih batch stok';
+            return;
+        }
+
+        if (selectedIds.length === 1) {
+            summaryEl.textContent = getStockMeta(selectedIds[0])?.label || '1 batch dipilih';
+            return;
+        }
+
+        summaryEl.textContent = `${selectedIds.length} batch dipilih`;
+    }
+
+    function renderBatchPicker(row) {
+        const picker = row.querySelector('.js-batch-picker');
+        const panel = row.querySelector('.js-batch-picker-panel');
+        const listEl = row.querySelector('.js-batch-checkbox-list');
+        const emptyEl = row.querySelector('.js-batch-checkbox-empty');
+        const trigger = row.querySelector('.js-batch-picker-toggle');
+        const itemSelect = row.querySelector('.js-item-select');
+        if (!picker || !panel || !listEl || !emptyEl || !trigger || !itemSelect) return;
+
+        const itemId = itemSelect.value;
+        const matchingStocks = itemId ? getMatchingStocks(itemId) : [];
+        const selectedIds = new Set(getSelectedStockIdsForGroup(row));
+
+        listEl.innerHTML = '';
+        if (!itemId) {
+            emptyEl.textContent = 'Pilih barang terlebih dahulu.';
+            emptyEl.classList.remove('d-none');
+            trigger.disabled = true;
+            updateBatchPickerSummary(row);
+            updateVisibleQtyForGroup(row);
+            return;
+        }
+
+        trigger.disabled = matchingStocks.length === 0;
+
+        if (matchingStocks.length === 0) {
+            emptyEl.textContent = 'Tidak ada batch stok tersedia untuk barang ini.';
+            emptyEl.classList.remove('d-none');
+            updateBatchPickerSummary(row);
+            updateVisibleQtyForGroup(row);
+            return;
+        }
+
+        emptyEl.classList.add('d-none');
+
+        matchingStocks.forEach((stock) => {
+            const item = document.createElement('label');
+            item.className = 'batch-checkbox-item';
+            item.dataset.stockId = String(stock.id);
+            item.classList.toggle('is-selected', selectedIds.has(String(stock.id)));
+            item.innerHTML = `
+                <span class="form-check">
+                    <input type="checkbox" class="form-check-input js-batch-checkbox" value="${stock.id}" ${selectedIds.has(String(stock.id)) ? 'checked' : ''}>
+                    <span>
+                        <span class="batch-checkbox-item-title">${escapeHtml(stock.label.split('|')[0].trim())}</span>
+                        <span class="batch-checkbox-item-description">${escapeHtml(stock.label)}</span>
+                    </span>
+                </span>
+            `;
+            listEl.appendChild(item);
+        });
+
+        updateBatchPickerSummary(row);
+        updateVisibleQtyForGroup(row);
+    }
+
+    function syncBatchSelections(row) {
+        const itemSelect = row.querySelector('.js-item-select');
+        const picker = row.querySelector('.js-batch-picker');
+        const stockSelect = row.querySelector('.js-stock-select');
+        if (!itemSelect || !picker || !stockSelect) return;
+
+        const itemId = itemSelect.value;
+        if (!itemId) {
+            stockSelect.value = '';
+            stockSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            clearGeneratedRowsForGroup(row);
+            renderBatchPicker(row);
+            return;
+        }
+
+        const selectedIds = Array.from(
+            picker.querySelectorAll('.js-batch-checkbox:checked')
+        ).map((checkbox) => checkbox.value);
+
+        const matchingStocks = getMatchingStocks(itemId).map((stock) => String(stock.id));
+        const orderedSelectedIds = matchingStocks.filter((stockId) => selectedIds.includes(stockId));
+
+        clearGeneratedRowsForGroup(row);
+
+        if (orderedSelectedIds.length === 0) {
+            stockSelect.value = '';
+            stockSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            renderBatchPicker(row);
+            refreshDerivedViews();
+            return;
+        }
+
+        syncRowSelection(row, itemId, orderedSelectedIds[0]);
+
+        orderedSelectedIds.slice(1).forEach((stockId) => {
+            createAllocationItemRow(itemId, stockId, {
+                generated: true,
+                groupId: ensureBatchGroupId(row),
+            });
+        });
+
+        renderBatchPicker(row);
+        refreshDerivedViews();
+    }
+
+    document.addEventListener('click', (e) => {
+        const pickerToggle = e.target.closest('.js-batch-picker-toggle');
+        if (pickerToggle) {
+            const row = pickerToggle.closest('.formset-row');
+            const picker = row?.querySelector('.js-batch-picker');
+            const panel = row?.querySelector('.js-batch-picker-panel');
+            if (!row || !picker || !panel || pickerToggle.disabled) return;
+
+            const shouldOpen = panel.classList.contains('d-none');
+            getPrimaryAllocationRows().forEach((candidateRow) => {
+                if (candidateRow !== row) closeBatchPicker(candidateRow);
+            });
+            picker.classList.toggle('is-open', shouldOpen);
+            panel.classList.toggle('d-none', !shouldOpen);
+            return;
+        }
+
+        if (!e.target.closest('.js-batch-picker')) {
+            getPrimaryAllocationRows().forEach((row) => closeBatchPicker(row));
+        }
+
+        const removeButton = e.target.closest('.formset-remove');
+        if (removeButton) {
+            const row = removeButton.closest('.formset-row');
+            if (row && !isGeneratedBatchRow(row)) {
+                window.setTimeout(() => {
+                    clearGeneratedRowsForGroup(row);
+                    refreshDerivedViews();
+                }, 0);
+            }
+            return;
+        }
+
+        if (e.target.closest('.formset-clear')) {
+            window.setTimeout(() => {
+                getPrimaryAllocationRows().forEach((row) => {
+                    clearGeneratedRowsForGroup(row);
+                    renderBatchPicker(row);
+                });
+                refreshDerivedViews();
+            }, 0);
+        }
+    });
+
+    document.addEventListener('change', (e) => {
+        if (e.target.matches('.js-batch-checkbox')) {
+            const row = e.target.closest('.formset-row');
+            const item = e.target.closest('.batch-checkbox-item');
+            if (item) item.classList.toggle('is-selected', e.target.checked);
+            if (!row) return;
+            syncBatchSelections(row);
+            return;
+        }
+
+        if (!e.target.matches('.js-item-select, .js-stock-select')) return;
+        const row = e.target.closest('.formset-row');
+        if (!row) return;
+
+        if (e.target.matches('.js-item-select') && !isGeneratedBatchRow(row)) {
+            clearGeneratedRowsForGroup(row);
+            const stockSelect = row.querySelector('.js-stock-select');
+            if (stockSelect) {
+                stockSelect.value = '';
+                stockSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+
+        if (!isGeneratedBatchRow(row)) {
+            renderBatchPicker(row);
+        }
+    });
+
+    window.setTimeout(() => {
+        getPrimaryAllocationRows().forEach((row) => {
+            ensureBatchGroupId(row);
+            renderBatchPicker(row);
+        });
+    }, 0);
+
     function refreshDerivedViews() {
         if (document.getElementById('step-3')?.classList.contains('active')) buildMatrix();
         if (document.getElementById('step-4')?.classList.contains('active')) buildReview();
@@ -255,7 +622,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rows.forEach((row) => {
             const deleteCheckbox = row.querySelector('[name$="-DELETE"]');
             if (deleteCheckbox && deleteCheckbox.checked) return;
-            if (row.style.display === 'none') return;
+            if (row.classList.contains('d-none') && !isGeneratedBatchRow(row)) return;
 
             const itemSelect = row.querySelector('.js-item-select');
             const stockSelect = row.querySelector('.js-stock-select');
