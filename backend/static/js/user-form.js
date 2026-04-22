@@ -63,10 +63,25 @@ document.addEventListener('DOMContentLoaded', function () {
     var roleDefaults = JSON.parse(dataEl.textContent);
     var roleSelect = document.getElementById('id_role');
     if (!roleSelect) return;
+    var facilitySelect = document.getElementById('id_facility');
+    var facilityGroup = facilitySelect ? facilitySelect.closest('.mb-3') : null;
+
+    function syncFacilityField() {
+        if (!facilityGroup || !facilitySelect) return;
+
+        var isPuskesmas = roleSelect.value === 'PUSKESMAS';
+        facilityGroup.classList.toggle('d-none', !isPuskesmas);
+        facilitySelect.required = isPuskesmas;
+
+        if (!isPuskesmas) {
+            facilitySelect.value = '';
+        }
+    }
 
     roleSelect.addEventListener('change', function () {
         var selectedRole = this.value;
         var defaults = roleDefaults[selectedRole];
+        syncFacilityField();
         if (!defaults) return;
 
         for (var moduleName in defaults) {
@@ -81,4 +96,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     });
+
+    syncFacilityField();
 });

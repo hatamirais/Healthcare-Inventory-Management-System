@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.items.models import Facility
 from apps.users.access import (
     ROLE_DEFAULT_SCOPES,
     ensure_default_module_access,
@@ -123,6 +124,48 @@ class UserManagementViewsTest(TestCase):
         self.assertEqual(created.role, User.Role.AUDITOR)
         self.assertEqual(created.nip, "197912312010011002")
         self.assertTrue(created.check_password("VeryStrongPass123!"))
+
+    def test_user_create_form_explains_admin_cli_path(self):
+        response = self.client.get(reverse("users:user_create"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "createsuperuser")
+
+    def test_user_create_puskesmas_requires_facility(self):
+        payload = {
+            "username": "operator_pkm_1",
+            "full_name": "Operator Puskesmas 1",
+            "nip": "197001012010011004",
+            "email": "pkm1@example.com",
+            "role": User.Role.PUSKESMAS,
+            "is_active": "on",
+            "password1": "VeryStrongPass123!",
+            "password2": "VeryStrongPass123!",
+        }
+        payload.update(self._module_scope_payload(ModuleAccess.Scope.VIEW))
+        response = self.client.post(reverse("users:user_create"), payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Fasilitas wajib dipilih untuk Operator Puskesmas.")
+        self.assertFalse(User.objects.filter(username="operator_pkm_1").exists())
+
+    def test_user_create_puskesmas_with_facility_succeeds(self):
+        facility = Facility.objects.create(code="PKM-01", name="Puskesmas 01")
+        payload = {
+            "username": "operator_pkm_2",
+            "full_name": "Operator Puskesmas 2",
+            "nip": "197001012010011005",
+            "email": "pkm2@example.com",
+            "role": User.Role.PUSKESMAS,
+            "facility": str(facility.pk),
+            "is_active": "on",
+            "password1": "VeryStrongPass123!",
+            "password2": "VeryStrongPass123!",
+        }
+        payload.update(self._module_scope_payload(ModuleAccess.Scope.VIEW))
+        response = self.client.post(reverse("users:user_create"), payload)
+        self.assertEqual(response.status_code, 302)
+        created = User.objects.get(username="operator_pkm_2")
+        self.assertEqual(created.role, User.Role.PUSKESMAS)
+        self.assertEqual(created.facility_id, facility.pk)
 
     def test_dashboard_blocks_admin_role_creation(self):
         """ADMIN role cannot be created from the Dashboard — only via CLI."""

@@ -10,6 +10,35 @@ UI_ROLE_CHOICES = [
     (value, label) for value, label in User.Role.choices if value != User.Role.ADMIN
 ]
 
+ROLE_HELP_TEXT = (
+    "Role Admin / Superuser tidak dibuat dari halaman ini. "
+    "Gunakan perintah createsuperuser di server."
+)
+
+FACILITY_HELP_TEXT = "Wajib dipilih untuk Operator Puskesmas."
+
+
+def _configure_user_form_fields(form):
+    form.fields["role"].help_text = ROLE_HELP_TEXT
+    form.fields["facility"].help_text = FACILITY_HELP_TEXT
+    form.fields["facility"].queryset = form.fields["facility"].queryset.filter(
+        is_active=True
+    )
+
+
+def _clean_role_and_facility(form):
+    cleaned_data = form.cleaned_data
+    role = cleaned_data.get("role")
+    facility = cleaned_data.get("facility")
+
+    if role == User.Role.PUSKESMAS and not facility:
+        form.add_error("facility", "Fasilitas wajib dipilih untuk Operator Puskesmas.")
+
+    if role != User.Role.PUSKESMAS:
+        cleaned_data["facility"] = None
+
+    return cleaned_data
+
 
 class UserCreateForm(forms.ModelForm):
     password1 = forms.CharField(
@@ -42,6 +71,7 @@ class UserCreateForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["role"].choices = UI_ROLE_CHOICES
+        _configure_user_form_fields(self)
         self._add_module_scope_fields()
 
     def _add_module_scope_fields(self):
@@ -85,7 +115,7 @@ class UserCreateForm(forms.ModelForm):
             validate_password(password1)
         if password1 and password2 and password1 != password2:
             self.add_error("password2", "Konfirmasi password tidak sama.")
-        return cleaned_data
+        return _clean_role_and_facility(self)
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -132,6 +162,7 @@ class UserUpdateForm(forms.ModelForm):
             self.instance and self.instance.pk and self.instance.role == User.Role.ADMIN
         ):
             self.fields["role"].choices = UI_ROLE_CHOICES
+        _configure_user_form_fields(self)
         self._add_module_scope_fields()
 
     def _add_module_scope_fields(self):
@@ -177,6 +208,10 @@ class UserUpdateForm(forms.ModelForm):
         if email and qs.exists():
             raise forms.ValidationError("Email sudah digunakan.")
         return email
+
+    def clean(self):
+        super().clean()
+        return _clean_role_and_facility(self)
 
     def save(self, commit=True):
         user = super().save(commit=commit)

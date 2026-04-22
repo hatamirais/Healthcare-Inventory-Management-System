@@ -14,6 +14,14 @@
                 <form method="post" novalidate>
                     {% csrf_token %}
 
+                    <div class="alert alert-info d-flex align-items-start gap-2" role="alert">
+                        <i class="bi bi-shield-lock"></i>
+                        <div>
+                            Akun Admin / Superuser tidak dibuat dari halaman ini.
+                            Gunakan <code>python manage.py createsuperuser</code> di server.
+                        </div>
+                    </div>
+
                     {% if form.non_field_errors %}
                     <div class="alert alert-danger">
                         {% for err in form.non_field_errors %}
@@ -50,6 +58,9 @@
                         {% else %}
                         <label for="{{ field.id_for_label }}" class="form-label fw-semibold">{{ field.label }}</label>
                         {{ field }}
+                        {% endif %}
+                        {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
                         {% endif %}
                         {% for error in field.errors %}
                         <div class="invalid-feedback d-block">{{ error }}</div>
