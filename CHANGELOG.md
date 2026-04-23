@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.16.1] - 2026-04-23
+
+### Fixed
+
+- Prevent DOM-based XSS by replacing unsafe `innerHTML` usage with explicit DOM construction and `textContent` in search and allocation UIs.
+
+### Security
+
+- Hardened redirect handling by using the `URL` API for client-side navigation and constructing server-side redirect targets via `reverse()` with encoded query parameters.
+
 ## [1.16.0] - 2026-04-22
 
 ### Added
