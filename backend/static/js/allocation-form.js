@@ -382,15 +382,30 @@ document.addEventListener('DOMContentLoaded', () => {
             item.className = 'batch-checkbox-item';
             item.dataset.stockId = String(stock.id);
             item.classList.toggle('is-selected', selectedIds.has(String(stock.id)));
-            item.innerHTML = `
-                <span class="form-check">
-                    <input type="checkbox" class="form-check-input js-batch-checkbox" value="${stock.id}" ${selectedIds.has(String(stock.id)) ? 'checked' : ''}>
-                    <span>
-                        <span class="batch-checkbox-item-title">${escapeHtml(stock.label.split('|')[0].trim())}</span>
-                        <span class="batch-checkbox-item-description">${escapeHtml(stock.label)}</span>
-                    </span>
-                </span>
-            `;
+
+            const formCheck = document.createElement('span');
+            formCheck.className = 'form-check';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'form-check-input js-batch-checkbox';
+            checkbox.value = String(stock.id);
+            checkbox.checked = selectedIds.has(String(stock.id));
+
+            const textWrap = document.createElement('span');
+            const title = document.createElement('span');
+            title.className = 'batch-checkbox-item-title';
+            title.textContent = stock.label.split('|')[0].trim();
+
+            const description = document.createElement('span');
+            description.className = 'batch-checkbox-item-description';
+            description.textContent = stock.label;
+
+            textWrap.appendChild(title);
+            textWrap.appendChild(description);
+            formCheck.appendChild(checkbox);
+            formCheck.appendChild(textWrap);
+            item.appendChild(formCheck);
             listEl.appendChild(item);
         });
 

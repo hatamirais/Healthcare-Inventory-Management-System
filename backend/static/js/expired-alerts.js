@@ -33,7 +33,10 @@ document.addEventListener('DOMContentLoaded', function () {
             var selected = createBtn.dataset.selected || '';
             if (!selected) return;
             var createUrl = createBtn.getAttribute('data-create-url') || '';
-            window.location.href = createUrl + '?stocks=' + encodeURIComponent(selected);
+            if (!createUrl || createUrl.charAt(0) !== '/') return;
+            var url = new URL(createUrl, window.location.origin);
+            url.searchParams.set('stocks', selected);
+            window.location.assign(url.pathname + url.search);
         });
     }
 

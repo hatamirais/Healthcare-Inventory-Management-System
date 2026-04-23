@@ -326,7 +326,11 @@ function initStockCardSearch() {
     };
 
     const showNoResult = (message) => {
-        searchResults.innerHTML = `<div class="p-3 text-center text-muted">${message}</div>`;
+        searchResults.textContent = '';
+        const messageEl = document.createElement('div');
+        messageEl.className = 'p-3 text-center text-muted';
+        messageEl.textContent = message;
+        searchResults.appendChild(messageEl);
         searchResults.style.display = 'block';
         resetActiveIndex();
     };
@@ -343,22 +347,41 @@ function initStockCardSearch() {
             const parts = text.split(' - ');
             const code = parts[0] || '';
             const name = parts.slice(1).join(' - ') || text;
+            const category = item.kategori || '-';
+            const stockText = `Stok: ${item.stock ?? 0} ${item.satuan || ''}`;
 
             const a = document.createElement('a');
             a.href = buildDetailUrl(item.id);
             a.className = 'search-result-item';
-            a.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="fw-bold">${name}</div>
-                        <div class="item-code">${code}</div>
-                    </div>
-                    <div class="text-end text-muted small">
-                        <div><span class="badge bg-light text-dark border">${item.kategori || '-'}</span></div>
-                        <div>Stok: ${item.stock ?? 0} ${item.satuan || ''}</div>
-                    </div>
-                </div>
-            `;
+
+            const row = document.createElement('div');
+            row.className = 'd-flex justify-content-between align-items-center';
+
+            const left = document.createElement('div');
+            const nameEl = document.createElement('div');
+            nameEl.className = 'fw-bold';
+            nameEl.textContent = name;
+            const codeEl = document.createElement('div');
+            codeEl.className = 'item-code';
+            codeEl.textContent = code;
+            left.appendChild(nameEl);
+            left.appendChild(codeEl);
+
+            const right = document.createElement('div');
+            right.className = 'text-end text-muted small';
+            const categoryRow = document.createElement('div');
+            const categoryBadge = document.createElement('span');
+            categoryBadge.className = 'badge bg-light text-dark border';
+            categoryBadge.textContent = category;
+            categoryRow.appendChild(categoryBadge);
+            const stockEl = document.createElement('div');
+            stockEl.textContent = stockText;
+            right.appendChild(categoryRow);
+            right.appendChild(stockEl);
+
+            row.appendChild(left);
+            row.appendChild(right);
+            a.appendChild(row);
             a.addEventListener('mouseenter', () => {
                 const items = getResultItems();
                 setActiveIndex(items.indexOf(a));
