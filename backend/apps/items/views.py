@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import JsonResponse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from apps.core.decorators import perm_required
@@ -22,7 +23,11 @@ from .forms import ItemForm, UnitForm, CategoryForm, ProgramForm
 
 def _redirect_next_or_default(request, fallback_url_name):
     next_url = request.POST.get("next") or request.GET.get("next")
-    if next_url:
+    if next_url and url_has_allowed_host_and_scheme(
+        url=next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
         return redirect(next_url)
     return redirect(fallback_url_name)
 
