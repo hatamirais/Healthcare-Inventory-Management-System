@@ -15,4 +15,4 @@
    - ISO 27001
    - OWASP ASVS level 2
 7. ~~Add in-app settings for the Dashboard (logo, facility names, header fields) to use when generating document headers~~
-8. Test the remaining Alokasi flow end-to-end, especially submit, approve, generated distribution creation per facility, and delivery-progress synchronization.
+8. ~~Test the remaining Alokasi flow end-to-end, especially submit, approve, generated distribution creation per facility, and delivery-progress synchronization.~~
