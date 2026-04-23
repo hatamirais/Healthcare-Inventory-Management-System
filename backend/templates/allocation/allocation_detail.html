@@ -241,9 +241,10 @@
             <div class="col-md-6 col-lg-4">
                 <div class="card dist-tracking-card status-{{ dist.status|lower }} h-100">
                     <div class="card-body">
-                        <a href="{% url 'distribution:distribution_detail' dist.pk %}"
-                           class="stretched-link"
-                           aria-label="Lihat detail distribusi {{ dist.document_number }}"></a>
+                                <a href="{% url 'distribution:distribution_detail' dist.pk %}"
+                                    class="stretched-link"
+                                    target="_blank" rel="noopener noreferrer"
+                                    aria-label="Lihat detail distribusi {{ dist.document_number }}"></a>
                             <div class="d-flex align-items-start justify-content-between mb-2">
                                 <div>
                                     <h6 class="fw-semibold mb-1">{{ dist.facility.name }}</h6>

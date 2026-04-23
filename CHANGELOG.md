@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.16.2] - 2026-04-23
+
+### Changed
+
+- Allocation distribution tracking cards now open the Distribution detail in a new browser tab to preserve the current Allocation view when operators navigate to child distributions.
+- The generic Distribution create/edit form no longer exposes `Alokasi` as a manual `distribution_type` option; `ALLOCATION` distributions are system-generated from `Allocation` approval flows only.
+
 ## [1.16.1] - 2026-04-23
 
 ### Fixed

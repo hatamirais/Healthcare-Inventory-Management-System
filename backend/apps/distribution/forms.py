@@ -65,12 +65,20 @@ class DistributionForm(forms.ModelForm):
         user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         self.fields["program"].required = False
+        # Remove LPLPO from manual selection unless this is a generated LPLPO distribution
         if not self._is_generated_lplpo_distribution():
             self.fields["distribution_type"].choices = [
                 choice
                 for choice in self.fields["distribution_type"].choices
                 if choice[0] != Distribution.DistributionType.LPLPO
             ]
+        # Also remove ALLOCATION from the manual distribution create/edit form
+        # Allocations generate distributions automatically; prevent manual selection here.
+        self.fields["distribution_type"].choices = [
+            choice
+            for choice in self.fields["distribution_type"].choices
+            if choice[0] != Distribution.DistributionType.ALLOCATION
+        ]
         if self.instance.pk:
             self.fields[
                 "assigned_staff"
