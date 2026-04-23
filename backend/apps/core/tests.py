@@ -10,6 +10,7 @@ from django.test import RequestFactory
 from django.urls import reverse
 
 from apps.core.context_processors import nav_notifications
+from apps.core.templatetags.number_format import safe_media_url
 from apps.core.versioning import DEFAULT_VERSION, SemanticVersion, read_version, write_version
 from apps.distribution.models import Distribution
 from apps.items.models import Facility, FundingSource
@@ -49,6 +50,23 @@ class SemanticVersionTests(SimpleTestCase):
             write_version(version_file, expected)
 
             self.assertEqual(str(read_version(version_file)), "1.2.3")
+
+
+class SafeMediaUrlFilterTests(SimpleTestCase):
+    def test_allows_root_relative_url(self):
+        self.assertEqual(safe_media_url("/media/settings/logo.png"), "/media/settings/logo.png")
+
+    def test_allows_https_url(self):
+        self.assertEqual(
+            safe_media_url("https://example.com/logo.png"),
+            "https://example.com/logo.png",
+        )
+
+    def test_rejects_javascript_scheme(self):
+        self.assertEqual(safe_media_url("javascript:alert(1)"), "")
+
+    def test_rejects_protocol_relative_url(self):
+        self.assertEqual(safe_media_url("//example.com/logo.png"), "")
 
 
 class DashboardViewTests(TestCase):

@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.17.0] - 2026-04-23
+
+### Security
+
+- Sanitize `system_settings.logo` rendering to prevent XSS via crafted logo URLs. The fix centralizes URL validation in a template filter `safe_media_url` and uses it across the login, base layout, settings form, and report print headers.
+
+### Fixed
+
+- Removed an unregistered template tag usage that caused template loading errors in some deployments; consolidated the filter into the existing `number_format` templatetag module.
+
 ## [1.16.2] - 2026-04-23
 
 ### Changed

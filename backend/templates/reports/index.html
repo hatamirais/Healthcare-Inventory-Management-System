@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load number_format %}
 
 {% block title %}Laporan — Healthcare IMS{% endblock %}
 {% block page_title %}Laporan Persediaan/Stok{% endblock %}
@@ -140,7 +141,13 @@
     <div class="report-print-header">
         <div class="report-print-logo" style="border: none; background: transparent;">
             {% if system_settings and system_settings.logo %}
-                <img src="{{ system_settings.logo.url }}" alt="Logo" style="max-width: 100%; max-height: 100%;">
+                {% with logo_url=system_settings.logo.url|safe_media_url %}
+                {% if logo_url %}
+                <img src="{{ logo_url }}" alt="Logo" style="max-width: 100%; max-height: 100%;">
+                {% else %}
+                <div style="border: 2px dashed #ccc; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">[LOGO<br>INSTANSI]</div>
+                {% endif %}
+                {% endwith %}
             {% else %}
                 <div style="border: 2px dashed #ccc; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">[LOGO<br>INSTANSI]</div>
             {% endif %}

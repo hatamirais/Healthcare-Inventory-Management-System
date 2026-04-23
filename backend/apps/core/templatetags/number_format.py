@@ -1,4 +1,5 @@
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlparse
 
 from django import template
 
@@ -40,3 +41,27 @@ def id_decimal(value, places=2):
 def idr(value):
     """Format currency in Indonesian Rupiah style."""
     return f"Rp {id_decimal(value, 0)}"
+
+
+@register.filter
+def safe_media_url(value):
+    """Allow only root-relative media URLs or explicit http(s) URLs."""
+    if not value:
+        return ""
+
+    try:
+        url = str(value).strip()
+    except Exception:
+        return ""
+
+    if not url:
+        return ""
+
+    parsed = urlparse(url)
+    if url.startswith("/") and not parsed.scheme and not parsed.netloc:
+        return url
+
+    if parsed.scheme in {"http", "https"}:
+        return url
+
+    return ""

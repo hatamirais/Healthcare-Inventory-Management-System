@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load number_format %}
 
 {% block title %}Masuk — Healthcare IMS{% endblock %}
 
@@ -14,7 +15,13 @@
             <div class="auth-showcase-inner">
                 <div class="auth-brand-mark">
                     {% if system_settings and system_settings.logo %}
-                    <img src="{{ system_settings.logo.url }}" alt="Logo {{ system_settings.facility_name|default:'Healthcare IMS' }}">
+                    {% with logo_url=system_settings.logo.url|safe_media_url %}
+                    {% if logo_url %}
+                    <img src="{{ logo_url }}" alt="Logo {{ system_settings.facility_name|default:'Healthcare IMS'|escape }}">
+                    {% else %}
+                    <i class="bi bi-hospital"></i>
+                    {% endif %}
+                    {% endwith %}
                     {% else %}
                     <i class="bi bi-hospital"></i>
                     {% endif %}
