@@ -230,6 +230,7 @@ detection, and improving production operational logging.
 - Updated sidebar to include "Pengaturan" module for Admin users.
 
 ## [1.6.1] - 2026-04-03
+
 ### Changed
 
 - Notification UX now uses a compact navbar dropdown that summarizes actionable activity counts per module instead of rendering the full notification panel on the dashboard.

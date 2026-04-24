@@ -1,5 +1,7 @@
 # TODO LIST
 
+## Version 1
+
 1. ~~Create new module for Instalasi Farmasi to handle borrowing and swapping items between them and Rumah Sakit~~
 2. ~~Ensure `Permintaan Khusus` flow is connected with the Instalasi Farmasi distribution flow~~
 3. ~~Laporan are~~:
@@ -16,3 +18,8 @@
    - OWASP ASVS level 2
 7. ~~Add in-app settings for the Dashboard (logo, facility names, header fields) to use when generating document headers~~
 8. ~~Test the remaining Alokasi flow end-to-end, especially submit, approve, generated distribution creation per facility, and delivery-progress synchronization.~~
+
+## Version 2
+
+1. Mobile clients, whether dedicated mobile apps or PWA
+2. Storage system to store images, documents, and so on
