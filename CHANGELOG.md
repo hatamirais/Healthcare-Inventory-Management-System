@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
+## [1.18.0] - 2026-04-24
+
+### Added
+
+- New `Permintaan Khusus` submenu under `Pengeluaran` that opens a dedicated special-request flow backed by the existing distribution models and form.
+- Special-request create/edit reuses the generic distribution form but forces `distribution_type = SPECIAL_REQUEST` and hides the `Distribution Type` field from the UI.
+- `Distribusi` list is now explicitly a history view for all pengeluaran with filters and a new `Laporan Pengeluaran` button to generate/export a report (links to the existing reports view).
+- Dashboard quick action updated to create a `Permintaan Khusus` directly.
+- Focused tests added for the special-request create flow, list filtering, and report-button visibility.
+
+### Changed
+
+- `Distribusi` under the Pengeluaran menu is now primarily a read-only history/reporting surface rather than the primary create entry point; creation for special requests is served via `Permintaan Khusus`.
+
 ## [1.17.0] - 2026-04-23
 
 ### Security

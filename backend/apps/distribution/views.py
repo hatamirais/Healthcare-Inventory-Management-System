@@ -31,6 +31,88 @@ def _redirect_distribution_detail(pk):
     return redirect("distribution:distribution_detail", pk=pk)
 
 
+def _is_special_request(distribution):
+    return (
+        distribution.distribution_type
+        == Distribution.DistributionType.SPECIAL_REQUEST
+    )
+
+
+def _render_distribution_list(
+    request,
+    *,
+    queryset,
+    page_title,
+    list_title,
+    reset_url_name,
+    empty_state_text,
+    active_pengeluaran_submenu,
+    create_url_name=None,
+    create_button_label=None,
+    show_type_filter=True,
+    report_url_name=None,
+    report_button_label=None,
+):
+    search = request.GET.get("q", "").strip()
+    if search:
+        queryset = queryset.filter(
+            Q(document_number__icontains=search)
+            | Q(facility__name__icontains=search)
+            | Q(program__icontains=search)
+        )
+
+    status = request.GET.get("status")
+    if status:
+        queryset = queryset.filter(status=status)
+
+    d_type = request.GET.get("type")
+    if show_type_filter and d_type:
+        queryset = queryset.filter(distribution_type=d_type)
+    else:
+        d_type = ""
+
+    paginator = Paginator(queryset, 25)
+    distributions = paginator.get_page(request.GET.get("page"))
+
+    return render(
+        request,
+        "distribution/distribution_list.html",
+        {
+            "distributions": distributions,
+            "search": search,
+            "selected_status": status or "",
+            "selected_type": d_type or "",
+            "status_choices": Distribution.Status.choices,
+            "type_choices": Distribution.DistributionType.choices,
+            "page_title": page_title,
+            "list_title": list_title,
+            "create_url_name": create_url_name,
+            "create_button_label": create_button_label,
+            "detail_url_name": "distribution:distribution_detail",
+            "reset_url_name": reset_url_name,
+            "show_type_filter": show_type_filter,
+            "module_icon": "bi-send",
+            "empty_state_text": empty_state_text,
+            "report_url_name": report_url_name,
+            "report_button_label": report_button_label,
+            "active_pengeluaran_submenu": active_pengeluaran_submenu,
+        },
+    )
+
+
+def _build_distribution_form_context(*, title, back_url_name, active_pengeluaran_submenu):
+    return {
+        "title": title,
+        "page_title": title,
+        "show_distribution_type": False,
+        "show_approved_quantity": True,
+        "quantity_label": "Kuantitas Diminta",
+        "item_error_colspan": 6,
+        "back_url_name": back_url_name,
+        "active_pengeluaran_submenu": active_pengeluaran_submenu,
+    }
+
+
 def sync_distribution_staff_assignments(distribution, staff_users):
     selected_users = list(staff_users)
     selected_ids = {user.id for user in selected_users}
@@ -60,57 +142,66 @@ def distribution_list(request):
         .order_by("-request_date")
     )
 
-    search = request.GET.get("q", "").strip()
-    if search:
-        queryset = queryset.filter(
-            Q(document_number__icontains=search)
-            | Q(facility__name__icontains=search)
-            | Q(program__icontains=search)
-        )
-
-    status = request.GET.get("status")
-    if status:
-        queryset = queryset.filter(status=status)
-
-    d_type = request.GET.get("type")
-    if d_type:
-        queryset = queryset.filter(distribution_type=d_type)
-
-    paginator = Paginator(queryset, 25)
-    distributions = paginator.get_page(request.GET.get("page"))
-
-    return render(
+    return _render_distribution_list(
         request,
-        "distribution/distribution_list.html",
-        {
-            "distributions": distributions,
-            "search": search,
-            "selected_status": status or "",
-            "selected_type": d_type or "",
-            "status_choices": Distribution.Status.choices,
-            "type_choices": Distribution.DistributionType.choices,
-            "page_title": "Distribusi Barang",
-            "list_title": "Daftar Distribusi",
-            "create_url_name": "distribution:distribution_create",
-            "create_button_label": "Buat Distribusi",
-            "detail_url_name": "distribution:distribution_detail",
-            "reset_url_name": "distribution:distribution_list",
-            "show_type_filter": True,
-            "module_icon": "bi-send",
-            "empty_state_text": "Belum ada data distribusi",
-        },
+        queryset=queryset,
+        page_title="Distribusi Barang",
+        list_title="Riwayat Pengeluaran",
+        reset_url_name="distribution:distribution_list",
+        empty_state_text="Belum ada riwayat pengeluaran",
+        active_pengeluaran_submenu="distribution_history",
+        show_type_filter=True,
+        report_url_name="reports:pengeluaran",
+        report_button_label="Laporan Pengeluaran",
+    )
+
+
+@login_required
+def special_request_list(request):
+    queryset = (
+        Distribution.objects.select_related("facility", "created_by")
+        .filter(distribution_type=Distribution.DistributionType.SPECIAL_REQUEST)
+        .order_by("-request_date")
+    )
+
+    return _render_distribution_list(
+        request,
+        queryset=queryset,
+        page_title="Permintaan Khusus",
+        list_title="Daftar Permintaan Khusus",
+        reset_url_name="distribution:special_request_list",
+        empty_state_text="Belum ada permintaan khusus",
+        active_pengeluaran_submenu="special_request",
+        create_url_name="distribution:special_request_create",
+        create_button_label="Buat Permintaan Khusus",
+        show_type_filter=False,
     )
 
 
 @login_required
 @perm_required("distribution.add_distribution")
 def distribution_create(request):
+    return _save_special_request(request)
+
+
+@login_required
+@perm_required("distribution.add_distribution")
+def special_request_create(request):
+    return _save_special_request(request)
+
+
+def _save_special_request(request):
     if request.method == "POST":
-        form = DistributionForm(request.POST, user=request.user)
+        form = DistributionForm(
+            request.POST,
+            user=request.user,
+            forced_distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
+        )
         formset = DistributionItemFormSet(request.POST, prefix="items")
 
         if form.is_valid() and formset.is_valid():
             dist = form.save(commit=False)
+            dist.distribution_type = Distribution.DistributionType.SPECIAL_REQUEST
             dist.created_by = request.user
             dist.status = Distribution.Status.DRAFT
             dist.save()
@@ -122,11 +213,15 @@ def distribution_create(request):
             formset.save()
 
             messages.success(
-                request, f"Distribusi {dist.document_number} berhasil dibuat."
+                request,
+                f"Permintaan khusus {dist.document_number} berhasil dibuat.",
             )
             return redirect("distribution:distribution_detail", pk=dist.pk)
     else:
-        form = DistributionForm(user=request.user)
+        form = DistributionForm(
+            user=request.user,
+            forced_distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
+        )
         formset = DistributionItemFormSet(prefix="items")
 
     return render(
@@ -135,13 +230,12 @@ def distribution_create(request):
         {
             "form": form,
             "formset": formset,
-            "title": "Buat Distribusi Baru",
             "is_edit": False,
-            "show_distribution_type": True,
-            "show_approved_quantity": True,
-            "quantity_label": "Kuantitas Diminta",
-            "item_error_colspan": 6,
-            "back_url_name": "distribution:distribution_list",
+            **_build_distribution_form_context(
+                title="Buat Permintaan Khusus",
+                back_url_name="distribution:special_request_list",
+                active_pengeluaran_submenu="special_request",
+            ),
         },
     )
 
@@ -154,22 +248,44 @@ def distribution_edit(request, pk):
         messages.error(request, "Hanya distribusi Draft/Diajukan yang dapat diubah.")
         return redirect("distribution:distribution_detail", pk=dist.pk)
 
+    is_special_request = _is_special_request(dist)
+    forced_distribution_type = (
+        Distribution.DistributionType.SPECIAL_REQUEST if is_special_request else None
+    )
+
     if request.method == "POST":
-        form = DistributionForm(request.POST, instance=dist, user=request.user)
+        form = DistributionForm(
+            request.POST,
+            instance=dist,
+            user=request.user,
+            forced_distribution_type=forced_distribution_type,
+        )
         formset = DistributionItemFormSet(request.POST, instance=dist, prefix="items")
 
         if form.is_valid() and formset.is_valid():
-            form.save()
+            dist = form.save(commit=False)
+            if forced_distribution_type:
+                dist.distribution_type = forced_distribution_type
+            dist.save()
             sync_distribution_staff_assignments(
                 dist, form.cleaned_data.get("assigned_staff", [])
             )
             formset.save()
             messages.success(
-                request, f"Distribusi {dist.document_number} berhasil diperbarui."
+                request,
+                (
+                    f"Permintaan khusus {dist.document_number} berhasil diperbarui."
+                    if is_special_request
+                    else f"Distribusi {dist.document_number} berhasil diperbarui."
+                ),
             )
             return redirect("distribution:distribution_detail", pk=dist.pk)
     else:
-        form = DistributionForm(instance=dist, user=request.user)
+        form = DistributionForm(
+            instance=dist,
+            user=request.user,
+            forced_distribution_type=forced_distribution_type,
+        )
         formset = DistributionItemFormSet(instance=dist, prefix="items")
 
     return render(
@@ -178,14 +294,25 @@ def distribution_edit(request, pk):
         {
             "form": form,
             "formset": formset,
-            "title": f"Edit Distribusi {dist.document_number}",
             "is_edit": True,
             "distribution": dist,
-            "show_distribution_type": True,
-            "show_approved_quantity": True,
-            "quantity_label": "Kuantitas Diminta",
-            "item_error_colspan": 6,
-            "back_url_name": "distribution:distribution_list",
+            **_build_distribution_form_context(
+                title=(
+                    f"Edit Permintaan Khusus {dist.document_number}"
+                    if is_special_request
+                    else f"Edit Distribusi {dist.document_number}"
+                ),
+                back_url_name=(
+                    "distribution:special_request_list"
+                    if is_special_request
+                    else "distribution:distribution_list"
+                ),
+                active_pengeluaran_submenu=(
+                    "special_request"
+                    if is_special_request
+                    else "distribution_history"
+                ),
+            ),
         },
     )
 
@@ -250,9 +377,26 @@ def distribution_detail(request, pk):
             "grand_total": grand_total,
             "assigned_staff": assigned_staff,
             "kepala_instalasi": kepala_instalasi,
-            "page_title": "Detail Distribusi",
-            "module_label": "Distribusi",
-            "module_back_url_name": "distribution:distribution_list",
+            "page_title": (
+                "Detail Permintaan Khusus"
+                if _is_special_request(dist)
+                else "Detail Distribusi"
+            ),
+            "module_label": (
+                "Permintaan Khusus"
+                if _is_special_request(dist)
+                else "Distribusi"
+            ),
+            "module_back_url_name": (
+                "distribution:special_request_list"
+                if _is_special_request(dist)
+                else "distribution:distribution_list"
+            ),
+            "active_pengeluaran_submenu": (
+                "special_request"
+                if _is_special_request(dist)
+                else "distribution_history"
+            ),
         },
     )
 
@@ -452,6 +596,11 @@ def distribution_delete(request, pk):
         return _redirect_distribution_detail(pk)
 
     document_number = dist.document_number
+    redirect_url_name = (
+        "distribution:special_request_list"
+        if _is_special_request(dist)
+        else "distribution:distribution_list"
+    )
     dist.delete()
     messages.success(request, f"Distribusi {document_number} berhasil dihapus.")
-    return redirect("distribution:distribution_list")
+    return redirect(redirect_url_name)

@@ -63,6 +63,7 @@ class DistributionForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user", None)
+        self.forced_distribution_type = kwargs.pop("forced_distribution_type", None)
         super().__init__(*args, **kwargs)
         self.fields["program"].required = False
         # Remove LPLPO from manual selection unless this is a generated LPLPO distribution
@@ -79,6 +80,9 @@ class DistributionForm(forms.ModelForm):
             for choice in self.fields["distribution_type"].choices
             if choice[0] != Distribution.DistributionType.ALLOCATION
         ]
+        if self.forced_distribution_type:
+            self.fields["distribution_type"].required = False
+            self.fields["distribution_type"].initial = self.forced_distribution_type
         if self.instance.pk:
             self.fields[
                 "assigned_staff"
@@ -100,6 +104,8 @@ class DistributionForm(forms.ModelForm):
         return True
 
     def clean_distribution_type(self):
+        if self.forced_distribution_type:
+            return self.forced_distribution_type
         distribution_type = self.cleaned_data.get("distribution_type")
         return distribution_type
 

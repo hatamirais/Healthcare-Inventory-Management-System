@@ -59,10 +59,15 @@ class DistributionWorkflowTest(TestCase):
     def setUp(self):
         self.client.force_login(self.user)
 
-    def _create_distribution(self, status=Distribution.Status.DRAFT, with_items=True):
+    def _create_distribution(
+        self,
+        status=Distribution.Status.DRAFT,
+        with_items=True,
+        distribution_type=Distribution.DistributionType.LPLPO,
+    ):
         """Helper to create a distribution with optional items."""
         dist = Distribution.objects.create(
-            distribution_type=Distribution.DistributionType.LPLPO,
+            distribution_type=distribution_type,
             request_date="2026-03-10",
             facility=self.facility,
             status=status,
@@ -235,6 +240,26 @@ class DistributionWorkflowTest(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn("distribution_type", form.errors)
+
+    def test_distribution_form_forces_special_request_type(self):
+        form = DistributionForm(
+            data={
+                "document_number": "",
+                "request_date": "2026-03-10",
+                "facility": self.facility.pk,
+                "program": "",
+                "notes": "",
+                "assigned_staff": [self.user.pk],
+            },
+            user=self.user,
+            forced_distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
+        )
+
+        self.assertTrue(form.is_valid())
+        self.assertEqual(
+            form.cleaned_data["distribution_type"],
+            Distribution.DistributionType.SPECIAL_REQUEST,
+        )
 
     # --- Verify workflow ---
 
@@ -529,10 +554,9 @@ class DistributionWorkflowTest(TestCase):
             full_name="Petugas Bantu",
         )
         response = self.client.post(
-            reverse("distribution:distribution_create"),
+            reverse("distribution:special_request_create"),
             {
                 "document_number": "",
-                "distribution_type": Distribution.DistributionType.ALLOCATION,
                 "request_date": "2026-03-10",
                 "facility": self.facility.pk,
                 "notes": "",
@@ -551,6 +575,10 @@ class DistributionWorkflowTest(TestCase):
         self.assertEqual(response.status_code, 302)
 
         dist = Distribution.objects.latest("id")
+        self.assertEqual(
+            dist.distribution_type,
+            Distribution.DistributionType.SPECIAL_REQUEST,
+        )
         assigned_usernames = list(
             dist.staff_assignments.order_by("user__username").values_list(
                 "user__username", flat=True
@@ -560,10 +588,9 @@ class DistributionWorkflowTest(TestCase):
 
     def test_create_distribution_saves_program(self):
         response = self.client.post(
-            reverse("distribution:distribution_create"),
+            reverse("distribution:special_request_create"),
             {
                 "document_number": "",
-                "distribution_type": Distribution.DistributionType.ALLOCATION,
                 "request_date": "2026-03-11",
                 "facility": self.facility.pk,
                 "program": "Imunisasi",
@@ -585,8 +612,18 @@ class DistributionWorkflowTest(TestCase):
         dist = Distribution.objects.latest("id")
         self.assertEqual(dist.program, "Imunisasi")
 
+    def test_special_request_create_hides_distribution_type_field(self):
+        response = self.client.get(reverse("distribution:special_request_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Distribution Type")
+        self.assertNotContains(response, "Tipe Distribusi")
+
     def test_edit_distribution_updates_assigned_staff(self):
-        dist = self._create_distribution(status=Distribution.Status.DRAFT)
+        dist = self._create_distribution(
+            status=Distribution.Status.DRAFT,
+            distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
+        )
         dist.staff_assignments.create(user=self.user)
         staff = User.objects.create_user(
             username="petugas_ganti",
@@ -599,7 +636,6 @@ class DistributionWorkflowTest(TestCase):
             reverse("distribution:distribution_edit", args=[dist.pk]),
             {
                 "document_number": dist.document_number,
-                "distribution_type": Distribution.DistributionType.ALLOCATION,
                 "request_date": "2026-03-10",
                 "facility": self.facility.pk,
                 "notes": "Direvisi",
@@ -625,6 +661,28 @@ class DistributionWorkflowTest(TestCase):
             )
         )
         self.assertEqual(assigned_usernames, ["petugas_ganti"])
+
+    def test_distribution_history_shows_report_button(self):
+        response = self.client.get(reverse("distribution:distribution_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("reports:pengeluaran"))
+        self.assertNotContains(response, "Buat Distribusi")
+
+    def test_special_request_list_filters_special_request_records(self):
+        special_request = self._create_distribution(
+            distribution_type=Distribution.DistributionType.SPECIAL_REQUEST
+        )
+        history_only = self._create_distribution(
+            distribution_type=Distribution.DistributionType.LPLPO,
+            with_items=False,
+        )
+
+        response = self.client.get(reverse("distribution:special_request_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, special_request.document_number)
+        self.assertNotContains(response, history_only.document_number)
 
     def test_detail_shows_assigned_staff(self):
         dist = self._create_distribution(status=Distribution.Status.DRAFT)

@@ -5,7 +5,17 @@ app_name = "distribution"
 
 urlpatterns = [
     path("", views.distribution_list, name="distribution_list"),
+    path(
+        "special-requests/",
+        views.special_request_list,
+        name="special_request_list",
+    ),
     path("create/", views.distribution_create, name="distribution_create"),
+    path(
+        "special-requests/create/",
+        views.special_request_create,
+        name="special_request_create",
+    ),
     path("<int:pk>/", views.distribution_detail, name="distribution_detail"),
     path("<int:pk>/edit/", views.distribution_edit, name="distribution_edit"),
     path("<int:pk>/delete/", views.distribution_delete, name="distribution_delete"),

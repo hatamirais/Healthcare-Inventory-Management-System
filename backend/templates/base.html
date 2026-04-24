@@ -97,23 +97,29 @@
                 </div>
                 {% endif %}
                 {% if can_view_distribution or can_view_allocation or can_view_recall or can_view_expired or can_view_lplpo %}
-                <button class="sidebar-link sidebar-dropdown-toggle {% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'allocation' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}active{% endif %}"
+                <button class="sidebar-link sidebar-dropdown-toggle {% if active_pengeluaran_submenu or request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'allocation' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}active{% endif %}"
                     data-label="Pengeluaran"
                     title="Pengeluaran"
                     data-bs-toggle="collapse"
                     data-bs-target="#sidebar-pengeluaran"
-                    aria-expanded="{% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'allocation' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}true{% else %}false{% endif %}"
+                    aria-expanded="{% if active_pengeluaran_submenu or request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'allocation' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}true{% else %}false{% endif %}"
                     type="button">
                     <i class="bi bi-box-arrow-up-right"></i><span>Pengeluaran</span>
                     <i class="bi bi-chevron-down chevron"></i>
                 </button>
-                <div class="collapse sidebar-submenu {% if request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'allocation' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}show{% endif %}" id="sidebar-pengeluaran">
+                <div class="collapse sidebar-submenu {% if active_pengeluaran_submenu or request.resolver_match.app_name == 'distribution' or request.resolver_match.app_name == 'allocation' or request.resolver_match.app_name == 'recall' or request.resolver_match.app_name == 'expired' or request.resolver_match.app_name == 'lplpo' and request.user.role != 'PUSKESMAS' %}show{% endif %}" id="sidebar-pengeluaran">
                     {% if can_view_distribution %}
                     <a href="{% url 'distribution:distribution_list' %}"
-                        class="sidebar-link {% if request.resolver_match.app_name == 'distribution' %}active{% endif %}"
+                        class="sidebar-link {% if active_pengeluaran_submenu == 'distribution_history' or request.resolver_match.app_name == 'distribution' and not active_pengeluaran_submenu %}active{% endif %}"
                         data-label="Distribusi"
                         title="Distribusi">
                         <i class="bi bi-send"></i><span>Distribusi</span>
+                    </a>
+                    <a href="{% url 'distribution:special_request_list' %}"
+                        class="sidebar-link {% if active_pengeluaran_submenu == 'special_request' %}active{% endif %}"
+                        data-label="Permintaan Khusus"
+                        title="Permintaan Khusus">
+                        <i class="bi bi-send-plus"></i><span>Permintaan Khusus</span>
                     </a>
                     {% endif %}
                     {% if can_view_allocation %}
