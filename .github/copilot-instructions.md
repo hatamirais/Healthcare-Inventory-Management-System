@@ -167,3 +167,4 @@ All models are registered in their respective `admin.py`. CSV import/export is p
 - Session: 1-hour sliding expiry, HTTP-only cookies, `SameSite=Lax`, expires on browser close.
 - Password policy: minimum 10 characters with Django validators.
 - OWASP audit report available in `security-audit/`.
+- Always use Context7 when generating code for this project to ensure consistency with existing code style and conventions.
