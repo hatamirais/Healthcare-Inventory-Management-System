@@ -166,7 +166,8 @@ Saat file `VERSION` berubah di branch `main`, GitHub Actions menjalankan `.githu
 
 Dokumen terkait:
 
-- `docs/ALLOCATION_IMPLEMENTATION.md`
+- `docs/FEATURE_ALOKASI.md`: spesifikasi fitur Alokasi
+- `docs/ALLOCATION_IMPLEMENTATION.md`: draft rancangan awal modul Alokasi (referensi historis)
 - `backend/seed/README.md`
 - `README.md`
 - `SYSTEM_MODEL.md`

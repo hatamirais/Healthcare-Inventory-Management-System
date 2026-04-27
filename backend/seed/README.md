@@ -2,7 +2,7 @@
 
 CSV templates used for bootstrap imports via Django Admin.
 
-Last verified: 2026-04-10
+Last verified: 2026-04-27
 Verification sources: `backend/seed/*.csv`, `backend/apps/items/admin.py`, `backend/apps/stock/admin.py`, `backend/apps/receiving/admin.py`
 
 ## Import Order
@@ -117,6 +117,7 @@ Columns:
 - `satuan` (required, maps to `Unit.code`)
 - `kategori` (required, maps to `Category.code`)
 - `is_program_item` (optional, default `0`)
+- `is_essential` (optional, default `0`)
 - `program` (optional, maps to `Program.code`)
 - `minimum_stock` (optional, default `0`)
 - `description` (optional)
