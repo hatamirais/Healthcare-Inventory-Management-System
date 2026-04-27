@@ -7,6 +7,21 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 ## [Unreleased]
 
+## [1.19.1] - 2026-04-27
+
+### Added
+
+- `Pengaturan Sistem` now includes a live numbering-rule preview card so administrators can see sample LPLPO and Permintaan Khusus document numbers while editing templates.
+
+### Changed
+
+- The settings sidebar is reordered to show `Informasi`, `Logo Saat Ini`, and `Preview Rule` in a clearer sequence.
+
+### Fixed
+
+- Anonymous access to `/settings/` now redirects to the login page instead of raising an `AttributeError`.
+- Numbering preview examples on the settings page now update live as template values change.
+
 ## [1.19.0] - 2026-04-27
 
 ### Added

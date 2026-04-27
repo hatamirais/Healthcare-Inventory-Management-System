@@ -189,6 +189,41 @@ class DashboardViewTests(TestCase):
         self.assertEqual(list(response.context["recent_lplpos"]), [])
         self.assertEqual(list(response.context["recent_requests"]), [])
 
+
+class SystemSettingsAccessTests(TestCase):
+    def test_anonymous_user_is_redirected_to_login(self):
+        response = self.client.get(reverse("settings"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login/", response.url)
+
+    def test_non_admin_user_is_denied_access(self):
+        user = User.objects.create_user(
+            username="settings-operator",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("settings"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_user_sees_numbering_preview_card(self):
+        user = User.objects.create_superuser(
+            username="settings-admin",
+            email="settings-admin@example.com",
+            password="TestPassword123!",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("settings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Preview Rule")
+        self.assertContains(response, "440/12/SBBK.RF/2026")
+        self.assertContains(response, "440/12/KD.F/2026")
+
 class NavNotificationsContextProcessorTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()

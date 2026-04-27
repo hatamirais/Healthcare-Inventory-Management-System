@@ -14,7 +14,7 @@ from apps.stock.models import Stock, Transaction
 from apps.users.models import User
 from django.urls import reverse_lazy
 from django.views.generic.edit import UpdateView
-from django.contrib.auth.mixins import UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from apps.core.models import SystemSettings
 from apps.core.forms import SystemSettingsForm
@@ -167,17 +167,55 @@ def dashboard(request):
     )
 
 
-class SystemSettingsUpdateView(UserPassesTestMixin, UpdateView):
+class SystemSettingsUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = SystemSettings
     form_class = SystemSettingsForm
     template_name = "core/settings_form.html"
     success_url = reverse_lazy('dashboard')
+    login_url = reverse_lazy('login')
 
     def test_func(self):
         return self.request.user.role == User.Role.ADMIN
 
     def get_object(self, queryset=None):
         return SystemSettings.get_settings()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        form = context.get("form")
+        sample_year = str(timezone.now().year)
+        sample_sequence = "12"
+        lplpo_template = form["lplpo_distribution_number_template"].value()
+        special_request_template = form[
+            "special_request_distribution_number_template"
+        ].value()
+        context["numbering_preview_cards"] = [
+            {
+                "title": "Preview LPLPO",
+                "template": lplpo_template,
+                "example": self._render_numbering_preview(
+                    lplpo_template,
+                    sample_sequence,
+                    sample_year,
+                ),
+            },
+            {
+                "title": "Preview Permintaan Khusus",
+                "template": special_request_template,
+                "example": self._render_numbering_preview(
+                    special_request_template,
+                    sample_sequence,
+                    sample_year,
+                ),
+            },
+        ]
+        context["numbering_preview_sample_year"] = sample_year
+        context["numbering_preview_sample_sequence"] = sample_sequence
+        return context
+
+    @staticmethod
+    def _render_numbering_preview(template, sequence, year):
+        return (template or "").replace("{seq}", sequence).replace("{year}", year)
 
     def form_valid(self, form):
         messages.success(self.request, "Pengaturan sistem berhasil diperbarui.")
