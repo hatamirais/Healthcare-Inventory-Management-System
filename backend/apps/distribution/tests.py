@@ -1,4 +1,5 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
@@ -87,8 +88,66 @@ class DistributionWorkflowTest(TestCase):
 
     def test_auto_generated_document_number(self):
         dist = self._create_distribution()
-        self.assertTrue(dist.document_number.startswith("DIST-"))
-        self.assertEqual(len(dist.document_number), 17)  # DIST-YYYYMM-XXXXX
+        self.assertRegex(dist.document_number, r"^440/\d+/SBBK\.RF/\d{4}$")
+
+    def test_special_request_document_number_uses_independent_rule(self):
+        dist = self._create_distribution(
+            distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
+        )
+        self.assertRegex(dist.document_number, r"^440/\d+/KD\.F/\d{4}$")
+
+    def test_document_number_counter_is_independent_per_rule(self):
+        lplpo_dist = self._create_distribution(
+            distribution_type=Distribution.DistributionType.LPLPO,
+        )
+        special_dist = self._create_distribution(
+            distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
+        )
+        self.assertEqual(lplpo_dist.document_number, "440/1/SBBK.RF/2026")
+        self.assertEqual(special_dist.document_number, "440/1/KD.F/2026")
+
+    def test_document_number_counter_resets_each_year(self):
+        with patch("apps.distribution.numbering.timezone.now") as mocked_now:
+            mocked_now.return_value = timezone.datetime(2026, 5, 1, tzinfo=timezone.get_current_timezone())
+            first = self._create_distribution(
+                distribution_type=Distribution.DistributionType.LPLPO,
+            )
+
+        with patch("apps.distribution.numbering.timezone.now") as mocked_now:
+            mocked_now.return_value = timezone.datetime(2027, 1, 10, tzinfo=timezone.get_current_timezone())
+            second = Distribution.objects.create(
+                distribution_type=Distribution.DistributionType.LPLPO,
+                request_date="2027-01-10",
+                facility=self.facility,
+                status=Distribution.Status.DRAFT,
+                created_by=self.user,
+            )
+
+        self.assertEqual(first.document_number, "440/1/SBBK.RF/2026")
+        self.assertEqual(second.document_number, "440/1/SBBK.RF/2027")
+
+    def test_legacy_document_numbers_do_not_break_new_rule_counter(self):
+        Distribution.objects.create(
+            distribution_type=Distribution.DistributionType.LPLPO,
+            document_number="DIST-202604-00001",
+            request_date="2026-04-10",
+            facility=self.facility,
+            status=Distribution.Status.DRAFT,
+            created_by=self.user,
+        )
+
+        dist = self._create_distribution(
+            distribution_type=Distribution.DistributionType.LPLPO,
+        )
+
+        self.assertEqual(dist.document_number, "440/1/SBBK.RF/2026")
+
+    def test_non_rule_distribution_type_keeps_dist_prefix_format(self):
+        dist = self._create_distribution(
+            distribution_type=Distribution.DistributionType.ALLOCATION,
+        )
+
+        self.assertRegex(dist.document_number, r"^DIST-\d{6}-\d{5}$")
 
     # --- Submit workflow ---
 

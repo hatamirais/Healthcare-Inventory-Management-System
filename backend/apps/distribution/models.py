@@ -3,6 +3,8 @@ from django.conf import settings
 from django.utils import timezone
 from apps.core.models import TimeStampedModel
 
+from .numbering import generate_distribution_document_number
+
 
 class Distribution(TimeStampedModel):
     """Outbound stock requests and allocations."""
@@ -95,18 +97,10 @@ class Distribution(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         if not self.document_number:
-            prefix = f"DIST-{timezone.now().strftime('%Y%m')}-"
-            last = (
-                Distribution.objects.filter(document_number__startswith=prefix)
-                .order_by("-document_number")
-                .first()
+            self.document_number = generate_distribution_document_number(
+                Distribution,
+                self.distribution_type,
             )
-            if last:
-                last_number = int(last.document_number.split("-")[-1])
-                new_number = last_number + 1
-            else:
-                new_number = 1
-            self.document_number = f"{prefix}{str(new_number).zfill(5)}"
         super().save(*args, **kwargs)
 
 

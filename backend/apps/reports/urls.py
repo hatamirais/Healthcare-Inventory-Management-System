@@ -5,6 +5,7 @@ app_name = 'reports'
 
 urlpatterns = [
     path('', views.reports_index, name='index'),
+    path('riwayat-penomoran/', views.reports_numbering_history, name='numbering_history'),
     path('rekap/', views.reports_rekap, name='rekap'),
     path('penerimaan-hibah/', views.reports_penerimaan_hibah, name='penerimaan_hibah'),
     path('pengadaan/', views.reports_pengadaan, name='pengadaan'),

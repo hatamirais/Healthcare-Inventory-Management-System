@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Riwayat Penomoran — Healthcare IMS{% endblock %}
+{% block page_title %}Riwayat Penomoran Dokumen{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-body bg-light">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        {{ form.distribution_type.label_tag }}
+                        {{ form.distribution_type }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.year.label_tag }}
+                        {{ form.year }}
+                    </div>
+                    <div class="col-md-auto d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-filter"></i> Terapkan Filter
+                        </button>
+                        <a href="{% url 'reports:numbering_history' %}" class="btn btn-outline-secondary">Reset</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="card-title mb-1">Riwayat Penomoran LPLPO dan Permintaan Khusus</h5>
+                    <p class="text-muted mb-0 small">Menampilkan dokumen distribusi yang menggunakan aturan nomor institusional per jenis dokumen.</p>
+                </div>
+                <span class="badge text-bg-light">{{ history_rows|length }} dokumen</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 56px;" class="text-center">No</th>
+                                <th>No. Dokumen</th>
+                                <th>Jenis</th>
+                                <th>Status</th>
+                                <th>Fasilitas</th>
+                                <th>Referensi</th>
+                                <th>Tanggal Dibuat</th>
+                                <th style="width: 160px;" class="text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if history_rows %}
+                                {% for row in history_rows %}
+                                <tr>
+                                    <td class="text-center">{{ forloop.counter }}</td>
+                                    <td>
+                                        <div class="fw-semibold">{{ row.document_number }}</div>
+                                        <div class="small text-muted">{{ row.item_count }} item</div>
+                                    </td>
+                                    <td>{{ row.distribution_type }}</td>
+                                    <td><span class="badge rounded-pill {{ row.status_badge_class }}">{{ row.status }}</span></td>
+                                    <td>{{ row.facility_name }}</td>
+                                    <td>
+                                        <div class="small text-muted">{{ row.source_label }}</div>
+                                        <div>{{ row.source_document_number }}</div>
+                                    </td>
+                                    <td>
+                                        <div>{{ row.created_at|date:"d/m/Y H:i" }}</div>
+                                        <div class="small text-muted">{{ row.created_by }}</div>
+                                    </td>
+                                    <td class="text-center">
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-primary btn-sm"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#documentSummaryModal"
+                                            data-document-number="{{ row.document_number }}"
+                                            data-distribution-type="{{ row.distribution_type }}"
+                                            data-status="{{ row.status }}"
+                                            data-facility-name="{{ row.facility_name }}"
+                                            data-request-date="{{ row.request_date|date:'d/m/Y' }}"
+                                            data-created-at="{{ row.created_at|date:'d/m/Y H:i' }}"
+                                            data-created-by="{{ row.created_by }}"
+                                            data-item-count="{{ row.item_count }}"
+                                            data-source-label="{{ row.source_label }}"
+                                            data-source-document-number="{{ row.source_document_number }}"
+                                            data-notes="{{ row.notes }}"
+                                            data-workflow-url="{{ row.workflow_url }}"
+                                        >
+                                            <i class="bi bi-eye"></i> Lihat Dokumen
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-5">
+                                        <i class="bi bi-inbox d-block mb-2" style="font-size: 2rem;"></i>
+                                        Tidak ada riwayat penomoran untuk filter yang dipilih.
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="documentSummaryModal" tabindex="-1" aria-labelledby="documentSummaryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="documentSummaryModalLabel">Ringkasan Dokumen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-0">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">No. Dokumen</div>
+                            <div class="fw-semibold" data-field="document-number">-</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">Jenis</div>
+                            <div class="fw-semibold" data-field="distribution-type">-</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">Status</div>
+                            <div class="fw-semibold" data-field="status">-</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">Fasilitas</div>
+                            <div class="fw-semibold" data-field="facility-name">-</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">Jumlah Item</div>
+                            <div class="fw-semibold" data-field="item-count">-</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">Referensi Workflow</div>
+                            <div class="fw-semibold" data-field="source-reference">-</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">Tanggal Permintaan</div>
+                            <div class="fw-semibold" data-field="request-date">-</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">Dibuat</div>
+                            <div class="fw-semibold" data-field="created-at">-</div>
+                            <div class="small text-muted" data-field="created-by">-</div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="border rounded p-3">
+                            <div class="text-muted small">Catatan</div>
+                            <div class="fw-semibold" data-field="notes">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Tutup</button>
+                <a href="#" target="_blank" rel="noopener" class="btn btn-primary" data-role="workflow-link">
+                    <i class="bi bi-box-arrow-up-right"></i> Buka Workflow di Tab Baru
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modal = document.getElementById("documentSummaryModal");
+    if (!modal) {
+        return;
+    }
+
+    modal.addEventListener("show.bs.modal", function (event) {
+        const button = event.relatedTarget;
+        if (!button) {
+            return;
+        }
+
+        const setText = function (field, value) {
+            const target = modal.querySelector('[data-field="' + field + '"]');
+            if (target) {
+                target.textContent = value || "-";
+            }
+        };
+
+        const sourceLabel = button.getAttribute("data-source-label") || "-";
+        const sourceNumber = button.getAttribute("data-source-document-number") || "-";
+
+        setText("document-number", button.getAttribute("data-document-number"));
+        setText("distribution-type", button.getAttribute("data-distribution-type"));
+        setText("status", button.getAttribute("data-status"));
+        setText("facility-name", button.getAttribute("data-facility-name"));
+        setText("item-count", button.getAttribute("data-item-count"));
+        setText("source-reference", sourceLabel + ": " + sourceNumber);
+        setText("request-date", button.getAttribute("data-request-date"));
+        setText("created-at", button.getAttribute("data-created-at"));
+        setText("created-by", button.getAttribute("data-created-by"));
+        setText("notes", button.getAttribute("data-notes"));
+
+        const workflowLink = modal.querySelector('[data-role="workflow-link"]');
+        const workflowUrl = button.getAttribute("data-workflow-url") || "#";
+        workflowLink.href = workflowUrl;
+        workflowLink.classList.toggle("disabled", workflowUrl === "#");
+    });
+});
+</script>
+{% endblock %}

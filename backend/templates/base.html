@@ -233,6 +233,12 @@
                         title="Persediaan (Rincian)">
                         <i class="bi bi-card-list"></i><span>Persediaan (Rincian)</span>
                     </a>
+                    <a href="{% url 'reports:numbering_history' %}"
+                        class="sidebar-link {% if request.resolver_match.url_name == 'numbering_history' %}active{% endif %}"
+                        data-label="Riwayat Penomoran"
+                        title="Riwayat Penomoran">
+                        <i class="bi bi-123"></i><span>Riwayat Penomoran</span>
+                    </a>
                     <a href="{% url 'reports:rekap' %}"
                         class="sidebar-link {% if request.resolver_match.url_name == 'rekap' %}active{% endif %}"
                         data-label="Persediaan (Rekap)"

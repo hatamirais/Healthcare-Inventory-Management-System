@@ -66,7 +66,7 @@ If documentation conflicts with code, code is authoritative until docs are corre
 - `stock_opname`: physical counting workflow
 - `puskesmas`: ad-hoc requests from Puskesmas
 - `lplpo`: monthly reporting and stock requests from Puskesmas
-- `reports`: report index with rekap, hibah receiving, procurement, expiry, and outbound reporting views
+- `reports`: report index with rekap, hibah receiving, procurement, expiry, outbound reporting views, and document numbering history for LPLPO/Special Request distributions
 
 ## Permissions Model
 

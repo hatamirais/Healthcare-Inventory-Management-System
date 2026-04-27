@@ -42,7 +42,7 @@ Module highlights:
 - Receiving quick-create APIs: `/receiving/api/quick-create-supplier/`, `/receiving/api/quick-create-funding-source/`, `/receiving/api/quick-create-receiving-type/`
 - Borrow RS distribution: `/distribution/borrow-rs/*`
 - Expiry alerts: `/expired/alerts/`
-- Reports: `/reports/`, `/reports/rekap/`, `/reports/penerimaan-hibah/`, `/reports/pengadaan/`, `/reports/kadaluarsa/`, `/reports/pengeluaran/`
+- Reports: `/reports/`, `/reports/riwayat-penomoran/`, `/reports/rekap/`, `/reports/penerimaan-hibah/`, `/reports/pengadaan/`, `/reports/kadaluarsa/`, `/reports/pengeluaran/`
 - LPLPO lists: `/lplpo/` (All), `/lplpo/my/` (Puskesmas scoped)
 - Puskesmas requests: `/puskesmas/permintaan/`
 - Allocation: `/allocation/`, `/allocation/create/`, `/allocation/<pk>/`, `/allocation/<pk>/edit/`, `/allocation/<pk>/submit/`, `/allocation/<pk>/approve/`, `/allocation/<pk>/reject/`, `/allocation/<pk>/distributions/<dist_pk>/prepare/`, `/allocation/<pk>/distributions/<dist_pk>/deliver/`
@@ -270,7 +270,7 @@ This section reflects model code in `backend/apps/*/models.py`.
 
 ### 4.11 Reports
 
-- `reports`: Contains views, templates, and services for inventory, expiry, and receiving reporting with Excel export capabilities. No bespoke database models, aggregates data from other apps.
+- `reports`: Contains views, templates, and services for inventory, expiry, receiving, outbound, and document-numbering-history reporting with Excel export capabilities. No bespoke database models, aggregates data from other apps.
 
 ### 4.12 Puskesmas
 

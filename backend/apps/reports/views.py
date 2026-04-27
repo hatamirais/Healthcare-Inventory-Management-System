@@ -2,12 +2,14 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from apps.core.decorators import perm_required
 from django.db import models
-from django.db.models import Sum, Q, F, Case, When, OuterRef, Subquery
+from django.db.models import Sum, Q, F, Case, When, OuterRef, Subquery, Count
 from django.db.models.functions import Coalesce
+from django.urls import reverse
 
-from .forms import InventoryReportFilterForm
+from .forms import InventoryReportFilterForm, NumberingHistoryFilterForm
 from .exports import export_rincian_excel, export_rekap_excel
 from apps.stock.models import Transaction, Stock
+from apps.distribution.models import Distribution
 
 @login_required
 @perm_required('reports.view_reports')
@@ -124,6 +126,93 @@ def reports_index(request):
         'report_data': report_data
     }
     return render(request, 'reports/index.html', context)
+
+
+def _numbering_status_badge(status):
+    return {
+        Distribution.Status.DRAFT: 'bg-secondary-subtle text-secondary-emphasis',
+        Distribution.Status.SUBMITTED: 'bg-warning-subtle text-warning-emphasis',
+        Distribution.Status.VERIFIED: 'bg-info-subtle text-info-emphasis',
+        Distribution.Status.GENERATED: 'bg-primary-subtle text-primary-emphasis',
+        Distribution.Status.PREPARED: 'bg-primary-subtle text-primary-emphasis',
+        Distribution.Status.DISTRIBUTED: 'bg-success-subtle text-success-emphasis',
+        Distribution.Status.REJECTED: 'bg-danger-subtle text-danger-emphasis',
+    }.get(status, 'bg-light text-dark')
+
+
+@login_required
+@perm_required('reports.view_reports')
+def reports_numbering_history(request):
+    form = NumberingHistoryFilterForm(
+        request.GET or NumberingHistoryFilterForm.get_default_initial()
+    )
+    history_rows = []
+
+    if form.is_valid():
+        distribution_type = form.cleaned_data.get('distribution_type')
+        year = form.cleaned_data.get('year')
+
+        qs = (
+            Distribution.objects.filter(
+                distribution_type__in=[
+                    Distribution.DistributionType.LPLPO,
+                    Distribution.DistributionType.SPECIAL_REQUEST,
+                ]
+            )
+            .select_related('facility', 'created_by')
+            .annotate(item_count=Count('items'))
+            .order_by('-created_at', '-id')
+        )
+
+        if distribution_type:
+            qs = qs.filter(distribution_type=distribution_type)
+        if year:
+            qs = qs.filter(created_at__year=year)
+
+        for dist in qs:
+            source_document_number = '-'
+            source_label = '-'
+            if dist.distribution_type == Distribution.DistributionType.LPLPO:
+                source = getattr(dist, 'lplpo_source', None)
+                if source is not None:
+                    source_document_number = source.document_number
+                    source_label = 'LPLPO'
+            elif dist.distribution_type == Distribution.DistributionType.SPECIAL_REQUEST:
+                source = getattr(dist, 'puskesmas_request', None)
+                if source is not None:
+                    source_document_number = source.document_number
+                    source_label = 'Permintaan Khusus'
+
+            creator_name = (
+                dist.created_by.full_name
+                if getattr(dist.created_by, 'full_name', '')
+                else dist.created_by.username
+            )
+
+            history_rows.append(
+                {
+                    'pk': dist.pk,
+                    'document_number': dist.document_number,
+                    'distribution_type': dist.get_distribution_type_display(),
+                    'status': dist.get_status_display(),
+                    'status_badge_class': _numbering_status_badge(dist.status),
+                    'facility_name': dist.facility.name,
+                    'request_date': dist.request_date,
+                    'created_at': dist.created_at,
+                    'created_by': creator_name,
+                    'item_count': dist.item_count,
+                    'source_label': source_label,
+                    'source_document_number': source_document_number,
+                    'notes': dist.notes or '-',
+                    'workflow_url': reverse('distribution:distribution_detail', args=[dist.pk]),
+                }
+            )
+
+    context = {
+        'form': form,
+        'history_rows': history_rows,
+    }
+    return render(request, 'reports/numbering_history.html', context)
 
 @login_required
 @perm_required('reports.view_reports')
