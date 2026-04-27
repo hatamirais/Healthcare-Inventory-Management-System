@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from apps.distribution.forms import DistributionForm, DistributionItemForm
 from apps.distribution.models import Distribution, DistributionItem
+from apps.core.models import SystemSettings
 from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
 from apps.stock.models import Stock, Transaction
 from apps.users.access import ensure_default_module_access
@@ -148,6 +149,37 @@ class DistributionWorkflowTest(TestCase):
         )
 
         self.assertRegex(dist.document_number, r"^DIST-\d{6}-\d{5}$")
+
+    def test_custom_template_from_settings_is_used_for_lplpo(self):
+        settings = SystemSettings.get_settings()
+        settings.lplpo_distribution_number_template = "DOC/LPLPO/{year}/{seq}"
+        settings.save(update_fields=["lplpo_distribution_number_template", "updated_at"])
+
+        dist = self._create_distribution(
+            distribution_type=Distribution.DistributionType.LPLPO,
+        )
+
+        self.assertEqual(dist.document_number, "DOC/LPLPO/2026/1")
+
+    def test_custom_template_supports_year_outside_suffix_position(self):
+        settings = SystemSettings.get_settings()
+        settings.special_request_distribution_number_template = "PK/{year}/{seq}/KD.F"
+        settings.save(update_fields=["special_request_distribution_number_template", "updated_at"])
+
+        Distribution.objects.create(
+            distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
+            document_number="PK/2026/1/KD.F",
+            request_date="2026-04-10",
+            facility=self.facility,
+            status=Distribution.Status.DRAFT,
+            created_by=self.user,
+        )
+
+        dist = self._create_distribution(
+            distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
+        )
+
+        self.assertEqual(dist.document_number, "PK/2026/2/KD.F")
 
     # --- Submit workflow ---
 

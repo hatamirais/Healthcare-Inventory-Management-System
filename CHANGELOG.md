@@ -7,15 +7,19 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-04-27
+
 ### Added
 
 - Institutional numbering rules for generated `LPLPO` and `Permintaan Khusus` distribution documents using `440/{seq}/SBBK.RF/{year}` and `440/{seq}/KD.F/{year}` with separate yearly counters per document type.
 - New `Laporan > Riwayat Penomoran` page for LPLPO and Permintaan Khusus numbering history, including status display, summary modal, and a button to open the full workflow in a new tab.
 - Items can now be marked as essential with a dedicated `[E] Esensial` tag surfaced in item management screens and imports.
+- `Pengaturan Sistem` now lets administrators edit the numbering templates for LPLPO and Permintaan Khusus distribution documents using `{seq}` and `{year}` placeholders.
 
 ### Changed
 
 - Distribution document numbering is now generated through a shared helper so rule-based numbering and legacy fallback numbering are managed from one place.
+- Rule-based distribution numbering now reads from dynamic system settings, and yearly counters are computed from the active template even when `{year}` is not placed at the end of the format.
 
 ## [1.18.0] - 2026-04-24
 

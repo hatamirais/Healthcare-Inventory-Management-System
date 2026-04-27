@@ -10,6 +10,8 @@ from django.test import RequestFactory
 from django.urls import reverse
 
 from apps.core.context_processors import nav_notifications
+from apps.core.forms import SystemSettingsForm
+from apps.core.models import SystemSettings
 from apps.core.templatetags.number_format import safe_media_url
 from apps.core.versioning import DEFAULT_VERSION, SemanticVersion, read_version, write_version
 from apps.distribution.models import Distribution
@@ -67,6 +69,47 @@ class SafeMediaUrlFilterTests(SimpleTestCase):
 
     def test_rejects_protocol_relative_url(self):
         self.assertEqual(safe_media_url("//example.com/logo.png"), "")
+
+
+class SystemSettingsFormTests(SimpleTestCase):
+    def test_accepts_valid_numbering_templates(self):
+        form = SystemSettingsForm(
+            data={
+                "platform_label": "Healthcare IMS",
+                "facility_name": "Instalasi Farmasi",
+                "facility_address": "",
+                "facility_phone": "",
+                "header_title": "Dinas Kesehatan",
+                "lplpo_distribution_number_template": "440/{seq}/SBBK.RF/{year}",
+                "special_request_distribution_number_template": "PK/{year}/{seq}/KD.F",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_rejects_unknown_numbering_placeholder(self):
+        form = SystemSettingsForm(
+            data={
+                "platform_label": "Healthcare IMS",
+                "facility_name": "Instalasi Farmasi",
+                "facility_address": "",
+                "facility_phone": "",
+                "header_title": "Dinas Kesehatan",
+                "lplpo_distribution_number_template": "440/{seq}/{month}/SBBK.RF/{year}",
+                "special_request_distribution_number_template": "440/{seq}/KD.F/{year}",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("lplpo_distribution_number_template", form.errors)
+
+
+class SystemSettingsModelTests(TestCase):
+    def test_get_settings_exposes_default_numbering_templates(self):
+        settings = SystemSettings.get_settings()
+
+        self.assertEqual(settings.lplpo_distribution_number_template, "440/{seq}/SBBK.RF/{year}")
+        self.assertEqual(settings.special_request_distribution_number_template, "440/{seq}/KD.F/{year}")
 
 
 class DashboardViewTests(TestCase):

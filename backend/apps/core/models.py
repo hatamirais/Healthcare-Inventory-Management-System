@@ -23,6 +23,16 @@ class SystemSettings(TimeStampedModel):
     facility_address = models.TextField(blank=True)
     facility_phone = models.CharField(max_length=50, blank=True)
     header_title = models.CharField(max_length=255, default="KEMENTERIAN KESEHATAN REPUBLIK INDONESIA")
+    lplpo_distribution_number_template = models.CharField(
+        max_length=255,
+        default="440/{seq}/SBBK.RF/{year}",
+        help_text="Template nomor dokumen distribusi LPLPO. Gunakan placeholder {seq} dan {year}.",
+    )
+    special_request_distribution_number_template = models.CharField(
+        max_length=255,
+        default="440/{seq}/KD.F/{year}",
+        help_text="Template nomor dokumen Permintaan Khusus. Gunakan placeholder {seq} dan {year}.",
+    )
     logo = models.ImageField(upload_to="settings/", blank=True, null=True, help_text="Biarkan kosong jika tidak ada logo khusus. Gunakan gambar transparan (PNG) untuk hasil terbaik.")
 
     class Meta:

@@ -79,7 +79,7 @@ This section reflects model code in `backend/apps/*/models.py`.
 
 - `core.SystemSettings` (`system_settings`)
   - Singleton model (forced `id=1`) for global dynamic settings.
-  - Fields: `platform_label`, `facility_name`, `facility_address`, `facility_phone`, `header_title`, `logo`
+  - Fields: `platform_label`, `facility_name`, `facility_address`, `facility_phone`, `header_title`, `lplpo_distribution_number_template`, `special_request_distribution_number_template`, `logo`
 
 ### 4.2 Users and authorization
 
@@ -182,7 +182,7 @@ This section reflects model code in `backend/apps/*/models.py`.
   - `GENERATED` status is used for allocation-auto-generated distributions (bypasses DRAFT/SUBMITTED/VERIFIED)
   - Workflow includes manual reset action back to `DRAFT` from `SUBMITTED`, `VERIFIED`, `PREPARED`, and `REJECTED` (but not from `DISTRIBUTED` or `GENERATED`)
   - Provides `kepala_instalasi` and `petugas` assignments logic for print outputs
-  - Fields: `document_number` (auto-generated `DIST-YYYYMM-XXXXX` when blank), `request_date`, `program`, `distributed_date`, `notes`, `ocr_text`
+  - Fields: `document_number` (auto-generated `DIST-YYYYMM-XXXXX` when blank for non-rule types; `LPLPO` and `SPECIAL_REQUEST` use the templates stored in `SystemSettings`), `request_date`, `program`, `distributed_date`, `notes`, `ocr_text`
   - FKs: `facility`, `created_by`, `verified_by` (nullable), `approved_by` (nullable), `allocation` (nullable, links to parent `allocation.Allocation` for auto-generated distributions)
   - Indexes: `idx_dist_status_date`, `idx_dist_facility_date`
 

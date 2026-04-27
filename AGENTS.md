@@ -54,7 +54,7 @@ If documentation conflicts with code, code is authoritative until docs are corre
 
 ## Active Django Apps
 
-- `core`: shared abstractions, dashboard, and dynamic system settings (login platform label, logo/headers)
+- `core`: shared abstractions, dashboard, and dynamic system settings (login platform label, logo/headers, and configurable distribution numbering templates)
 - `users`: custom user and `ModuleAccess` scope model
 - `items`: master data and item catalog
 - `stock`: stock entries, immutable transactions, stock card, location-based stock search, and stock transfer
@@ -95,6 +95,7 @@ Default scopes per role are defined in `backend/apps/users/access.py`.
 - Receiving admin CSV import writes `Receiving`, `ReceivingItem`, updates/creates `Stock`, and writes `Transaction(IN)`.
 - Receiving supports built-in and custom type codes; UI labels for non-built-in types are resolved from `ReceivingTypeOption`.
 - `Distribution(distribution_type=LPLPO)` is system-generated from `lplpo_finalize`; do not expose it as a manual distribution type in the generic distribution create/edit flow.
+- Distribution numbering templates for `LPLPO` and `SPECIAL_REQUEST` are user-configurable through `SystemSettings`; supported placeholders are `{seq}` and `{year}` and sequence counters remain scoped per distribution type and matched against the active template.
 - `Distribution(distribution_type=ALLOCATION)` is system-generated from `allocation` approval; one per facility, starts in `GENERATED` status, quantities are locked and cannot be edited.
 - Allocation approval atomically creates `Distribution` + `DistributionItem` records for each facility. Stepping an allocation back from `APPROVED` to `SUBMITTED` deletes those child distributions so they can be regenerated on the next approval. Stock deduction is deferred to per-distribution delivery confirmation.
 - Allocation auto-transitions to `PARTIALLY_FULFILLED` when any child distribution is delivered, and `FULFILLED` when all are delivered.

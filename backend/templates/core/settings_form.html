@@ -11,17 +11,71 @@
 
 <div class="row">
     <div class="col-md-8">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <form method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    {{ form|crispy }}
-                    <div class="mt-4">
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Simpan Pengaturan</button>
-                    </div>
-                </form>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger shadow-sm">
+                {{ form.non_field_errors }}
             </div>
-        </div>
+            {% endif %}
+
+            <div class="card shadow-sm mb-3">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0">Pengaturan Umum</h5>
+                    <span class="badge text-bg-light">Branding dan identitas</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ form.platform_label|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.facility_name|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.facility_phone|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.header_title|as_crispy_field }}
+                        </div>
+                        <div class="col-12">
+                            {{ form.facility_address|as_crispy_field }}
+                        </div>
+                        <div class="col-12">
+                            {{ form.logo|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-primary-subtle">
+                <div class="card-header d-flex align-items-center justify-content-between bg-primary-subtle">
+                    <div>
+                        <h5 class="card-title mb-0">Costumization</h5>
+                        <small class="text-muted">Atur rule penomoran dokumen distribusi</small>
+                    </div>
+                    <span class="badge text-bg-primary">Numbering Rule</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            {{ form.lplpo_distribution_number_template|as_crispy_field }}
+                        </div>
+                        <div class="col-12">
+                            {{ form.special_request_distribution_number_template|as_crispy_field }}
+                        </div>
+                    </div>
+                    <div class="alert alert-light border mt-3 mb-0 small">
+                        Gunakan <code>{seq}</code> untuk nomor urut dan <code>{year}</code> untuk tahun dokumen. Placeholder lain tidak didukung.
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Simpan Pengaturan</button>
+            </div>
+        </form>
     </div>
     <div class="col-md-4">
         <div class="card shadow-sm mb-3">
@@ -33,6 +87,7 @@
                 <p><strong>Label Platform:</strong> Digunakan untuk branding singkat di halaman login.</p>
                 <p><strong>Logo Navbar:</strong> Logo akan diskala otomatis ke tinggi maksimal 32px.</p>
                 <p><strong>Header Laporan:</strong> Digunakan sebagai baris paling atas di kop surat cetak.</p>
+                <p><strong>Template Penomoran:</strong> Gunakan placeholder <code>{seq}</code> untuk nomor urut dan <code>{year}</code> untuk tahun dokumen.</p>
             </div>
         </div>
         
