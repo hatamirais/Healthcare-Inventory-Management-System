@@ -11,6 +11,7 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 - Institutional numbering rules for generated `LPLPO` and `Permintaan Khusus` distribution documents using `440/{seq}/SBBK.RF/{year}` and `440/{seq}/KD.F/{year}` with separate yearly counters per document type.
 - New `Laporan > Riwayat Penomoran` page for LPLPO and Permintaan Khusus numbering history, including status display, summary modal, and a button to open the full workflow in a new tab.
+- Items can now be marked as essential with a dedicated `[E] Esensial` tag surfaced in item management screens and imports.
 
 ### Changed
 

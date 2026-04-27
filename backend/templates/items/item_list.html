@@ -51,7 +51,14 @@
                 {% for item in items %}
                 <tr>
                     <td><code>{{ item.kode_barang }}</code></td>
-                    <td>{{ item.nama_barang }}</td>
+                    <td>
+                        <div class="fw-semibold">{{ item.nama_barang }}</div>
+                        <div class="d-flex flex-wrap gap-1 mt-1">
+                            {% if item.is_essential %}
+                            <span class="badge bg-danger-subtle text-danger">[E] Esensial</span>
+                            {% endif %}
+                        </div>
+                    </td>
                     <td>{{ item.satuan.code }}</td>
                     <td><span class="badge bg-light text-dark border">{{ item.kategori.name }}</span></td>
                     <td>

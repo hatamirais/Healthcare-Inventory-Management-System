@@ -10,7 +10,7 @@
    - ~~Laporan pengadaan~~
    - ~~Laporan kadaluarsa~~
    - ~~Laporan pengeluaran~~
-4. Create new tags for the Items if the items is part of Essensial
+4. ~~Create new tags for the Items if the items is part of Essensial~~
 5. ~~Create new part on the Dashboard telling Instalasi Farmasi that there is a new request~~
 6. Do another security audit using:
    - OWASP top 10

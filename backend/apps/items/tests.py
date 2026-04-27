@@ -1,7 +1,10 @@
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.urls import reverse
 
-from apps.items.models import Unit, Category, Program
+from apps.items.forms import ItemForm
+from apps.items.models import Item, Unit, Category, Program
+from apps.users.models import User
 
 
 class LookupModelGuardrailTest(TestCase):
@@ -21,3 +24,40 @@ class LookupModelGuardrailTest(TestCase):
 		duplicate = Program(code='HIV2', name='human immunodeficiency virus')
 		with self.assertRaises(ValidationError):
 			duplicate.save()
+
+
+class ItemEssentialTagTests(TestCase):
+	def setUp(self):
+		self.unit = Unit.objects.create(code='TAB', name='Tablet')
+		self.category = Category.objects.create(code='OBAT', name='Obat')
+
+	def test_item_form_exposes_essential_flag(self):
+		form = ItemForm()
+		self.assertIn('is_essential', form.fields)
+
+	def test_item_defaults_to_not_essential(self):
+		item = Item.objects.create(
+			nama_barang='Paracetamol',
+			satuan=self.unit,
+			kategori=self.category,
+		)
+		self.assertFalse(item.is_essential)
+
+	def test_item_list_shows_essential_badge(self):
+		user = User.objects.create_superuser(
+			username='admin',
+			email='admin@example.com',
+			password='password12345',
+		)
+		self.client.force_login(user)
+		Item.objects.create(
+			nama_barang='Amoxicillin',
+			satuan=self.unit,
+			kategori=self.category,
+			is_essential=True,
+		)
+
+		response = self.client.get(reverse('items:item_list'))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, '[E] Esensial')

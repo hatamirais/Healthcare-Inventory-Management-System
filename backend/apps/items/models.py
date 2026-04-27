@@ -186,6 +186,10 @@ class Item(TimeStampedModel):
         default=False,
         help_text="Designated program item [P]",
     )
+    is_essential = models.BooleanField(
+        default=False,
+        help_text="Designated essential item [E]",
+    )
     program = models.ForeignKey(
         Program,
         on_delete=models.PROTECT,

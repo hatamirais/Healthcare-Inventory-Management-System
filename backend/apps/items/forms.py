@@ -7,13 +7,14 @@ class ItemForm(forms.ModelForm):
         model = Item
         fields = [
             'nama_barang', 'satuan', 'kategori',
-            'is_program_item', 'program', 'minimum_stock', 'description',
+            'is_program_item', 'is_essential', 'program', 'minimum_stock', 'description',
         ]
         widgets = {
             'nama_barang': forms.TextInput(attrs={'class': 'form-control'}),
             'satuan': forms.Select(attrs={'class': 'form-select'}),
             'kategori': forms.Select(attrs={'class': 'form-select'}),
             'is_program_item': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_essential': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'program': forms.Select(attrs={'class': 'form-select'}),
             'minimum_stock': forms.NumberInput(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
@@ -22,6 +23,8 @@ class ItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['description'].required = False
+        self.fields['is_program_item'].label = 'Barang program [P]'
+        self.fields['is_essential'].label = 'Barang esensial [E]'
         self.fields['program'].required = False
         self.fields['satuan'].empty_label = None
         self.fields['kategori'].empty_label = None

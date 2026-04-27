@@ -108,6 +108,7 @@ class ItemResource(resources.ModelResource):
             "satuan",
             "kategori",
             "is_program_item",
+            "is_essential",
             "program",
             "minimum_stock",
             "description",
@@ -269,11 +270,12 @@ class ItemAdmin(ImportGuideMixin, ImportExportModelAdmin):
         "satuan",
         "kategori",
         "is_program_item",
+        "is_essential",
         "program",
         "minimum_stock",
         "is_active",
     )
-    list_filter = ("kategori", "is_program_item", "is_active", "satuan", "program")
+    list_filter = ("kategori", "is_program_item", "is_essential", "is_active", "satuan", "program")
     search_fields = ("kode_barang", "nama_barang", "program__code", "program__name")
     list_per_page = 50
     import_guide = {
@@ -284,6 +286,7 @@ class ItemAdmin(ImportGuideMixin, ImportExportModelAdmin):
             {'name': 'satuan', 'required': True, 'description': 'Kode satuan dari tabel Units'},
             {'name': 'kategori', 'required': True, 'description': 'Kode kategori dari tabel Categories'},
             {'name': 'is_program_item', 'required': False, 'description': '1 = item program, 0 = bukan (default: 0)'},
+            {'name': 'is_essential', 'required': False, 'description': '1 = item esensial, 0 = bukan (default: 0)'},
             {'name': 'program', 'required': False, 'description': 'Kode program dari tabel Programs (jika program item)'},
             {'name': 'minimum_stock', 'required': False, 'description': 'Batas minimum stok (default: 0)'},
             {'name': 'description', 'required': False, 'description': 'Keterangan'},
