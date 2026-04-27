@@ -7,7 +7,11 @@ from django.db.models.functions import Coalesce
 from django.urls import reverse
 
 from .forms import InventoryReportFilterForm, NumberingHistoryFilterForm
-from .exports import export_rincian_excel, export_rekap_excel
+from .exports import (
+    export_numbering_history_excel,
+    export_rincian_excel,
+    export_rekap_excel,
+)
 from apps.stock.models import Transaction, Stock
 from apps.distribution.models import Distribution
 
@@ -147,10 +151,15 @@ def reports_numbering_history(request):
         request.GET or NumberingHistoryFilterForm.get_default_initial()
     )
     history_rows = []
+    selected_distribution_type_label = ''
 
     if form.is_valid():
         distribution_type = form.cleaned_data.get('distribution_type')
         year = form.cleaned_data.get('year')
+        selected_distribution_type_label = dict(form.fields['distribution_type'].choices).get(
+            distribution_type,
+            '',
+        )
 
         qs = (
             Distribution.objects.filter(
@@ -208,9 +217,17 @@ def reports_numbering_history(request):
                 }
             )
 
+        if request.GET.get('format') == 'excel' and history_rows:
+            return export_numbering_history_excel(
+                history_rows,
+                year,
+                selected_distribution_type_label,
+            )
+
     context = {
         'form': form,
         'history_rows': history_rows,
+        'selected_distribution_type_label': selected_distribution_type_label,
     }
     return render(request, 'reports/numbering_history.html', context)
 

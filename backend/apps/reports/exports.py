@@ -221,6 +221,65 @@ def export_rekap_excel(rekap_data, grand_totals, start_date, end_date):
     return _make_response(wb, filename)
 
 
+def export_numbering_history_excel(history_rows, year, distribution_type_label):
+    """Export numbering history report to Excel."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Riwayat Penomoran"
+
+    ws.merge_cells("A1:H1")
+    title_cell = ws.cell(
+        row=1,
+        column=1,
+        value="LAPORAN RIWAYAT PENOMORAN DOKUMEN",
+    )
+    title_cell.font = Font(bold=True, size=14)
+    title_cell.alignment = Alignment(horizontal="center")
+
+    ws.merge_cells("A2:H2")
+    filter_text = f"Tahun: {year}"
+    if distribution_type_label:
+        filter_text += f" | Jenis Dokumen: {distribution_type_label}"
+    period_cell = ws.cell(row=2, column=1, value=filter_text)
+    period_cell.font = Font(bold=True, size=11)
+    period_cell.alignment = Alignment(horizontal="center")
+
+    headers = [
+        "No",
+        "No. Dokumen",
+        "Jenis",
+        "Status",
+        "Fasilitas",
+        "Referensi",
+        "Tanggal Dibuat",
+        "Jumlah Item",
+    ]
+    col_widths = [6, 24, 24, 18, 28, 26, 22, 12]
+    _apply_header_row(ws, 4, headers, col_widths)
+
+    row_num = 5
+    for idx, row in enumerate(history_rows, 1):
+        values = [
+            idx,
+            row.get("document_number", ""),
+            row.get("distribution_type", ""),
+            row.get("status", ""),
+            row.get("facility_name", ""),
+            f"{row.get('source_label', '-')}: {row.get('source_document_number', '-')}",
+            row.get("created_at").strftime("%d/%m/%Y %H:%M") if row.get("created_at") else "-",
+            row.get("item_count", 0),
+        ]
+        for col_idx, val in enumerate(values, 1):
+            cell = ws.cell(row=row_num, column=col_idx, value=val)
+            cell.border = THIN_BORDER
+            if col_idx in (1, 8):
+                cell.alignment = Alignment(horizontal="center")
+        row_num += 1
+
+    filename = f"Riwayat_Penomoran_{year}.xlsx"
+    return _make_response(wb, filename)
+
+
 def _export_penerimaan_excel(report_data, start_date, end_date, title, filename_prefix,
                               headers, col_widths, row_builder):
     """Shared export logic for Penerimaan Hibah and Pengadaan reports."""

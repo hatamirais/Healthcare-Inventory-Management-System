@@ -82,3 +82,26 @@ class NumberingHistoryReportTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, lplpo_dist.document_number)
 		self.assertNotContains(response, 'KD.F/2026')
+
+	def test_numbering_history_page_shows_print_and_export_actions(self):
+		self._create_distribution(Distribution.DistributionType.LPLPO)
+
+		response = self.client.get(reverse('reports:numbering_history'))
+
+		self.assertContains(response, 'Cetak Laporan')
+		self.assertContains(response, 'Export Excel')
+
+	def test_numbering_history_excel_export_returns_workbook(self):
+		self._create_distribution(Distribution.DistributionType.LPLPO)
+
+		response = self.client.get(
+			reverse('reports:numbering_history'),
+			{'year': 2026, 'format': 'excel'},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(
+			response['Content-Type'],
+			'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+		)
+		self.assertIn('Riwayat_Penomoran_2026.xlsx', response['Content-Disposition'])

@@ -1,10 +1,99 @@
 {% extends "base.html" %}
+{% load number_format %}
 
 {% block title %}Riwayat Penomoran — Healthcare IMS{% endblock %}
 {% block page_title %}Riwayat Penomoran Dokumen{% endblock %}
 
+{% block extra_css %}
+<style>
+    .report-print-sheet {
+        color: #111;
+        font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .report-print-header {
+        display: flex;
+        align-items: center;
+        border-bottom: 3px double #111;
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+    }
+    .report-print-logo {
+        width: 80px;
+        height: 100px;
+        background-color: #f8f9fa;
+        border: 2px dashed #ccc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 11px;
+        color: #666;
+        margin-right: 20px;
+        font-weight: bold;
+    }
+    .report-print-title {
+        flex-grow: 1;
+        text-align: center;
+        line-height: 1.35;
+    }
+    .report-print-title h4 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 18px;
+    }
+    .report-print-title h5 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 20px;
+    }
+    .report-print-title p {
+        margin: 0;
+        font-size: 13px;
+    }
+    .report-print-meta {
+        text-align: center;
+        margin-bottom: 20px;
+        font-weight: 700;
+        font-size: 16px;
+    }
+    .report-sign-box {
+        width: 250px;
+        text-align: center;
+    }
+    .report-sign-name {
+        margin-top: 80px;
+        font-weight: 700;
+        text-decoration: underline;
+    }
+    @media print {
+        .main-content {
+            padding: 0 !important;
+        }
+        .report-print-sheet {
+            max-width: none;
+            padding: 0 5mm;
+        }
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+        .card-body {
+            padding: 0 !important;
+        }
+        .table-light th {
+            background-color: #f8f9fa !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        @page {
+            size: landscape;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row mb-4">
+<div class="row mb-4 d-print-none">
     <div class="col-12">
         <div class="card shadow-sm border-0">
             <div class="card-body bg-light">
@@ -22,10 +111,48 @@
                             <i class="bi bi-filter"></i> Terapkan Filter
                         </button>
                         <a href="{% url 'reports:numbering_history' %}" class="btn btn-outline-secondary">Reset</a>
+                        <button type="button" class="btn btn-dark" data-action="print">
+                            <i class="bi bi-printer"></i> Cetak Laporan
+                        </button>
+                        <button type="submit" name="format" value="excel" class="btn btn-success">
+                            <i class="bi bi-file-earmark-excel"></i> Export Excel
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
+    </div>
+</div>
+
+<div class="d-none d-print-block report-print-sheet">
+    <div class="report-print-header">
+        <div class="report-print-logo" style="border: none; background: transparent;">
+            {% if system_settings and system_settings.logo %}
+                {% with logo_url=system_settings.logo.url|safe_media_url %}
+                {% if logo_url %}
+                <img src="{{ logo_url }}" alt="Logo" style="max-width: 100%; max-height: 100%;">
+                {% else %}
+                <div style="border: 2px dashed #ccc; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">[LOGO<br>INSTANSI]</div>
+                {% endif %}
+                {% endwith %}
+            {% else %}
+                <div style="border: 2px dashed #ccc; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">[LOGO<br>INSTANSI]</div>
+            {% endif %}
+        </div>
+        <div class="report-print-title">
+            <h4>{{ system_settings.header_title|default:"[NAMA PEMERINTAH DAERAH / KOTA]" }}</h4>
+            <h5>{{ system_settings.facility_name|default:"[NAMA FASILITAS KESEHATAN / INSTALASI FARMASI]" }}</h5>
+            <p>{{ system_settings.facility_address|default:"[Alamat Instansi / Kop Surat]" }}</p>
+        </div>
+        <div style="width: 100px;"></div>
+    </div>
+
+    <div class="report-print-meta">
+        LAPORAN RIWAYAT PENOMORAN DOKUMEN<br>
+        TAHUN: {{ form.year.value|default:"-" }}
+        {% if selected_distribution_type_label %}
+        <br>JENIS DOKUMEN: {{ selected_distribution_type_label }}
+        {% endif %}
     </div>
 </div>
 
@@ -41,7 +168,7 @@
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                    <table class="table table-hover table-bordered align-middle mb-0">
                         <thead class="table-light">
                             <tr>
                                 <th style="width: 56px;" class="text-center">No</th>
@@ -111,6 +238,19 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<div class="d-none d-print-flex report-print-sheet justify-content-between mt-5" style="page-break-inside: avoid;">
+    <div class="report-sign-box">
+        Mengetahui,<br>Kepala Instalasi Farmasi
+        <div class="report-sign-name">[Nama Kepala Instalasi]</div>
+        <div>NIP. ........................................</div>
+    </div>
+    <div class="report-sign-box">
+        <br>Petugas Pengelola Obat
+        <div class="report-sign-name">[Nama Petugas]</div>
+        <div>NIP. ........................................</div>
     </div>
 </div>
 
