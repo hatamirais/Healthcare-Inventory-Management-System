@@ -2,8 +2,8 @@
 
 Canonical reference for current schema, route topology, permission model, and stock mutation behavior.
 
-Last verified: 2026-04-10
-Verification sources: `backend/apps/*/models.py`, `backend/config/urls.py`, `backend/apps/*/urls.py`, `backend/apps/core/decorators.py`, `backend/apps/users/access.py`, `backend/config/settings.py`, `backend/apps/receiving/admin.py`, `backend/apps/distribution/services.py`, `backend/apps/stock/views.py`, `backend/apps/lplpo/signals.py`
+Last verified: 2026-04-27
+Verification sources: `backend/apps/*/models.py`, `backend/config/urls.py`, `backend/apps/*/urls.py`, `backend/apps/core/decorators.py`, `backend/apps/users/access.py`, `backend/config/settings.py`, `backend/apps/receiving/admin.py`, `backend/apps/distribution/services.py`, `backend/apps/stock/views.py`, `backend/apps/lplpo/models.py`
 
 ## 1) Domain Overview
 
@@ -38,14 +38,14 @@ Module highlights:
 - Stock transfer: `/stock/transfers/*`
 - Receiving regular: `/receiving/`, `/receiving/create/`, `/receiving/<pk>/`
 - Receiving plan: `/receiving/plans/*`
-- RS returns: `/receiving/rs-returns/*`, including `/receiving/rs-returns/from-borrow/<distribution_pk>/create/`
 - Receiving quick-create APIs: `/receiving/api/quick-create-supplier/`, `/receiving/api/quick-create-funding-source/`, `/receiving/api/quick-create-receiving-type/`
-- Borrow RS distribution: `/distribution/borrow-rs/*`
+- Distribution history: `/distribution/`, `/distribution/create/`, `/distribution/<pk>/`, `/distribution/<pk>/edit/`, `/distribution/<pk>/delete/`, `/distribution/<pk>/step-back/`, `/distribution/<pk>/reset-to-draft/`, `/distribution/<pk>/submit/`, `/distribution/<pk>/verify/`, `/distribution/<pk>/prepare/`, `/distribution/<pk>/distribute/`, `/distribution/<pk>/reject/`
+- Special requests: `/distribution/special-requests/`, `/distribution/special-requests/create/`
 - Expiry alerts: `/expired/alerts/`
 - Reports: `/reports/`, `/reports/riwayat-penomoran/`, `/reports/rekap/`, `/reports/penerimaan-hibah/`, `/reports/pengadaan/`, `/reports/kadaluarsa/`, `/reports/pengeluaran/`
-- LPLPO lists: `/lplpo/` (All), `/lplpo/my/` (Puskesmas scoped)
-- Puskesmas requests: `/puskesmas/permintaan/`
-- Allocation: `/allocation/`, `/allocation/create/`, `/allocation/<pk>/`, `/allocation/<pk>/edit/`, `/allocation/<pk>/submit/`, `/allocation/<pk>/approve/`, `/allocation/<pk>/reject/`, `/allocation/<pk>/distributions/<dist_pk>/prepare/`, `/allocation/<pk>/distributions/<dist_pk>/deliver/`
+- LPLPO: `/lplpo/` (All), `/lplpo/my/` (Puskesmas scoped), `/lplpo/create/`, `/lplpo/print-report/`, `/lplpo/api/prefill-penerimaan/`, `/lplpo/<pk>/`, `/lplpo/<pk>/edit/`, `/lplpo/<pk>/submit/`, `/lplpo/<pk>/review/`, `/lplpo/<pk>/finalize/`, `/lplpo/<pk>/delete/`, `/lplpo/<pk>/print/`
+- Puskesmas requests: `/puskesmas/permintaan/`, `/puskesmas/permintaan/buat/`, `/puskesmas/permintaan/<pk>/`, `/puskesmas/permintaan/<pk>/edit/`, `/puskesmas/permintaan/<pk>/delete/`, `/puskesmas/permintaan/<pk>/submit/`, `/puskesmas/permintaan/<pk>/approve/`, `/puskesmas/permintaan/<pk>/reject/`, `/puskesmas/permintaan/<pk>/reset-draft/`
+- Allocation: `/allocation/`, `/allocation/create/`, `/allocation/<pk>/`, `/allocation/<pk>/edit/`, `/allocation/<pk>/delete/`, `/allocation/<pk>/reset-to-draft/`, `/allocation/<pk>/submit/`, `/allocation/<pk>/approve/`, `/allocation/<pk>/step-back/`, `/allocation/<pk>/reject/`, `/allocation/<pk>/distributions/<dist_pk>/prepare/`, `/allocation/<pk>/distributions/<dist_pk>/deliver/`
 
 ## 3) Permission and Access Model
 
@@ -109,7 +109,8 @@ This section reflects model code in `backend/apps/*/models.py`.
   - `nama_barang`
   - `satuan` FK -> `Unit`
   - `kategori` FK -> `Category`
-  - `is_program_item`
+  - `is_program_item` — designated program item `[P]`
+  - `is_essential` — designated essential item `[E]`
   - `program` FK -> `Program` (nullable)
   - `minimum_stock`, `description`, `is_active`
   - Index: `idx_item_category_program` on `(kategori, is_program_item)`

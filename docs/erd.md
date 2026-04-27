@@ -2,7 +2,7 @@
 
 Current-state ERD derived from Django models.
 
-Last verified: 2026-03-31
+Last verified: 2026-04-27
 Verification sources: `backend/apps/*/models.py`
 
 ```mermaid
@@ -26,10 +26,13 @@ erDiagram
 
     SystemSettings {
         bigint id PK
+        string platform_label
         string facility_name
         text facility_address
         string facility_phone
         string header_title
+        string lplpo_distribution_number_template
+        string special_request_distribution_number_template
         string logo
     }
 
@@ -99,6 +102,7 @@ erDiagram
         bigint satuan_id FK
         bigint kategori_id FK
         bool is_program_item
+        bool is_essential
         bigint program_id FK
         decimal minimum_stock
         text description
@@ -119,6 +123,7 @@ erDiagram
         date receiving_date
         bool is_planned
         bigint supplier_id FK
+        bigint facility_id FK
         string grant_origin
         string program
         bigint sumber_dana_id FK
@@ -151,6 +156,7 @@ erDiagram
         bigint receiving_id FK
         bigint order_item_id FK
         bigint item_id FK
+        bigint settlement_distribution_item_id FK
         decimal quantity
         string batch_lot
         date expiry_date
@@ -236,6 +242,13 @@ erDiagram
         date distributed_date
         text notes
         text ocr_text
+        bigint allocation_id FK
+    }
+
+    DistributionStaffAssignment {
+        bigint id PK
+        bigint distribution_id FK
+        bigint user_id FK
     }
 
     DistributionItem {
@@ -245,7 +258,55 @@ erDiagram
         decimal quantity_requested
         decimal quantity_approved
         bigint stock_id FK
+        string issued_batch_lot
+        date issued_expiry_date
+        decimal issued_unit_price
+        bigint issued_sumber_dana_id FK
         text notes
+    }
+
+    Allocation {
+        bigint id PK
+        string document_number
+        string title
+        string referensi
+        date allocation_date
+        text notes
+        string status
+        text rejection_reason
+        bigint created_by_id FK
+        bigint submitted_by_id FK
+        bigint approved_by_id FK
+        datetime submitted_at
+        datetime approved_at
+    }
+
+    AllocationStaffAssignment {
+        bigint id PK
+        bigint allocation_id FK
+        bigint user_id FK
+    }
+
+    AllocationFacility {
+        bigint id PK
+        bigint allocation_id FK
+        bigint facility_id FK
+    }
+
+    AllocationItem {
+        bigint id PK
+        bigint allocation_id FK
+        bigint item_id FK
+        bigint stock_id FK
+        decimal total_qty_available
+        text notes
+    }
+
+    AllocationItemFacility {
+        bigint id PK
+        bigint allocation_item_id FK
+        bigint facility_id FK
+        decimal qty_allocated
     }
 
     Recall {
@@ -320,7 +381,7 @@ erDiagram
         string document_number
         date request_date
         bigint facility_id FK
-        string program
+        bigint program_id FK
         string status
         bigint created_by_id FK
         bigint approved_by_id FK
@@ -392,6 +453,7 @@ erDiagram
     User ||--o{ Transaction : actor
 
     Supplier ||--o{ Receiving : supplier
+    Facility ||--o{ Receiving : facility
     FundingSource ||--o{ Receiving : funding
     User ||--o{ Receiving : created_by
     User ||--o{ Receiving : verified_by
@@ -404,14 +466,32 @@ erDiagram
     Item ||--o{ ReceivingItem : received_item
     Location ||--o{ ReceivingItem : received_location
     User ||--o{ ReceivingItem : received_by
+    DistributionItem ||--o{ ReceivingItem : settlement_receipts
 
     Facility ||--o{ Distribution : destination
     User ||--o{ Distribution : created_by
     User ||--o{ Distribution : verified_by
     User ||--o{ Distribution : approved_by
+    Distribution ||--o{ DistributionStaffAssignment : staff
+    User ||--o{ DistributionStaffAssignment : assigned_user
     Distribution ||--o{ DistributionItem : lines
     Item ||--o{ DistributionItem : distributed_item
     Stock ||--o{ DistributionItem : allocated_batch
+    FundingSource ||--o{ DistributionItem : issued_sumber_dana
+    Allocation ||--o{ Distribution : generates
+
+    Allocation ||--o{ AllocationStaffAssignment : staff
+    User ||--o{ AllocationStaffAssignment : assigned_user
+    Allocation ||--o{ AllocationFacility : selected_facilities
+    Facility ||--o{ AllocationFacility : selected_in
+    Allocation ||--o{ AllocationItem : items
+    Item ||--o{ AllocationItem : allocated_item
+    Stock ||--o{ AllocationItem : allocated_batch
+    AllocationItem ||--o{ AllocationItemFacility : facility_allocations
+    Facility ||--o{ AllocationItemFacility : receives
+    User ||--o{ Allocation : created_by
+    User ||--o{ Allocation : submitted_by
+    User ||--o{ Allocation : approved_by
 
     Supplier ||--o{ Recall : supplier
     User ||--o{ Recall : created_by
@@ -441,6 +521,7 @@ erDiagram
     Stock ||--o{ StockOpnameItem : counted_stock
 
     Facility ||--o{ PuskesmasRequest : makes
+    Program ||--o{ PuskesmasRequest : program
     User ||--o{ PuskesmasRequest : created_by
     User ||--o{ PuskesmasRequest : approved_by
     PuskesmasRequest ||--o| Distribution : generates
@@ -457,10 +538,16 @@ erDiagram
 
 ## Notes
 
-- Reports app currently has no active business models.
+- Reports app has no bespoke database models; it aggregates data from other apps.
 - Many document number formats are generated in model `save()` methods when blank.
 - `ModuleAccess` unique tuple is `(user, module)`.
 - `Stock` unique tuple is `(item, location, batch_lot, sumber_dana)`.
 - `StockOpnameItem` unique tuple is `(stock_opname, stock)`.
+- `AllocationItemFacility` unique tuple is `(allocation_item, facility)`.
+- `AllocationFacility` unique tuple is `(allocation, facility)`.
+- `DistributionStaffAssignment` unique tuple is `(distribution, user)`.
+- `AllocationStaffAssignment` unique tuple is `(allocation, user)`.
+- `PuskesmasRequest.program` is an FK to `Program` (not free-text), nullable.
 
 See `SYSTEM_MODEL.md` for extended behavioral notes and mutation checkpoints.
+

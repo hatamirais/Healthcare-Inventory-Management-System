@@ -56,11 +56,11 @@ If documentation conflicts with code, code is authoritative until docs are corre
 
 - `core`: shared abstractions, dashboard, and dynamic system settings (login platform label, logo/headers, and configurable distribution numbering templates)
 - `users`: custom user and `ModuleAccess` scope model
-- `items`: master data and item catalog
+- `items`: master data and item catalog; items may be flagged as program item `[P]` (`is_program_item`) or essential `[E]` (`is_essential`)
 - `stock`: stock entries, immutable transactions, stock card, location-based stock search, and stock transfer
 - `receiving`: regular and planned receiving flows, custom CSV import endpoint in admin, quick-create lookup endpoints, and custom `ReceivingTypeOption` support
 - `distribution`: outbound distribution workflow, step-back/reset actions before distribution, and issued batch/value snapshots on `DistributionItem`
-- `allocation`: pre-distribution planning and orchestration. Draft→Submitted→Approved lifecycle auto-generates one `Distribution` per facility on approval. Approved allocations may be stepped back to Submitted by approvers, which deletes the auto-generated child distributions so approval can be re-run cleanly. Allocation no longer stores a header-level funding source; item batch selection can span all available stock sources. Stock deduction deferred to delivery confirmation per distribution. Feature-flagged via `FEATURE_ALLOCATION_UI_ENABLED`.
+- `allocation`: pre-distribution planning and orchestration. Draft→Submitted→Approved lifecycle auto-generates one `Distribution` per facility on approval. Approved allocations may be stepped back to Submitted by approvers, which deletes the auto-generated child distributions so approval can be re-run cleanly. Allocation no longer stores a header-level funding source; item batch selection can span all available stock sources. Stock deduction deferred to delivery confirmation per distribution. Module is active and gated by `ModuleAccess` scopes like all other modules.
 - `recall`: supplier return workflow
 - `expired`: expired/disposal workflow and alerts page
 - `stock_opname`: physical counting workflow

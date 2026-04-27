@@ -21,7 +21,7 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 
 ## Kapabilitas Utama
 
-- Pengelolaan master barang dan data referensi seperti satuan, kategori, program, sumber dana, lokasi, supplier, dan fasilitas.
+- Pengelolaan master barang dan data referensi seperti satuan, kategori, program, sumber dana, lokasi, supplier, dan fasilitas. Barang dapat ditandai sebagai program item `[P]` atau esensial `[E]`.
 - Pencatatan stok per batch dengan pendekatan FEFO agar distribusi lebih terkendali dan masa kedaluwarsa lebih mudah dipantau.
 - Alur kerja end-to-end untuk penerimaan, distribusi, recall, barang kedaluwarsa, transfer stok, dan stock opname.
 - Dukungan tipe penerimaan bawaan dan tipe kustom melalui `ReceivingTypeOption`, termasuk quick-create dari form penerimaan.
@@ -38,6 +38,7 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 - `stock`: daftar stok, daftar transaksi, kartu stok, pencarian stok per lokasi, dan alur transfer stok antar lokasi.
 - `receiving`: alur penerimaan reguler dan rencana penerimaan, quick-create referensi dari form, dan tipe penerimaan kustom.
 - `distribution`: alur permintaan, verifikasi, persiapan, hingga distribusi dengan penugasan petugas per dokumen, serta reset atau step-back workflow sebelum dokumen terdistribusi.
+- `allocation`: perencanaan dan orkestrasi pra-distribusi. Lifecycle Draft→Submitted→Approved membuat satu `Distribution` per fasilitas secara otomatis pada saat approval. Allocation yang sudah disetujui dapat dikembalikan ke Submitted oleh approver, yang menghapus child distributions agar approval dapat diulang. Pengurangan stok ditangguhkan ke konfirmasi pengiriman per distribusi.
 - `recall`: alur retur ke supplier dari draft sampai selesai.
 - `expired`: alur penanganan barang kedaluwarsa dari draft sampai disposal, termasuk halaman alert kedaluwarsa.
 - `stock_opname`: proses hitung fisik dan cetak laporan selisih.
@@ -53,6 +54,7 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 - Receiving terencana: `DRAFT -> SUBMITTED -> APPROVED -> PARTIAL/RECEIVED -> CLOSED`
 - Receiving reguler, tipe kustom, atau hasil import: umumnya tercatat sebagai `VERIFIED` setelah posting.
 - Distribution: `DRAFT -> SUBMITTED -> VERIFIED -> PREPARED -> DISTRIBUTED`, dapat berakhir `REJECTED`, dan dokumen yang belum terdistribusi dapat dikembalikan ke `DRAFT`.
+- Allocation: `DRAFT -> SUBMITTED -> APPROVED -> PARTIALLY_FULFILLED -> FULFILLED`, dapat berakhir `REJECTED`. Child distributions otomatis dibuat saat approval dan dihapus saat step-back ke SUBMITTED.
 - Recall: `DRAFT -> SUBMITTED -> VERIFIED -> COMPLETED`
 - Expired: `DRAFT -> SUBMITTED -> VERIFIED -> DISPOSED`
 - Stock transfer: `DRAFT -> COMPLETED`
@@ -63,9 +65,10 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 ## Model Data Singkat
 
 - Tabel inti inventaris: `items`, `stock`, `transactions`
-- Header dokumen: `receivings`, `distributions`, `recalls`, `expired_docs`, `stock_transfers`, `stock_opnames`
-- Baris dokumen: `receiving_items`, `receiving_order_items`, `distribution_items`, `recall_items`, `expired_items`, `stock_transfer_items`, `stock_opname_items`
-- Penugasan petugas distribusi: `distribution_staff_assignments`
+- Header dokumen: `receivings`, `distributions`, `allocations`, `recalls`, `expired_docs`, `stock_transfers`, `stock_opnames`
+- Baris dokumen: `receiving_items`, `receiving_order_items`, `distribution_items`, `allocation_items`, `allocation_item_facilities`, `recall_items`, `expired_items`, `stock_transfer_items`, `stock_opname_items`
+- Penugasan petugas: `distribution_staff_assignments`, `allocation_staff_assignments`
+- Penghubung fasilitas alokasi: `allocation_facilities`
 - Tabel otorisasi: `users`, `user_module_accesses`
 
 Rincian skema kanonis tersedia di `SYSTEM_MODEL.md`.
@@ -81,7 +84,8 @@ Rincian skema kanonis tersedia di `SYSTEM_MODEL.md`.
 ## Dokumentasi
 
 - `docs/developer_guide.md`: panduan developer untuk setup lokal, testing, versioning, seed, import, dan tata kelola dokumentasi.
-- `docs/ALLOCATION_IMPLEMENTATION.md`: draft rancangan pemisahan modul Alokasi dari Distribusi.
+- `docs/FEATURE_ALOKASI.md`: spesifikasi fitur Alokasi dan aturan bisnis.
+- `docs/ALLOCATION_IMPLEMENTATION.md`: draft rancangan awal pemisahan modul Alokasi (referensi historis).
 - `SYSTEM_MODEL.md`: referensi skema data dan peta workflow.
 - `CHANGELOG.md`: riwayat perubahan dan rilis.
 - `backend/seed/README.md`: spesifikasi template CSV seed.
