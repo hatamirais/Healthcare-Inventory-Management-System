@@ -26,35 +26,50 @@
    - ~~Use the full formatted value as `document_number`~~
 10. ~~Refactor document number generation into a shared numbering service/helper instead of keeping rule logic duplicated inside model `save()` methods.~~
 11. ~~Update distribution numbering generation to branch by `distribution_type`~~:
-   - ~~`LPLPO` uses the `SBBK.RF` rule~~
-   - ~~`SPECIAL_REQUEST` uses the `KD.F` rule~~
-   - ~~keep existing numbering for other distribution types unless a new institutional rule is defined~~
+
+    - ~~`LPLPO` uses the `SBBK.RF` rule~~
+    - ~~`SPECIAL_REQUEST` uses the `KD.F` rule~~
+    - ~~keep existing numbering for other distribution types unless a new institutional rule is defined~~
+
 12. ~~Add focused tests for numbering behavior~~:
-   - ~~sequence increments correctly for LPLPO documents~~
-   - ~~sequence increments correctly for Permintaan Khusus documents~~
-   - ~~counters are independent between LPLPO and Permintaan Khusus~~
-   - ~~counters reset per year~~
-   - ~~legacy document numbers do not break the new parser/generator~~
+
+    - ~~sequence increments correctly for LPLPO documents~~
+    - ~~sequence increments correctly for Permintaan Khusus documents~~
+    - ~~counters are independent between LPLPO and Permintaan Khusus~~
+    - ~~counters reset per year~~
+    - ~~legacy document numbers do not break the new parser/generator~~
+
 13. ~~Create a new submenu under `Laporan` for document numbering history~~:
-   - ~~show numbering history for LPLPO distribution documents~~
-   - ~~show numbering history for Permintaan Khusus distribution documents~~
+
+    - ~~show numbering history for LPLPO distribution documents~~
+    - ~~show numbering history for Permintaan Khusus distribution documents~~
+
 14. ~~Build numbering history list UI with per-row details~~:
-   - ~~document number~~
-   - ~~document type~~
-   - ~~year/counter context~~
-   - ~~document status~~
-   - ~~created date~~
+
+    - ~~document number~~
+    - ~~document type~~
+    - ~~year/counter context~~
+    - ~~document status~~
+    - ~~created date~~
+
 15. ~~Add `Lihat Dokumen` action on numbering history rows~~:
-   - ~~opens a modal with a summary of the selected document~~
-   - ~~modal includes a button to open the full workflow/detail page in a new tab~~
+
+    - ~~opens a modal with a summary of the selected document~~
+    - ~~modal includes a button to open the full workflow/detail page in a new tab~~
+
 16. ~~Add supporting backend/view tasks for numbering history~~:
-   - ~~query/filter numbering history by document type and year~~
-   - ~~provide summary data for modal preview~~
-   - ~~map each history row to the correct workflow detail URL~~
+
+    - ~~query/filter numbering history by document type and year~~
+    - ~~provide summary data for modal preview~~
+    - ~~map each history row to the correct workflow detail URL~~
+
 17. ~~Update documentation and release notes after implementation~~:
-   - ~~`CHANGELOG.md`~~
-   - ~~`SYSTEM_MODEL.md`~~
-   - ~~`AGENTS.md` if numbering/report navigation conventions change~~
+
+    - ~~`CHANGELOG.md`~~
+    - ~~`SYSTEM_MODEL.md`~~
+    - ~~`AGENTS.md` if numbering/report navigation conventions change~~
+
+18. Printable Kartu Stok
 
 ## Version 2
 
