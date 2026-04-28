@@ -126,7 +126,7 @@ def nav_notifications(request):
             "bi-send",
         )
         add_notification_item(
-            "Alokasi",
+            "Distribusi Alokasi",
             base_qs.filter(
                 distribution_type=Distribution.DistributionType.ALLOCATION
             ).count(),
