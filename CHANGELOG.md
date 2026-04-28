@@ -7,6 +7,23 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 ## [Unreleased]
 
+## [1.19.2] - 2026-04-28
+
+### Added
+
+- **Government-style Kartu Stok print template**: New standalone print page (`/stock/stock-card/<id>/print/`) renders per-sumber-dana stock cards matching the official physical Kartu Stok form layout, with institutional header (kop surat) from `Pengaturan Sistem`, A4 portrait page setup, and CSS page numbering.
+- **Per-Sumber-Dana stock cards**: Kartu Stok now groups transactions by funding source, rendering each `Sumber Dana` as its own collapsible card on screen and a separate page when printing.
+- **9-column transaction table**: Kartu Stok table columns now match the physical form: TGL, DOKUMEN, DARI/KEPADA, NO BATCH, EXP DATE, TERIMA, KELUAR, SISA, KETR.
+- **Sumber Dana filter**: Kartu Stok screen view now includes a `Sumber Dana` dropdown alongside the existing date and location filters.
+- **DARI/KEPADA column**: Transactions now display the supplier name (for receivings) or facility name (for distributions) in a dedicated column.
+- **Tahun Anggaran per card**: Each sumber dana card displays the fiscal year derived from the earliest receiving date for that funding source and item.
+
+### Fixed
+
+- **Unit price Rp 0 on initial-import funding sources**: Unit price lookup now uses a 3-tier fallback (ReceivingItem → Stock.unit_price → Transaction.unit_price), resolving cases where the Receiving header sumber_dana differs from the Stock entry sumber_dana (e.g., initial SALDOAWAL imports).
+- **Year displayed as "2.026"**: Prevented Django's `USE_THOUSAND_SEPARATOR` from formatting year integers with thousand separators in Kartu Stok metadata fields.
+- **Cetak button blocked by CSP**: Replaced inline `onclick="window.print()"` with the CSP-compliant `data-action="print"` pattern on the stock card print page.
+
 ## [1.19.1] - 2026-04-27
 
 ### Added
