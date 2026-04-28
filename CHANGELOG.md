@@ -7,6 +7,13 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 ## [Unreleased]
 
+## [1.19.3] - 2026-04-28
+
+### Fixed
+
+- **Jumlah Disetujui exceeding Jumlah Diminta** (closes [#11](https://github.com/hatamirais/dinkes-farmalkes-ims/issues/11)): Added model-level `DistributionItem.clean()` validation that raises `ValidationError` when `quantity_approved > quantity_requested`, enforcing the constraint at all layers (admin, ORM, service).
+- **No real-time feedback on Distribution form**: Added client-side JS validation that shows an inline red error and disables the submit button immediately when approved quantity exceeds requested quantity, without requiring a full form POST round-trip.
+
 ## [1.19.2] - 2026-04-28
 
 ### Added
