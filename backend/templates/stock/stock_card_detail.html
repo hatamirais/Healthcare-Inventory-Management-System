@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load number_format %}
 
 {% block title %}Kartu Stok {{ item.kode_barang }} - Healthcare IMS{% endblock %}
 {% block page_title %}Kartu Stok: {{ item.kode_barang }}{% endblock %}
@@ -11,9 +12,7 @@
     #page-content-wrapper { margin: 0; padding: 0; }
     .card { border: none !important; box-shadow: none !important; }
     .table-container { box-shadow: none; border: none; padding: 0; margin: 0; }
-    .print-header { display: block !important; margin-bottom: 2rem; text-align: center; }
 }
-.balance-col { width: 120px; text-align: right; }
 .stock-card-paper {
     border: 1px solid #d1d5db;
     border-radius: 10px;
@@ -45,13 +44,59 @@
 .stock-meta-line b {
     min-width: 120px;
 }
+.sd-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    background: #fff;
+}
+.sd-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    cursor: pointer;
+    user-select: none;
+}
+.sd-card-header:hover {
+    background: #f1f5f9;
+}
+.sd-card-header h6 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+.sd-card-header .sd-price {
+    font-weight: 700;
+    color: #1e40af;
+    font-size: 0.95rem;
+}
+.sd-card-body {
+    /* collapsible via Bootstrap */
+}
+.sd-summary {
+    display: flex;
+    gap: 16px;
+    padding: 8px 16px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    font-size: 0.85rem;
+}
+.sd-summary .badge-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
 .ledger-table {
-    font-size: 0.92rem;
+    font-size: 0.88rem;
 }
 .ledger-table thead th {
     text-transform: uppercase;
     letter-spacing: .04em;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     background: #f8fafc;
     border-color: #cbd5e1 !important;
 }
@@ -61,8 +106,8 @@
     vertical-align: middle;
 }
 .ledger-table tbody td {
-    padding-top: 8px;
-    padding-bottom: 8px;
+    padding-top: 6px;
+    padding-bottom: 6px;
 }
 .ledger-table .num-cell {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -70,10 +115,7 @@
 }
 .ledger-table .doc-ref {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.82rem;
-}
-.ledger-table .ledger-note {
-    line-height: 1.25;
+    font-size: 0.8rem;
 }
 @media (max-width: 768px) {
     .stock-meta-grid { grid-template-columns: 1fr; }
@@ -82,12 +124,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- Print Header (Hidden on screen) -->
-<div class="print-header d-none">
-    <h3 class="mb-1">KARTU STOK BARANG</h3>
-    <p class="mb-4 text-muted">Dicetak pada: {% now "d/m/Y H:i" %}</p>
-</div>
-
 <div class="d-flex justify-content-end mb-2 gap-2 print-hide">
     <a href="{% url 'stock:stock_card_select' %}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left me-1"></i>Kembali
@@ -95,9 +131,10 @@
     <a href="{% url 'stock:transaction_list' %}" class="btn btn-outline-secondary">
         <i class="bi bi-clock-history me-1"></i>Log Mutasi
     </a>
-    <button data-action="print" class="btn btn-outline-primary">
+    <a href="{% url 'stock:stock_card_print' item.id %}{% if date_from or date_to or selected_location or selected_sumber_dana %}?{% if date_from %}date_from={{ date_from }}&{% endif %}{% if date_to %}date_to={{ date_to }}&{% endif %}{% if selected_location %}location={{ selected_location }}&{% endif %}{% if selected_sumber_dana %}sumber_dana={{ selected_sumber_dana }}{% endif %}{% endif %}"
+       class="btn btn-outline-primary" target="_blank">
         <i class="bi bi-printer me-1"></i>Cetak
-    </button>
+    </a>
 </div>
 
 <div class="stock-card-paper shadow-sm">
@@ -107,15 +144,12 @@
 
     <div class="stock-meta-grid">
         <div class="stock-meta-line"><b>NAMA OBAT</b><span>: {{ item.nama_barang }}</span></div>
-        <div class="stock-meta-line"><b>TAHUN ANGGARAN</b><span>: {{ budget_year }}</span></div>
         <div class="stock-meta-line"><b>KODE</b><span>: {{ item.kode_barang }}</span></div>
         <div class="stock-meta-line"><b>SATUAN</b><span>: {{ item.satuan.name }}</span></div>
-        <div class="stock-meta-line"><b>KEMASAN</b><span>: {{ item.kategori.name|default:'-' }}</span></div>
-        <div class="stock-meta-line"><b>SUMBER DANA</b><span>: {{ funding_display }}</span></div>
+        <div class="stock-meta-line"><b>TAHUN</b><span>: {{ budget_year|stringformat:"d" }}</span></div>
     </div>
 
-    <div class="table-container shadow-none border-0">
-    <!-- Filters -->
+    <!-- ── Filters ───────────────────────────────────────────────── -->
     <div class="px-3 py-3 border-bottom bg-light print-hide">
         <form method="get" class="filter-form d-flex gap-2 flex-wrap align-items-center" data-date-validate="dmy">
             <div class="input-group input-group-sm" style="width: auto;">
@@ -124,115 +158,122 @@
                 <span class="input-group-text">s/d</span>
                 <input type="text" name="date_to" class="form-control js-date-mask" value="{{ date_to }}" placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}" maxlength="10" inputmode="numeric">
             </div>
-            <div class="small text-danger d-none" id="dateRangeFeedback"></div>
-            <select name="location" class="form-select form-select-sm" style="width: auto; min-width: 150px;">
+            <select name="location" class="form-select form-select-sm" style="width: auto; min-width: 140px;">
                 <option value="">Semua Lokasi</option>
                 {% for loc in locations %}
                 <option value="{{ loc.id }}" {{ loc.selected }}>{{ loc.name }}</option>
                 {% endfor %}
             </select>
+            <select name="sumber_dana" class="form-select form-select-sm" style="width: auto; min-width: 160px;">
+                <option value="">Semua Sumber Dana</option>
+                {% for sd in funding_sources %}
+                <option value="{{ sd.id }}" {{ sd.selected }}>{{ sd.name }}</option>
+                {% endfor %}
+            </select>
             <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
-            {% if date_from or date_to or selected_location %}
+            {% if date_from or date_to or selected_location or selected_sumber_dana %}
             <a href="{% url 'stock:stock_card_detail' item.id %}" class="btn btn-outline-danger btn-sm">Atur Ulang</a>
             {% endif %}
         </form>
     </div>
 
-    <!-- Stock Card Table -->
-    <div class="table-responsive">
-        <table class="table table-bordered align-middle mb-0 ledger-table">
-            <thead class="table-light">
-                <tr>
-                    <th rowspan="2" class="align-middle" width="12%">Tgl</th>
-                    <th rowspan="2" class="align-middle" width="12%">Dokumen</th>
-                    <th rowspan="2" class="align-middle">Dari/Kepada & No Batch</th>
-                    <th rowspan="2" class="align-middle">Lokasi</th>
-                    <th colspan="3" class="text-center border-bottom-0">Mutasi</th>
-                </tr>
-                <tr>
-                    <th class="text-end" width="10%">Terima</th>
-                    <th class="text-end" width="10%">Keluar</th>
-                    <th class="text-end balance-col bg-light fw-bold">Saldo</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if transactions.number == 1 and date_from or transactions.number == 1 and selected_location %}
-                <!-- Saldo Awal Row if filtered -->
-                <tr class="table-info">
-                    <td colspan="4" class="text-end fw-bold">SALDO AWAL</td>
-                    <td class="text-end">-</td>
-                    <td class="text-end">-</td>
-                    <td class="text-end fw-bold">{{ opening_balance }}</td>
-                </tr>
-                {% endif %}
-
-                {% for tx in transactions %}
-                <tr>
-                    <td class="text-nowrap">{{ tx.created_at|date:"d/m/Y H:i" }}<br><small class="text-muted">{{ tx.user.username }}</small></td>
-                    <td>
-                        <span class="badge {% if tx.transaction_type == 'IN' or tx.transaction_type == 'RETURN' %}bg-success-subtle text-success{% elif tx.transaction_type == 'OUT' %}bg-danger-subtle text-danger{% else %}bg-warning-subtle text-warning{% endif %} d-block mb-1 text-center">
-                            {{ tx.get_transaction_type_display }}
-                        </span>
-                        <code class="d-block text-center doc-ref">{{ tx.reference_label }}</code>
-                    </td>
-                    <td>
-                        {% if tx.notes %}<div class="mb-1 ledger-note">{{ tx.notes }}</div>{% endif %}
-                        {% if tx.batch_lot %}<span class="badge bg-light text-dark border"><i class="bi bi-box-seam me-1"></i>{{ tx.batch_lot }}</span>{% endif %}
-                    </td>
-                    <td>{{ tx.location.name|default:"-" }}</td>
-                    <td class="text-end text-success fw-semibold num-cell">{% if tx.tx_in > 0 %}+{{ tx.tx_in }}{% else %}-{% endif %}</td>
-                    <td class="text-end text-danger fw-semibold num-cell">{% if tx.tx_out > 0 %}-{{ tx.tx_out }}{% else %}-{% endif %}</td>
-                    <td class="text-end fw-bold bg-light num-cell">{{ tx.running_balance }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="7">
-                        <div class="empty-state py-4">
-                            <i class="bi bi-journal-x d-block fs-2 text-muted mb-2"></i>
-                            <p class="mb-0">Tidak ada riwayat transaksi untuk filter ini.</p>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-            {% if transactions %}
-            <tfoot class="table-light fw-bold">
-                <tr>
-                    <td colspan="4" class="text-end">{{ total_label }}</td>
-                    <td class="text-end text-success num-cell">+{{ total_in }}</td>
-                    <td class="text-end text-danger num-cell">-{{ total_out }}</td>
-                    <td class="text-end bg-light num-cell">{{ closing_balance }}</td>
-                </tr>
-            </tfoot>
-            {% endif %}
-        </table>
-    </div>
-
-    <!-- Pagination -->
-    {% if transactions.has_other_pages %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top print-hide">
-        <small class="text-muted">{{ transactions.start_index }}-{{ transactions.end_index }} dari {{ transactions.paginator.count }} mutasi</small>
-        <nav>
-            <ul class="pagination pagination-sm mb-0">
-                {% if transactions.has_previous %}
-                <li class="page-item"><a class="page-link" href="?page={{ transactions.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}">&laquo;</a></li>
-                {% endif %}
-                
-                {% for num in transactions.paginator.page_range %}
-                    {% if transactions.number == num %}
-                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                    {% elif num > transactions.number|add:'-3' and num < transactions.number|add:'3' %}
-                    <li class="page-item"><a class="page-link" href="?page={{ num }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}">{{ num }}</a></li>
+    <!-- ── Per-Sumber-Dana Cards ──────────────────────────────────── -->
+    <div class="p-3">
+    {% for card in funding_source_cards %}
+        <div class="sd-card">
+            <div class="sd-card-header" data-bs-toggle="collapse" data-bs-target="#sdCard{{ forloop.counter }}" aria-expanded="true">
+                <h6>
+                    <i class="bi bi-wallet2 me-1"></i>
+                    {% if card.sumber_dana %}
+                        {{ card.sumber_dana.code }} — {{ card.sumber_dana.name }}
+                    {% else %}
+                        Tanpa Sumber Dana
                     {% endif %}
-                {% endfor %}
+                    <span class="badge bg-secondary-subtle text-secondary ms-2">{{ card.transactions|length }} transaksi</span>
+                </h6>
+                <div class="sd-price">Rp {{ card.unit_price|id_decimal:0 }}</div>
+            </div>
 
-                {% if transactions.has_next %}
-                <li class="page-item"><a class="page-link" href="?page={{ transactions.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}">&raquo;</a></li>
-                {% endif %}
-            </ul>
-        </nav>
+            <div class="collapse show" id="sdCard{{ forloop.counter }}">
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-0 ledger-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 80px;">Tgl</th>
+                                <th style="width: 115px;">Dokumen</th>
+                                <th>Dari / Kepada</th>
+                                <th style="width: 100px;">No Batch</th>
+                                <th style="width: 82px;">Exp Date</th>
+                                <th class="text-end" style="width: 75px;">Terima</th>
+                                <th class="text-end" style="width: 75px;">Keluar</th>
+                                <th class="text-end" style="width: 85px;">Sisa</th>
+                                <th style="width: 80px;">Ketr</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if card.opening_balance %}
+                            <tr class="table-info">
+                                <td colspan="5" class="text-end fw-bold">SALDO AWAL</td>
+                                <td class="text-end">-</td>
+                                <td class="text-end">-</td>
+                                <td class="text-end fw-bold num-cell">{{ card.opening_balance|id_decimal:0 }}</td>
+                                <td></td>
+                            </tr>
+                            {% endif %}
+
+                            {% for tx in card.transactions %}
+                            <tr>
+                                <td class="text-nowrap">{{ tx.created_at|date:"d/m/Y" }}</td>
+                                <td>
+                                    <code class="doc-ref">{{ tx.reference_label }}</code>
+                                </td>
+                                <td>{{ tx.dari_kepada|default:"" }}</td>
+                                <td>{{ tx.batch_lot }}</td>
+                                <td class="text-center">{{ tx.expiry_display }}</td>
+                                <td class="text-end text-success fw-semibold num-cell">{% if tx.tx_in > 0 %}{{ tx.tx_in|id_decimal:0 }}{% endif %}</td>
+                                <td class="text-end text-danger fw-semibold num-cell">{% if tx.tx_out > 0 %}{{ tx.tx_out|id_decimal:0 }}{% endif %}</td>
+                                <td class="text-end fw-bold bg-light num-cell">{{ tx.running_balance|id_decimal:0 }}</td>
+                                <td class="small">{{ tx.notes|truncatewords:8 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9">
+                                    <div class="text-center py-3 text-muted">
+                                        <i class="bi bi-journal-x d-block fs-4 mb-1"></i>
+                                        Tidak ada riwayat transaksi.
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if card.transactions %}
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td colspan="5" class="text-end">TOTAL</td>
+                                <td class="text-end text-success num-cell">{{ card.total_in|id_decimal:0 }}</td>
+                                <td class="text-end text-danger num-cell">{{ card.total_out|id_decimal:0 }}</td>
+                                <td class="text-end bg-light num-cell">{{ card.closing_balance|id_decimal:0 }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+
+                <div class="sd-summary">
+                    <span class="badge-stat"><strong>T.A:</strong> {{ card.tahun_anggaran|stringformat:"d" }}</span>
+                    <span class="badge-stat"><strong>Saldo Akhir:</strong> {{ card.closing_balance|id_decimal:0 }}</span>
+                    <span class="badge-stat"><strong>Total Masuk:</strong> <span class="text-success">{{ card.total_in|id_decimal:0 }}</span></span>
+                    <span class="badge-stat"><strong>Total Keluar:</strong> <span class="text-danger">{{ card.total_out|id_decimal:0 }}</span></span>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-journal-x d-block fs-1 mb-2"></i>
+            <p class="mb-0">Tidak ada riwayat transaksi untuk item ini.</p>
+        </div>
+    {% endfor %}
     </div>
-    {% endif %}
-</div>
 </div>
 {% endblock %}

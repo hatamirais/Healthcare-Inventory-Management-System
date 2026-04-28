@@ -74,15 +74,19 @@ class StockCardTest(TestCase):
         response = self.client.get(reverse('stock:stock_card_detail', args=[self.item.id]))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'stock/stock_card_detail.html')
-        
-        # Verify context calculations
-        transactions = response.context['transactions']
+
+        # Verify context contains funding_source_cards
+        cards = response.context['funding_source_cards']
+        self.assertTrue(len(cards) >= 1)
+
+        # All transactions share one sumber_dana (or None), so should be in one card
+        card = cards[0]
+        transactions = card['transactions']
         self.assertEqual(len(transactions), 2)
-        self.assertEqual(response.context['opening_balance'], Decimal('0'))
-        self.assertEqual(response.context['closing_balance'], Decimal('80')) # 100 - 20
-        self.assertEqual(response.context['total_in'], Decimal('100'))
-        self.assertEqual(response.context['total_out'], Decimal('20'))
-        
+        self.assertEqual(card['closing_balance'], Decimal('80'))  # 100 - 20
+        self.assertEqual(card['total_in'], Decimal('100'))
+        self.assertEqual(card['total_out'], Decimal('20'))
+
         # Verify running balance on individual objects
         self.assertEqual(transactions[0].running_balance, Decimal('100'))
         self.assertEqual(transactions[1].running_balance, Decimal('80'))
@@ -91,14 +95,18 @@ class StockCardTest(TestCase):
         # Filter starting after tx1, so tx1 becomes opening balance
         filter_date = (timezone.now() - timedelta(days=3)).strftime('%Y-%m-%d')
         response = self.client.get(f"{reverse('stock:stock_card_detail', args=[self.item.id])}?date_from={filter_date}")
-        
+
         self.assertEqual(response.status_code, 200)
-        transactions = response.context['transactions']
-        
+        cards = response.context['funding_source_cards']
+        self.assertTrue(len(cards) >= 1)
+
+        card = cards[0]
+        transactions = card['transactions']
+
         # Only tx2 should be in list
         self.assertEqual(len(transactions), 1)
-        self.assertEqual(response.context['opening_balance'], Decimal('100'))
-        self.assertEqual(response.context['closing_balance'], Decimal('80'))
-        
+        self.assertEqual(card['opening_balance'], Decimal('100'))
+        self.assertEqual(card['closing_balance'], Decimal('80'))
+
         # tx2 running balance should still be 80
         self.assertEqual(transactions[0].running_balance, Decimal('80'))

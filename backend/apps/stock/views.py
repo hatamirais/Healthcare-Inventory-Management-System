@@ -138,11 +138,297 @@ def stock_card_select(request):
     )
 
 
+def _parse_filter_date(value):
+    """Parse a date string from dd/mm/yyyy or yyyy-mm-dd format."""
+    if not value:
+        return None
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
+                           date_from=None, date_to=None):
+    """Build per-sumber-dana stock card data for a given item.
+
+    Returns a dict with:
+      - funding_source_cards: list of card dicts grouped by sumber_dana
+      - locations: available location filter options
+      - funding_sources: available sumber_dana filter options
+      - date_from / date_to: parsed dates
+      - budget_year: current year
+    """
+    from collections import OrderedDict
+    from apps.receiving.models import ReceivingItem
+
+    queryset = (
+        Transaction.objects.filter(item=item)
+        .select_related("location", "user", "sumber_dana")
+        .order_by("created_at", "id")
+    )
+
+    if location_id:
+        queryset = queryset.filter(location_id=location_id)
+    if sumber_dana_id:
+        queryset = queryset.filter(sumber_dana_id=sumber_dana_id)
+    if date_from:
+        queryset = queryset.filter(created_at__date__gte=date_from)
+    if date_to:
+        queryset = queryset.filter(created_at__date__lte=date_to)
+
+    transactions = list(queryset)
+
+    # ── Resolve document number labels ───────────────────────────────
+    ref_id_sets = {}
+    for tx in transactions:
+        if tx.reference_id:
+            ref_id_sets.setdefault(tx.reference_type, set()).add(tx.reference_id)
+
+    reference_labels = {}
+    _ref_model_map = {
+        Transaction.ReferenceType.RECEIVING: "apps.receiving.models.Receiving",
+        Transaction.ReferenceType.DISTRIBUTION: "apps.distribution.models.Distribution",
+        Transaction.ReferenceType.RECALL: "apps.recall.models.Recall",
+        Transaction.ReferenceType.EXPIRED: "apps.expired.models.Expired",
+        Transaction.ReferenceType.TRANSFER: "apps.stock.models.StockTransfer",
+    }
+    for ref_type, ids in ref_id_sets.items():
+        model_path = _ref_model_map.get(ref_type)
+        if not model_path:
+            continue
+        module_path, class_name = model_path.rsplit(".", 1)
+        import importlib
+        mod = importlib.import_module(module_path)
+        model_cls = getattr(mod, class_name)
+        reference_labels[ref_type] = {
+            doc.id: doc.document_number
+            for doc in model_cls.objects.filter(id__in=ids).only(
+                "id", "document_number"
+            )
+        }
+
+    # ── Resolve supplier/facility names for DARI/KEPADA ──────────────
+    receiving_supplier_map = {}
+    distribution_facility_map = {}
+
+    recv_ids = ref_id_sets.get(Transaction.ReferenceType.RECEIVING, set())
+    if recv_ids:
+        from apps.receiving.models import Receiving
+        for r in Receiving.objects.filter(id__in=recv_ids).select_related(
+            "supplier", "facility"
+        ).only("id", "supplier__name", "facility__name", "grant_origin"):
+            if r.supplier:
+                receiving_supplier_map[r.id] = r.supplier.name
+            elif r.grant_origin:
+                receiving_supplier_map[r.id] = r.grant_origin
+            elif r.facility:
+                receiving_supplier_map[r.id] = r.facility.name
+
+    dist_ids = ref_id_sets.get(Transaction.ReferenceType.DISTRIBUTION, set())
+    if dist_ids:
+        from apps.distribution.models import Distribution
+        for d in Distribution.objects.filter(id__in=dist_ids).select_related(
+            "facility"
+        ).only("id", "facility__name"):
+            if d.facility:
+                distribution_facility_map[d.id] = d.facility.name
+
+    # ── Group by sumber_dana ─────────────────────────────────────────
+    sd_groups = OrderedDict()
+    for tx in transactions:
+        sd_key = tx.sumber_dana_id or 0
+        if sd_key not in sd_groups:
+            sd_groups[sd_key] = {
+                "sumber_dana": tx.sumber_dana,
+                "transactions": [],
+            }
+        sd_groups[sd_key]["transactions"].append(tx)
+
+    # ── Compute opening balances, running balances, and unit prices ───
+    funding_source_cards = []
+    for sd_key, group in sd_groups.items():
+        sd_txs = group["transactions"]
+        sd_obj = group["sumber_dana"]
+
+        # Opening balance for this sumber_dana
+        opening_balance = Decimal("0")
+        if date_from:
+            past_qs = Transaction.objects.filter(
+                item=item, created_at__date__lt=date_from
+            )
+            if location_id:
+                past_qs = past_qs.filter(location_id=location_id)
+            if sd_key:
+                past_qs = past_qs.filter(sumber_dana_id=sd_key)
+            for ptx in past_qs:
+                if ptx.transaction_type in [
+                    Transaction.TransactionType.IN,
+                    Transaction.TransactionType.RETURN,
+                ]:
+                    opening_balance += ptx.quantity
+                else:
+                    opening_balance -= ptx.quantity
+
+        # Unit price from Receiving module for this item + sumber_dana.
+        # Fallback chain:
+        #   1. ReceivingItem where the Receiving header matches this sumber_dana
+        #   2. Stock.unit_price for this item + sumber_dana (covers initial imports
+        #      where the Receiving header sumber_dana differs from Stock sumber_dana)
+        #   3. Latest Transaction.unit_price for this item + sumber_dana
+        unit_price = Decimal("0")
+        if sd_key:
+            ri_qs = ReceivingItem.objects.filter(
+                item=item,
+                receiving__sumber_dana_id=sd_key,
+            ).order_by("-receiving__receiving_date", "-pk")
+            latest_ri = ri_qs.first()
+            if latest_ri and latest_ri.unit_price:
+                unit_price = latest_ri.unit_price
+
+        if not unit_price and sd_key:
+            stock_entry = (
+                Stock.objects.filter(item=item, sumber_dana_id=sd_key)
+                .exclude(unit_price=0)
+                .order_by("-pk")
+                .values_list("unit_price", flat=True)
+                .first()
+            )
+            if stock_entry:
+                unit_price = stock_entry
+
+        if not unit_price:
+            tx_price = (
+                Transaction.objects.filter(item=item)
+                .filter(sumber_dana_id=sd_key if sd_key else None)
+                .exclude(unit_price__isnull=True)
+                .exclude(unit_price=0)
+                .order_by("-created_at")
+                .values_list("unit_price", flat=True)
+                .first()
+            )
+            if tx_price:
+                unit_price = tx_price
+
+        # Running balance and totals
+        current_balance = opening_balance
+        total_in = Decimal("0")
+        total_out = Decimal("0")
+        include_transfer_in_totals = bool(location_id)
+
+        for tx in sd_txs:
+            tx_in = Decimal("0")
+            tx_out = Decimal("0")
+
+            if tx.transaction_type in [
+                Transaction.TransactionType.IN,
+                Transaction.TransactionType.RETURN,
+            ]:
+                tx_in = tx.quantity
+                current_balance += tx_in
+                if (
+                    include_transfer_in_totals
+                    or tx.reference_type != Transaction.ReferenceType.TRANSFER
+                ):
+                    total_in += tx_in
+            else:
+                tx_out = tx.quantity
+                current_balance -= tx_out
+                if (
+                    include_transfer_in_totals
+                    or tx.reference_type != Transaction.ReferenceType.TRANSFER
+                ):
+                    total_out += tx_out
+
+            tx.tx_in = tx_in
+            tx.tx_out = tx_out
+            tx.running_balance = current_balance
+            tx.reference_label = reference_labels.get(
+                tx.reference_type, {}
+            ).get(
+                tx.reference_id,
+                f"{tx.reference_type}-{tx.reference_id}",
+            )
+            # DARI/KEPADA resolution
+            if tx.reference_type == Transaction.ReferenceType.RECEIVING:
+                tx.dari_kepada = receiving_supplier_map.get(
+                    tx.reference_id, ""
+                )
+            elif tx.reference_type == Transaction.ReferenceType.DISTRIBUTION:
+                tx.dari_kepada = distribution_facility_map.get(
+                    tx.reference_id, ""
+                )
+            else:
+                tx.dari_kepada = ""
+
+            # Expiry date from batch if available
+            tx.expiry_display = ""
+            if tx.batch_lot:
+                stock_entry = (
+                    Stock.objects.filter(item=item, batch_lot=tx.batch_lot)
+                    .values_list("expiry_date", flat=True)
+                    .first()
+                )
+                if stock_entry:
+                    tx.expiry_display = stock_entry.strftime("%d/%m/%Y")
+
+        # Determine Tahun Anggaran from earliest receiving year
+        tahun_anggaran = timezone.now().year
+        if sd_key:
+            from apps.receiving.models import Receiving
+            earliest_recv = (
+                Receiving.objects.filter(
+                    sumber_dana_id=sd_key,
+                    items__item=item,
+                )
+                .order_by("receiving_date")
+                .values_list("receiving_date", flat=True)
+                .first()
+            )
+            if earliest_recv:
+                tahun_anggaran = earliest_recv.year
+
+        funding_source_cards.append({
+            "sumber_dana": sd_obj,
+            "unit_price": unit_price,
+            "opening_balance": opening_balance,
+            "closing_balance": current_balance,
+            "total_in": total_in,
+            "total_out": total_out,
+            "transactions": sd_txs,
+            "tahun_anggaran": tahun_anggaran,
+        })
+
+    # ── Filter dropdown data ─────────────────────────────────────────
+    locations_list = []
+    for loc in Location.objects.filter(is_active=True):
+        locations_list.append({
+            "id": loc.id,
+            "name": loc.name,
+            "selected": "selected" if location_id == str(loc.id) else "",
+        })
+
+    funding_sources_list = []
+    for sd in FundingSource.objects.filter(is_active=True):
+        funding_sources_list.append({
+            "id": sd.id,
+            "name": f"{sd.code} - {sd.name}",
+            "selected": "selected" if sumber_dana_id == str(sd.id) else "",
+        })
+
+    return {
+        "funding_source_cards": funding_source_cards,
+        "locations": locations_list,
+        "funding_sources": funding_sources_list,
+        "budget_year": timezone.now().year,
+    }
+
+
 @login_required
 def stock_card_detail(request, item_id):
-    """View the stock card (running balance) for a specific item."""
-    from decimal import Decimal
-
+    """View the stock card (running balance) for a specific item, grouped by sumber dana."""
     item = get_object_or_404(Item, pk=item_id)
 
     recent_ids = request.session.get("stock_card_recent_items", [])
@@ -150,220 +436,63 @@ def stock_card_detail(request, item_id):
     recent_ids.insert(0, item.id)
     request.session["stock_card_recent_items"] = recent_ids[:8]
 
-    # Query all transactions for this item, sorted chronologically
-    queryset = (
-        Transaction.objects.filter(item=item)
-        .select_related("location", "user")
-        .order_by("created_at", "id")
-    )
-
     location_id = request.GET.get("location")
-    if location_id:
-        queryset = queryset.filter(location_id=location_id)
-
+    sumber_dana_id = request.GET.get("sumber_dana")
     date_from_raw = request.GET.get("date_from", "").strip()
     date_to_raw = request.GET.get("date_to", "").strip()
-
-    def _parse_filter_date(value):
-        if not value:
-            return None
-        for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
-            try:
-                return datetime.strptime(value, fmt).date()
-            except ValueError:
-                continue
-        return None
-
     date_from = _parse_filter_date(date_from_raw)
     date_to = _parse_filter_date(date_to_raw)
 
-    # Optional date filters
-    if date_from:
-        queryset = queryset.filter(created_at__date__gte=date_from)
-    if date_to:
-        queryset = queryset.filter(created_at__date__lte=date_to)
-
-    # Before paginating or rendering, we need the opening balance
-    # Opening balance is the sum of transactions before date_from (if date_from is provided)
-    opening_balance = Decimal("0")
-    if date_from:
-        past_txs = Transaction.objects.filter(item=item, created_at__date__lt=date_from)
-        if location_id:
-            past_txs = past_txs.filter(location_id=location_id)
-
-        for tx in past_txs:
-            if tx.transaction_type in [
-                Transaction.TransactionType.IN,
-                Transaction.TransactionType.RETURN,
-            ]:
-                opening_balance += tx.quantity
-            elif tx.transaction_type in [
-                Transaction.TransactionType.OUT,
-                Transaction.TransactionType.ADJUST,
-            ]:
-                # Assume ADJUST is negative or positive, but we'll subtract OUT.
-                # Standard convention for this app seems to be OUT is positive quantity, deducted.
-                opening_balance -= tx.quantity
-
-    # Fetch all matching transactions to calculate running balances
-    transactions = list(queryset)
-
-    # Resolve human-friendly document numbers for reference labels
-    receiving_ids = [
-        tx.reference_id
-        for tx in transactions
-        if tx.reference_type == Transaction.ReferenceType.RECEIVING and tx.reference_id
-    ]
-    distribution_ids = [
-        tx.reference_id
-        for tx in transactions
-        if tx.reference_type == Transaction.ReferenceType.DISTRIBUTION
-        and tx.reference_id
-    ]
-    recall_ids = [
-        tx.reference_id
-        for tx in transactions
-        if tx.reference_type == Transaction.ReferenceType.RECALL and tx.reference_id
-    ]
-    expired_ids = [
-        tx.reference_id
-        for tx in transactions
-        if tx.reference_type == Transaction.ReferenceType.EXPIRED and tx.reference_id
-    ]
-    transfer_ids = [
-        tx.reference_id
-        for tx in transactions
-        if tx.reference_type == Transaction.ReferenceType.TRANSFER and tx.reference_id
-    ]
-
-    reference_labels = {}
-    if receiving_ids:
-        from apps.receiving.models import Receiving
-
-        reference_labels[Transaction.ReferenceType.RECEIVING] = {
-            doc.id: doc.document_number
-            for doc in Receiving.objects.filter(id__in=receiving_ids).only(
-                "id", "document_number"
-            )
-        }
-    if distribution_ids:
-        from apps.distribution.models import Distribution
-
-        reference_labels[Transaction.ReferenceType.DISTRIBUTION] = {
-            doc.id: doc.document_number
-            for doc in Distribution.objects.filter(id__in=distribution_ids).only(
-                "id", "document_number"
-            )
-        }
-    if recall_ids:
-        from apps.recall.models import Recall
-
-        reference_labels[Transaction.ReferenceType.RECALL] = {
-            doc.id: doc.document_number
-            for doc in Recall.objects.filter(id__in=recall_ids).only(
-                "id", "document_number"
-            )
-        }
-    if expired_ids:
-        from apps.expired.models import Expired
-
-        reference_labels[Transaction.ReferenceType.EXPIRED] = {
-            doc.id: doc.document_number
-            for doc in Expired.objects.filter(id__in=expired_ids).only(
-                "id", "document_number"
-            )
-        }
-    if transfer_ids:
-        reference_labels[Transaction.ReferenceType.TRANSFER] = {
-            doc.id: doc.document_number
-            for doc in StockTransfer.objects.filter(id__in=transfer_ids).only(
-                "id", "document_number"
-            )
-        }
-
-    funding_labels = []
-    for tx in transactions:
-        if tx.sumber_dana_id and tx.sumber_dana:
-            label = f"{tx.sumber_dana.code}/{tx.sumber_dana.name}"
-            if label not in funding_labels:
-                funding_labels.append(label)
-
-    funding_display = ", ".join(funding_labels[:4]) if funding_labels else "-"
-
-    current_balance = opening_balance
-    total_in = Decimal("0")
-    total_out = Decimal("0")
-    include_transfer_in_totals = bool(location_id)
-
-    for tx in transactions:
-        tx_in = Decimal("0")
-        tx_out = Decimal("0")
-
-        if tx.transaction_type in [
-            Transaction.TransactionType.IN,
-            Transaction.TransactionType.RETURN,
-        ]:
-            tx_in = tx.quantity
-            current_balance += tx_in
-            if (
-                include_transfer_in_totals
-                or tx.reference_type != Transaction.ReferenceType.TRANSFER
-            ):
-                total_in += tx_in
-        else:
-            tx_out = tx.quantity
-            current_balance -= tx_out
-            if (
-                include_transfer_in_totals
-                or tx.reference_type != Transaction.ReferenceType.TRANSFER
-            ):
-                total_out += tx_out
-
-        # Attach dynamic attributes
-        tx.tx_in = tx_in
-        tx.tx_out = tx_out
-        tx.running_balance = current_balance
-        tx.reference_label = reference_labels.get(tx.reference_type, {}).get(
-            tx.reference_id,
-            f"{tx.reference_type}-{tx.reference_id}",
-        )
-
-    # Pagination
-    paginator = Paginator(transactions, 50)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
-    # Prepare locations for filter dropdown
-    locations = []
-    for loc in Location.objects.filter(is_active=True):
-        locations.append(
-            {
-                "id": loc.id,
-                "name": loc.name,
-                "selected": "selected" if location_id == str(loc.id) else "",
-            }
-        )
+    data = _build_stock_card_data(
+        item,
+        location_id=location_id,
+        sumber_dana_id=sumber_dana_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
 
     context = {
         "item": item,
-        "transactions": page_obj,
-        "opening_balance": opening_balance,
-        "closing_balance": current_balance,
-        "total_in": total_in,
-        "total_out": total_out,
-        "total_label": "TOTAL MUTASI (Periode/Filter ini)"
-        if location_id
-        else "TOTAL MASUK/KELUAR EKSTERNAL (Mutasi internal dikecualikan)",
-        "funding_display": funding_display,
-        "budget_year": timezone.now().year,
+        **data,
         "date_from": date_from.strftime("%d/%m/%Y")
         if date_from
         else (date_from_raw or ""),
         "date_to": date_to.strftime("%d/%m/%Y") if date_to else (date_to_raw or ""),
-        "locations": locations,
         "selected_location": location_id or "",
+        "selected_sumber_dana": sumber_dana_id or "",
     }
     return render(request, "stock/stock_card_detail.html", context)
+
+
+@login_required
+def stock_card_print(request, item_id):
+    """Standalone print view for government-style Kartu Stok."""
+    item = get_object_or_404(Item, pk=item_id)
+
+    location_id = request.GET.get("location")
+    sumber_dana_id = request.GET.get("sumber_dana")
+    date_from_raw = request.GET.get("date_from", "").strip()
+    date_to_raw = request.GET.get("date_to", "").strip()
+    date_from = _parse_filter_date(date_from_raw)
+    date_to = _parse_filter_date(date_to_raw)
+
+    data = _build_stock_card_data(
+        item,
+        location_id=location_id,
+        sumber_dana_id=sumber_dana_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+    context = {
+        "item": item,
+        **data,
+        "date_from": date_from.strftime("%d/%m/%Y")
+        if date_from
+        else (date_from_raw or ""),
+        "date_to": date_to.strftime("%d/%m/%Y") if date_to else (date_to_raw or ""),
+    }
+    return render(request, "stock/stock_card_print.html", context)
 
 
 @login_required
