@@ -217,12 +217,10 @@
                                     </button>
                                 </form>
                                 {% elif distribution.status == 'PREPARED' %}
-                                <form method="post" action="{% url 'distribution:distribution_distribute' distribution.pk %}" data-confirm-submit="Distribusikan barang? Stok akan dikurangi dan tidak dapat dibatalkan.">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-success btn-sm w-100">
-                                        <i class="bi bi-truck me-1"></i>Distribusikan
-                                    </button>
-                                </form>
+                                <button type="button" class="btn btn-success btn-sm w-100"
+                                        data-bs-toggle="modal" data-bs-target="#distributeModal">
+                                    <i class="bi bi-truck me-1"></i>Distribusikan
+                                </button>
                                 {% endif %}
                                 {% if distribution.status == 'VERIFIED' or distribution.status == 'PREPARED' or distribution.approved_by %}
                                 <button type="button" class="btn btn-dark btn-sm" data-action="print">
@@ -278,12 +276,10 @@
                                     </button>
                                 </form>
                                 {% elif distribution.status == 'PREPARED' %}
-                                <form method="post" action="{% url 'distribution:distribution_distribute' distribution.pk %}" data-confirm-submit="Distribusikan barang? Stok akan dikurangi dan tidak dapat dibatalkan.">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-success btn-sm w-100">
-                                        <i class="bi bi-truck me-1"></i>Distribusikan
-                                    </button>
-                                </form>
+                                <button type="button" class="btn btn-success btn-sm w-100"
+                                        data-bs-toggle="modal" data-bs-target="#distributeModal">
+                                    <i class="bi bi-truck me-1"></i>Distribusikan
+                                </button>
                                 {% endif %}
                                 {% if distribution.status != 'DRAFT' and distribution.status != 'DISTRIBUTED' %}
                                 <form method="post" action="{% url 'distribution:distribution_reset_to_draft' distribution.pk %}" data-confirm-submit="Kembalikan status distribusi ke Draft?">
@@ -364,6 +360,43 @@
     </div>
 
 </div>
+
+{# ─── Distribute Confirmation Modal ─── #}
+{% if distribution.status == 'PREPARED' %}
+<div class="modal fade" id="distributeModal" tabindex="-1" aria-labelledby="distributeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'distribution:distribution_distribute' distribution.pk %}">
+                {% csrf_token %}
+                <div class="modal-header bg-success-subtle">
+                    <h6 class="modal-title" id="distributeModalLabel">
+                        <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Konfirmasi Distribusi
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Anda akan mendistribusikan barang untuk:</p>
+                    <div class="border rounded p-3 bg-light mb-3">
+                        <div class="fw-semibold">{{ distribution.document_number }}</div>
+                        <div class="text-muted small">{{ distribution.facility }}</div>
+                        <div class="text-muted small">{{ distribution.items.count }} item</div>
+                    </div>
+                    <div class="alert alert-warning py-2 mb-0">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        <strong>Perhatian:</strong> Stok akan dikurangi secara permanen. Pastikan barang fisik sudah sesuai dengan SBBK sebelum melanjutkan.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success btn-sm">
+                        <i class="bi bi-truck me-1"></i>Ya, Distribusikan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <section class="sbbk-print-sheet d-none {% if distribution.status == 'VERIFIED' or distribution.status == 'PREPARED' or distribution.approved_by %}d-print-block{% endif %}">
     <div class="sbbk-print-title">
