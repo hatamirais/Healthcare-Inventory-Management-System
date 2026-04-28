@@ -401,8 +401,8 @@
 <section class="sbbk-print-sheet d-none {% if distribution.status == 'VERIFIED' or distribution.status == 'PREPARED' or distribution.approved_by %}d-print-block{% endif %}">
     <div class="sbbk-print-title">
         SURAT BUKTI BARANG KELUAR (SBBK)<br>
-        INSTALASI FARMASI KABUPATEN<br>
-        DINAS KESEHATAN KABUPATEN ACEH BARAT
+        {{ system_settings.facility_name|default:"[NAMA INSTALASI FARMASI]"|upper }}<br>
+        {{ system_settings.header_title|default:"[NAMA PEMERINTAH DAERAH]"|upper }}
     </div>
 
     <div class="sbbk-print-meta">
@@ -451,12 +451,12 @@
     <div class="sbbk-signatures">
         <div class="sbbk-sign-receiver">
             <div class="sbbk-sign-heading">Yang Menerima</div>
-            <div class="sbbk-kepala-title">Kepala UPTD Instalasi Farmasi<br>Kabupaten Aceh Barat</div>
+            <div class="sbbk-kepala-title">Kepala {{ system_settings.facility_name|default:"Instalasi Farmasi" }}</div>
             <div class="sbbk-kepala-name">{{ kepala_instalasi|default:"(................................)" }}</div>
             <div class="sbbk-kepala-nip">NIP: {{ kepala_instalasi.nip|default:"............................" }}</div>
         </div>
         <div class="sbbk-sign-sender">
-            <div class="sbbk-sender-date">Aceh Barat, {% if distribution.distributed_date %}{{ distribution.distributed_date|date:"j F Y" }}{% else %}{{ distribution.request_date|date:"j F Y" }}{% endif %}</div>
+            <div class="sbbk-sender-date">{% if distribution.distributed_date %}{{ distribution.distributed_date|date:"j F Y" }}{% else %}{{ distribution.request_date|date:"j F Y" }}{% endif %}</div>
             <div class="sbbk-sender-title">Yang Menyerahkan</div>
             {% if assigned_staff %}
             <ol class="sbbk-sender-list">

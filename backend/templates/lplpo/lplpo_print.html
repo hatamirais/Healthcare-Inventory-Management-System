@@ -29,6 +29,13 @@
         </button>
     </div>
 
+    <div style="text-align: center; margin-bottom: 6px; line-height: 1.4;">
+        <strong style="font-size: 12px;">{{ system_settings.header_title|default:"[NAMA PEMERINTAH DAERAH]" }}</strong><br>
+        <strong style="font-size: 13px;">{{ system_settings.facility_name|default:"[NAMA INSTALASI FARMASI]" }}</strong><br>
+        {% if system_settings.facility_address %}<span style="font-size: 9px;">{{ system_settings.facility_address }}</span><br>{% endif %}
+    </div>
+    <hr style="border: none; border-top: 2px double #333; margin: 4px 0 10px;">
+
     <h2>LAPORAN PEMAKAIAN DAN LEMBAR PERMINTAAN OBAT (LPLPO)</h2>
     <div class="meta">
         <strong>{{ lplpo.facility.name }}</strong> ({{ lplpo.facility.code }})<br>
@@ -85,7 +92,7 @@
 
     <div class="footer-row">
         <div class="sign-block">
-            <p>Yang Menyerahkan,<br><strong>Kepala Instalasi Farmasi</strong></p>
+            <p>Yang Menyerahkan,<br><strong>Kepala {{ system_settings.facility_name|default:"Instalasi Farmasi" }}</strong></p>
             <div class="sign-line"></div>
             <p>NIP: _______________</p>
         </div>
