@@ -93,8 +93,15 @@ def _validate_stock_at_approval(allocation_items):
 
 
 def _generate_distributions(allocation, allocation_items, user):
-    """Auto-generate one Distribution per facility from approved allocation."""
+    """Auto-generate one Distribution per facility from approved allocation.
+
+    Generated distributions start as VERIFIED because the allocation
+    approval already validates stock availability, batch selection,
+    and approved quantities — equivalent to distribution verification.
+    """
     from collections import defaultdict
+
+    now = timezone.now()
 
     # Group facility allocations by facility
     facility_items = defaultdict(list)
@@ -109,8 +116,10 @@ def _generate_distributions(allocation, allocation_items, user):
             distribution_type=Distribution.DistributionType.ALLOCATION,
             request_date=allocation.allocation_date,
             facility=facility,
-            status=Distribution.Status.GENERATED,
+            status=Distribution.Status.VERIFIED,
             created_by=user,
+            verified_by=user,
+            verified_at=now,
             allocation=allocation,
             notes=f"Dibuat otomatis dari alokasi {allocation.document_number}",
         )
@@ -209,9 +218,9 @@ def execute_allocation_reset_to_draft(allocation):
 
 def execute_distribution_preparation(distribution, user):
     """Mark an allocation-generated distribution as PREPARED."""
-    if distribution.status != Distribution.Status.GENERATED:
+    if distribution.status != Distribution.Status.VERIFIED:
         raise AllocationWorkflowError(
-            "Hanya distribusi berstatus 'Dibuat Otomatis' yang dapat disiapkan."
+            "Hanya distribusi berstatus 'Terverifikasi' yang dapat disiapkan."
         )
 
     distribution.status = Distribution.Status.PREPARED

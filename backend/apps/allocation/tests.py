@@ -233,8 +233,10 @@ class AllocationApprovalTest(TestCase):
 
         for dist in distributions:
             self.assertEqual(dist.distribution_type, Distribution.DistributionType.ALLOCATION)
-            self.assertEqual(dist.status, Distribution.Status.GENERATED)
+            self.assertEqual(dist.status, Distribution.Status.VERIFIED)
             self.assertIsNotNone(dist.document_number)
+            self.assertEqual(dist.verified_by, self.fixtures["kepala"])
+            self.assertIsNotNone(dist.verified_at)
 
     def test_approve_copies_distribution_items(self):
         allocation = _create_allocation(self.fixtures)

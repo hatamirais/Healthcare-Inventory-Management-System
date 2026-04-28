@@ -51,7 +51,7 @@
         transition: border-color 0.2s ease;
         cursor: pointer;
     }
-    .dist-tracking-card.status-generated { border-left-color: #93c5fd; }
+    .dist-tracking-card.status-verified { border-left-color: #93c5fd; }
     .dist-tracking-card.status-prepared { border-left-color: #fbbf24; }
     .dist-tracking-card.status-distributed { border-left-color: #4ade80; }
     .dist-tracking-card .card-body {
@@ -262,7 +262,7 @@
 
                         {# Action buttons #}
                         <div class="d-flex gap-2 mt-auto dist-tracking-card-actions">
-                            {% if dist.status == 'GENERATED' %}
+                            {% if dist.status == 'VERIFIED' %}
                                 <form method="post" action="{% url 'allocation:allocation_distribution_prepare' allocation.pk dist.pk %}" data-card-action="true">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-sm btn-outline-warning"

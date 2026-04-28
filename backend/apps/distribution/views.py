@@ -366,6 +366,10 @@ def distribution_detail(request, pk):
             }
         )
 
+    is_allocation = (
+        dist.distribution_type == Distribution.DistributionType.ALLOCATION
+    )
+
     return render(
         request,
         "distribution/distribution_detail.html",
@@ -377,6 +381,7 @@ def distribution_detail(request, pk):
             "grand_total": grand_total,
             "assigned_staff": assigned_staff,
             "kepala_instalasi": kepala_instalasi,
+            "is_allocation": is_allocation,
             "page_title": (
                 "Detail Permintaan Khusus"
                 if _is_special_request(dist)

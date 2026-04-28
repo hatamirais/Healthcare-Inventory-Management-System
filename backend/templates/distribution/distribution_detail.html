@@ -202,6 +202,35 @@
                         <div class="border rounded-3 p-3 bg-light-subtle">
                             <h6 class="mb-3">Aksi {{ module_label|default:"Distribusi" }}</h6>
                             <div class="d-grid gap-2">
+                                {% if is_allocation %}
+                                {# Allocation-generated: limited actions, managed by parent allocation #}
+                                {% if distribution.allocation %}
+                                <a href="{% url 'allocation:allocation_detail' distribution.allocation.pk %}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-diagram-3 me-1"></i>Lihat Alokasi Induk
+                                </a>
+                                {% endif %}
+                                {% if distribution.status == 'VERIFIED' %}
+                                <form method="post" action="{% url 'distribution:distribution_prepare' distribution.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-info btn-sm w-100">
+                                        <i class="bi bi-box-seam me-1"></i>Siapkan Barang
+                                    </button>
+                                </form>
+                                {% elif distribution.status == 'PREPARED' %}
+                                <form method="post" action="{% url 'distribution:distribution_distribute' distribution.pk %}" data-confirm-submit="Distribusikan barang? Stok akan dikurangi dan tidak dapat dibatalkan.">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-success btn-sm w-100">
+                                        <i class="bi bi-truck me-1"></i>Distribusikan
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% if distribution.status == 'VERIFIED' or distribution.status == 'PREPARED' or distribution.approved_by %}
+                                <button type="button" class="btn btn-dark btn-sm" data-action="print">
+                                    <i class="bi bi-printer me-1"></i>Cetak SBBK
+                                </button>
+                                {% endif %}
+                                {% else %}
+                                {# Regular distribution: full workflow actions #}
                                 {% if distribution.status == 'DRAFT' %}
                                 <a href="{% url 'distribution:distribution_edit' distribution.pk %}" class="btn btn-outline-secondary btn-sm">
                                     <i class="bi bi-pencil me-1"></i>Ubah
@@ -276,6 +305,7 @@
                                 <button type="button" class="btn btn-dark btn-sm" data-action="print">
                                     <i class="bi bi-printer me-1"></i>Cetak SBBK
                                 </button>
+                                {% endif %}
                                 {% endif %}
                                 <a href="{% url module_back_url_name|default:'distribution:distribution_list' %}" class="btn btn-outline-secondary btn-sm">
                                     <i class="bi bi-arrow-left me-1"></i>Kembali
