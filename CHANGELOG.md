@@ -7,6 +7,18 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 ## [Unreleased]
 
+## [1.19.4] - 2026-04-28
+
+### Fixed
+
+- **Allocation-generated distributions dead-end status**: Replaced `GENERATED` (Dibuat Otomatis) status with `VERIFIED` (Terverifikasi) for allocation-generated distributions, since the allocation approval already validates stock, batch, and quantities. This eliminates the dead-end where no workflow actions were available on the distribution detail page.
+- **Allocation distributions showing disruptive actions**: Distribution detail page now hides Edit, Delete, Reset to Draft, and Step Back for allocation-type distributions. These lifecycle actions belong to the parent allocation. A "Lihat Alokasi Induk" link is shown instead.
+
+### Changed
+
+- Allocation-generated distributions now record the allocation approver as `verified_by` with `verified_at` timestamp.
+- Data migration 0007 converts existing `GENERATED` rows to `VERIFIED`.
+
 ## [1.19.3] - 2026-04-28
 
 ### Fixed
