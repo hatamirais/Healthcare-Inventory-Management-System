@@ -840,3 +840,82 @@ class DistributionWorkflowTest(TestCase):
             reverse("distribution:distribution_verify", args=[dist.pk])
         )
         self.assertEqual(response.status_code, 403)
+
+    # --- Model-level validation (Issue #11) ---
+
+    def test_model_clean_rejects_approved_above_requested(self):
+        """DistributionItem.full_clean() must raise ValidationError when
+        quantity_approved > quantity_requested."""
+        from django.core.exceptions import ValidationError
+
+        dist = self._create_distribution(with_items=False)
+        di = DistributionItem(
+            distribution=dist,
+            item=self.item,
+            quantity_requested=Decimal("50"),
+            quantity_approved=Decimal("100"),
+            stock=self.stock,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            di.full_clean()
+        self.assertIn("quantity_approved", ctx.exception.message_dict)
+
+    def test_create_post_blocks_approved_above_requested(self):
+        """POST to special_request_create with qty_approved > qty_requested
+        must re-render the form (200) instead of redirecting (302)."""
+        response = self.client.post(
+            reverse("distribution:special_request_create"),
+            {
+                "document_number": "",
+                "request_date": "2026-03-10",
+                "facility": self.facility.pk,
+                "notes": "",
+                "assigned_staff": [self.user.pk],
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-item": self.item.pk,
+                "items-0-quantity_requested": "50",
+                "items-0-quantity_approved": "100",
+                "items-0-stock": self.stock.pk,
+                "items-0-notes": "",
+            },
+        )
+        # Form re-renders with errors rather than saving + redirecting
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Jumlah disetujui tidak boleh melebihi")
+
+    def test_edit_post_blocks_approved_above_requested(self):
+        """POST to distribution_edit with qty_approved > qty_requested
+        must re-render the form (200) instead of redirecting (302)."""
+        dist = self._create_distribution(
+            status=Distribution.Status.DRAFT,
+            distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
+        )
+        item_line = dist.items.first()
+
+        response = self.client.post(
+            reverse("distribution:distribution_edit", args=[dist.pk]),
+            {
+                "document_number": dist.document_number,
+                "request_date": "2026-03-10",
+                "facility": self.facility.pk,
+                "notes": "",
+                "assigned_staff": [self.user.pk],
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "1",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-id": item_line.pk,
+                "items-0-item": self.item.pk,
+                "items-0-quantity_requested": "50",
+                "items-0-quantity_approved": "100",
+                "items-0-stock": self.stock.pk,
+                "items-0-notes": "",
+            },
+        )
+        # Form re-renders with errors rather than saving + redirecting
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Jumlah disetujui tidak boleh melebihi")
+

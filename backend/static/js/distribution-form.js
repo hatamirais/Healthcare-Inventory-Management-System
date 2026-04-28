@@ -153,4 +153,86 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    // ── Quantity Approved ≤ Quantity Requested validation ──────
+    var VALIDATION_MSG = 'Jumlah disetujui tidak boleh melebihi jumlah diminta.';
+    var VALIDATION_CLASS = 'qty-approved-error';
+
+    function getSubmitButton() {
+        var form = document.querySelector('#distribution-form-container form');
+        return form ? form.querySelector('button[type="submit"]') : null;
+    }
+
+    function validateApprovedQty(approvedInput) {
+        var row = approvedInput.closest('tr');
+        if (!row) return;
+
+        var requestedInput = row.querySelector('input[name$="-quantity_requested"]');
+        if (!requestedInput) return;
+
+        var approved = parseFloat(approvedInput.value);
+        var requested = parseFloat(requestedInput.value);
+
+        var existingError = row.parentNode.querySelector(
+            'tr.' + VALIDATION_CLASS + '[data-for="' + approvedInput.name + '"]'
+        );
+
+        if (!isNaN(approved) && !isNaN(requested) && approved > requested) {
+            approvedInput.classList.add('is-invalid');
+            if (!existingError) {
+                var errorRow = document.createElement('tr');
+                errorRow.className = VALIDATION_CLASS;
+                errorRow.setAttribute('data-for', approvedInput.name);
+                var td = document.createElement('td');
+                td.setAttribute('colspan', '6');
+                td.className = 'text-danger small py-1';
+                td.textContent = VALIDATION_MSG;
+                errorRow.appendChild(td);
+                row.parentNode.insertBefore(errorRow, row.nextSibling);
+            }
+        } else {
+            approvedInput.classList.remove('is-invalid');
+            if (existingError) {
+                existingError.remove();
+            }
+        }
+
+        // Enable/disable submit based on any remaining errors
+        var submitBtn = getSubmitButton();
+        if (submitBtn) {
+            var hasErrors = document.querySelectorAll('tr.' + VALIDATION_CLASS).length > 0;
+            submitBtn.disabled = hasErrors;
+        }
+    }
+
+    function validateAllApprovedQty() {
+        document.querySelectorAll('input[name$="-quantity_approved"]').forEach(validateApprovedQty);
+    }
+
+    document.addEventListener('input', function (e) {
+        var target = e.target;
+        if (!target.matches('input[name$="-quantity_approved"], input[name$="-quantity_requested"]')) return;
+
+        var row = target.closest('tr');
+        if (!row) return;
+
+        var approvedInput = row.querySelector('input[name$="-quantity_approved"]');
+        if (approvedInput) {
+            validateApprovedQty(approvedInput);
+        }
+    });
+
+    // Re-validate when new formset rows are added
+    var observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (m) {
+            if (m.addedNodes.length > 0) validateAllApprovedQty();
+        });
+    });
+    var tbody = document.querySelector('[data-formset="distribution-items"] tbody');
+    if (tbody) {
+        observer.observe(tbody, { childList: true });
+    }
+
+    // Initial validation on page load (for re-rendered forms with errors)
+    validateAllApprovedQty();
 });
