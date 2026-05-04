@@ -6,7 +6,7 @@
 - Excluded vendored static assets
 - Cross-checked against current Django/security guidance and repository conventions
 
-## Validation run
+## Validation tests
 
 - `python manage.py test apps.core.tests --noinput`
 
@@ -128,7 +128,7 @@ This is harmless, but it is unnecessary noise after `select_related(...)` / `pre
 ### Issue template 1 — Authorization gap on quick-create endpoints
 
 ```md
-Title: Protect quick-create endpoints with the same permissions as full create flows
+Title: Add permission checks to quick-create endpoints
 
 ## Summary
 
@@ -169,7 +169,7 @@ Several AJAX quick-create endpoints currently require only `@login_required` and
 ### Issue template 2 — Remove inline-style dependency so CSP can be tightened
 
 ```md
-Title: Remove inline-style usage so `style-src 'unsafe-inline'` can be dropped from CSP
+Title: Refactor inline styles to allow stricter CSP
 
 ## Summary
 
