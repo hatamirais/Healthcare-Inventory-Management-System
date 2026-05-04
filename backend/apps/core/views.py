@@ -90,63 +90,6 @@ def dashboard(request):
         ),
     )
 
-
-def _can_access_administration_history(user):
-    if not getattr(user, "is_authenticated", False):
-        return False
-
-    return user.is_superuser or has_module_scope(
-        user, ModuleAccess.Module.USERS, ModuleAccess.Scope.VIEW
-    ) or has_module_scope(
-        user, ModuleAccess.Module.ADMIN_PANEL, ModuleAccess.Scope.MANAGE
-    )
-
-
-@login_required
-def administration_receiving_history(request):
-    if not _can_access_administration_history(request.user):
-        raise PermissionDenied
-
-    return render(
-        request,
-        "core/document_history_placeholder.html",
-        {
-            "page_title": "Riwayat Penerimaan Administrasi",
-            "title": "Riwayat Penerimaan",
-            "history_scope": "Penerimaan",
-            "source_url": reverse_lazy("receiving:receiving_list"),
-            "source_label": "Buka daftar penerimaan aktif",
-            "next_focus": [
-                "Pisahkan histori dokumen dari halaman transaksi operasional.",
-                "Tambahkan filter nomor dokumen, status, sumber dana, dan rentang tanggal.",
-                "Siapkan ekspor dan print layout yang mengikuti pola laporan lain.",
-            ],
-        },
-    )
-
-
-@login_required
-def administration_distribution_history(request):
-    if not _can_access_administration_history(request.user):
-        raise PermissionDenied
-
-    return render(
-        request,
-        "core/document_history_placeholder.html",
-        {
-            "page_title": "Riwayat Pengeluaran Administrasi",
-            "title": "Riwayat Pengeluaran",
-            "history_scope": "Pengeluaran",
-            "source_url": reverse_lazy("distribution:distribution_list"),
-            "source_label": "Buka daftar pengeluaran aktif",
-            "next_focus": [
-                "Pisahkan riwayat distribusi operasional dari arsip administrasi final.",
-                "Tambahkan filter tipe dokumen, fasilitas, dan status distribusi.",
-                "Sambungkan ke format cetak dan ekspor yang konsisten dengan modul laporan.",
-            ],
-        },
-    )
-
     # Stats
     total_items = Item.objects.filter(is_active=True).count()
     total_stock_entries = stock_totals["total_stock_entries"]
@@ -223,6 +166,63 @@ def administration_distribution_history(request):
             "thirty_days_ago": thirty_days_ago,
             "today": today,
             "recent_transactions": recent_transactions,
+        },
+    )
+
+
+def _can_access_administration_history(user):
+    if not getattr(user, "is_authenticated", False):
+        return False
+
+    return user.is_superuser or has_module_scope(
+        user, ModuleAccess.Module.USERS, ModuleAccess.Scope.VIEW
+    ) or has_module_scope(
+        user, ModuleAccess.Module.ADMIN_PANEL, ModuleAccess.Scope.MANAGE
+    )
+
+
+@login_required
+def administration_receiving_history(request):
+    if not _can_access_administration_history(request.user):
+        raise PermissionDenied
+
+    return render(
+        request,
+        "core/document_history_placeholder.html",
+        {
+            "page_title": "Riwayat Penerimaan Administrasi",
+            "title": "Riwayat Penerimaan",
+            "history_scope": "Penerimaan",
+            "source_url": reverse_lazy("receiving:receiving_list"),
+            "source_label": "Buka daftar penerimaan aktif",
+            "next_focus": [
+                "Pisahkan histori dokumen dari halaman transaksi operasional.",
+                "Tambahkan filter nomor dokumen, status, sumber dana, dan rentang tanggal.",
+                "Siapkan ekspor dan print layout yang mengikuti pola laporan lain.",
+            ],
+        },
+    )
+
+
+@login_required
+def administration_distribution_history(request):
+    if not _can_access_administration_history(request.user):
+        raise PermissionDenied
+
+    return render(
+        request,
+        "core/document_history_placeholder.html",
+        {
+            "page_title": "Riwayat Pengeluaran Administrasi",
+            "title": "Riwayat Pengeluaran",
+            "history_scope": "Pengeluaran",
+            "source_url": reverse_lazy("distribution:distribution_list"),
+            "source_label": "Buka daftar pengeluaran aktif",
+            "next_focus": [
+                "Pisahkan riwayat distribusi operasional dari arsip administrasi final.",
+                "Tambahkan filter tipe dokumen, fasilitas, dan status distribusi.",
+                "Sambungkan ke format cetak dan ekspor yang konsisten dengan modul laporan.",
+            ],
         },
     )
 

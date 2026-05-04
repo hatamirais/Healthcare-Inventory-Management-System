@@ -7,6 +7,15 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 ## [Unreleased]
 
+## [1.20.1] - 2026-05-04
+
+### Fixed
+
+- Special Request distributions now allow `Kuantitas Disetujui` to exceed `Kuantitas Diminta` when operators need to fulfill a larger approved quantity, while still preserving the existing batch stock availability check.
+- Removed the stale browser-side validation that kept flagging Special Request approved quantities as invalid after the server-side rule changed.
+- Versioned the Special Request form script include so browsers stop reusing cached validation logic after frontend updates.
+- Restored the main dashboard response path for non-Puskesmas users so `/` no longer raises `ValueError` by falling through without an `HttpResponse`.
+
 ## [1.20.0] - 2026-05-04
 
 ### Added

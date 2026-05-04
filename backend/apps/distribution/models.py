@@ -1,4 +1,3 @@
-from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -176,18 +175,6 @@ class DistributionItem(models.Model):
 
     def clean(self):
         super().clean()
-        if (
-            self.quantity_requested is not None
-            and self.quantity_approved is not None
-            and self.quantity_approved > self.quantity_requested
-        ):
-            raise ValidationError(
-                {
-                    "quantity_approved": (
-                        "Jumlah disetujui tidak boleh melebihi jumlah diminta."
-                    )
-                }
-            )
 
     class Meta:
         db_table = "distribution_items"

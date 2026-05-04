@@ -403,7 +403,7 @@
 
 {% block extra_js %}
 {% load static %}
-<script src="{% static 'js/distribution-form.js' %}"></script>
+<script src="{% static 'js/distribution-form.js' %}?v={{ app_version }}-20260504a"></script>
 {% if document_number_warning_enabled %}
 <script>
     (function () {
