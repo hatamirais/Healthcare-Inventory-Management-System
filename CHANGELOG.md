@@ -7,6 +7,17 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 ## [Unreleased]
 
+## [1.20.2] - 2026-05-04
+
+### Changed
+
+- Distribution documentation now explicitly records `special_request_create` as the user-facing manual create path while keeping the generic `distribution_create` route reserved for internal or compatibility orchestration flows.
+
+### Fixed
+
+- Distribution list, Special Request list, and distribution detail pages now require `distribution.view_distribution`, so only Instalasi Farmasi users with assigned distribution access can open those read routes.
+- Added regression coverage for the versioned Special Request form asset so stale cached browser validation is less likely to slip back in unnoticed.
+
 ## [1.20.1] - 2026-05-04
 
 ### Fixed

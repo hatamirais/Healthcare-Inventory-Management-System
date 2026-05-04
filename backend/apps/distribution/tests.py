@@ -1,6 +1,7 @@
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.contrib.staticfiles import finders
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -782,6 +783,25 @@ class DistributionWorkflowTest(TestCase):
         self.assertContains(response, "440/{seq}/KD.F/{year}")
         self.assertNotContains(response, "DIST-YYYYMM-XXXXX")
 
+    def test_special_request_create_uses_versioned_distribution_form_script(self):
+        response = self.client.get(reverse("distribution:special_request_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "js/distribution-form.js?v=")
+
+    def test_distribution_form_static_asset_removes_old_approved_vs_requested_guard(self):
+        asset_path = finders.find("js/distribution-form.js")
+
+        self.assertIsNotNone(asset_path)
+        with open(asset_path, encoding="utf-8") as asset_file:
+            asset_content = asset_file.read()
+
+        self.assertNotIn(
+            "Jumlah disetujui tidak boleh melebihi jumlah diminta.",
+            asset_content,
+        )
+        self.assertNotIn("validateApprovedQty", asset_content)
+
     def test_special_request_create_uses_auto_generation_when_preview_is_unchanged(self):
         response = self.client.post(
             reverse("distribution:special_request_create"),
@@ -858,6 +878,18 @@ class DistributionWorkflowTest(TestCase):
         self.assertContains(response, reverse("reports:pengeluaran"))
         self.assertNotContains(response, "Buat Distribusi")
 
+    def test_distribution_list_requires_view_permission(self):
+        restricted_user = User.objects.create_user(
+            username="puskesmas_no_distribution_view",
+            password="secret12345",
+            role=User.Role.PUSKESMAS,
+        )
+        self.client.force_login(restricted_user)
+
+        response = self.client.get(reverse("distribution:distribution_list"))
+
+        self.assertEqual(response.status_code, 403)
+
     def test_special_request_list_filters_special_request_records(self):
         special_request = self._create_distribution(
             distribution_type=Distribution.DistributionType.SPECIAL_REQUEST
@@ -873,6 +905,18 @@ class DistributionWorkflowTest(TestCase):
         self.assertContains(response, special_request.document_number)
         self.assertNotContains(response, history_only.document_number)
 
+    def test_special_request_list_requires_view_permission(self):
+        restricted_user = User.objects.create_user(
+            username="puskesmas_no_special_request_view",
+            password="secret12345",
+            role=User.Role.PUSKESMAS,
+        )
+        self.client.force_login(restricted_user)
+
+        response = self.client.get(reverse("distribution:special_request_list"))
+
+        self.assertEqual(response.status_code, 403)
+
     def test_detail_shows_assigned_staff(self):
         dist = self._create_distribution(status=Distribution.Status.DRAFT)
         dist.staff_assignments.create(user=self.user)
@@ -883,6 +927,21 @@ class DistributionWorkflowTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Petugas")
         self.assertContains(response, str(self.user))
+
+    def test_distribution_detail_requires_view_permission(self):
+        dist = self._create_distribution(status=Distribution.Status.DRAFT)
+        restricted_user = User.objects.create_user(
+            username="puskesmas_no_distribution_detail_view",
+            password="secret12345",
+            role=User.Role.PUSKESMAS,
+        )
+        self.client.force_login(restricted_user)
+
+        response = self.client.get(
+            reverse("distribution:distribution_detail", args=[dist.pk])
+        )
+
+        self.assertEqual(response.status_code, 403)
 
     def test_quick_create_facility_adds_option_for_distribution_form(self):
         response = self.client.post(

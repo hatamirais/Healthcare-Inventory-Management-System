@@ -138,6 +138,7 @@ def sync_distribution_staff_assignments(distribution, staff_users):
 
 
 @login_required
+@perm_required("distribution.view_distribution")
 def distribution_list(request):
     queryset = (
         Distribution.objects.select_related("facility", "created_by")
@@ -160,6 +161,7 @@ def distribution_list(request):
 
 
 @login_required
+@perm_required("distribution.view_distribution")
 def special_request_list(request):
     queryset = (
         Distribution.objects.select_related("facility", "created_by")
@@ -323,6 +325,7 @@ def distribution_edit(request, pk):
 
 
 @login_required
+@perm_required("distribution.view_distribution")
 def distribution_detail(request, pk):
     dist = get_object_or_404(
         Distribution.objects.select_related(
