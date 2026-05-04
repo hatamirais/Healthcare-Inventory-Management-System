@@ -31,6 +31,8 @@ Root route include map from `backend/config/urls.py`:
 - `/admin/` -> Django admin
 - `/login/`, `/logout/`, `/password/change/`, `/password/change/done/`
 - `/settings/` -> system settings (`apps.core.views.SystemSettingsUpdateView`)
+- `/administration/history/receiving/` -> placeholder riwayat penerimaan administrasi (`apps.core.views.administration_receiving_history`)
+- `/administration/history/distribution/` -> placeholder riwayat pengeluaran administrasi (`apps.core.views.administration_distribution_history`)
 - `/users/`, `/items/`, `/stock/`, `/receiving/`, `/distribution/`, `/allocation/`, `/recall/`, `/expired/`, `/reports/`, `/stock-opname/`, `/puskesmas/`, `/lplpo/`
 
 Module highlights:
@@ -185,6 +187,7 @@ This section reflects model code in `backend/apps/*/models.py`.
   - Workflow includes manual reset action back to `DRAFT` from `SUBMITTED`, `VERIFIED`, `PREPARED`, and `REJECTED` (but not from `DISTRIBUTED` or compatibility-only `GENERATED`)
   - Provides `kepala_instalasi` and `petugas` assignments logic for print outputs
   - Fields: `document_number` (auto-generated `DIST-YYYYMM-XXXXX` when blank for non-rule types; `LPLPO` and `SPECIAL_REQUEST` use the templates stored in `SystemSettings`), `request_date`, `program`, `distributed_date`, `notes`, `ocr_text`
+  - Special-request create/edit form preloads the currently suggested document number, keeps automatic generation when the suggestion is left unchanged, and requires explicit UI confirmation before manual edits are enabled.
   - FKs: `facility`, `created_by`, `verified_by` (nullable), `approved_by` (nullable), `allocation` (nullable, links to parent `allocation.Allocation` for auto-generated distributions)
   - Indexes: `idx_dist_status_date`, `idx_dist_facility_date`
 

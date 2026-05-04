@@ -1,3 +1,4 @@
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
@@ -12,6 +13,8 @@ from apps.lplpo.models import LPLPO
 from apps.puskesmas.models import PuskesmasRequest
 from apps.stock.models import Stock, Transaction
 from apps.users.models import User
+from apps.users.access import has_module_scope
+from apps.users.models import ModuleAccess
 from django.urls import reverse_lazy
 from django.views.generic.edit import UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -85,6 +88,63 @@ def dashboard(request):
             ),
             zero_decimal,
         ),
+    )
+
+
+def _can_access_administration_history(user):
+    if not getattr(user, "is_authenticated", False):
+        return False
+
+    return user.is_superuser or has_module_scope(
+        user, ModuleAccess.Module.USERS, ModuleAccess.Scope.VIEW
+    ) or has_module_scope(
+        user, ModuleAccess.Module.ADMIN_PANEL, ModuleAccess.Scope.MANAGE
+    )
+
+
+@login_required
+def administration_receiving_history(request):
+    if not _can_access_administration_history(request.user):
+        raise PermissionDenied
+
+    return render(
+        request,
+        "core/document_history_placeholder.html",
+        {
+            "page_title": "Riwayat Penerimaan Administrasi",
+            "title": "Riwayat Penerimaan",
+            "history_scope": "Penerimaan",
+            "source_url": reverse_lazy("receiving:receiving_list"),
+            "source_label": "Buka daftar penerimaan aktif",
+            "next_focus": [
+                "Pisahkan histori dokumen dari halaman transaksi operasional.",
+                "Tambahkan filter nomor dokumen, status, sumber dana, dan rentang tanggal.",
+                "Siapkan ekspor dan print layout yang mengikuti pola laporan lain.",
+            ],
+        },
+    )
+
+
+@login_required
+def administration_distribution_history(request):
+    if not _can_access_administration_history(request.user):
+        raise PermissionDenied
+
+    return render(
+        request,
+        "core/document_history_placeholder.html",
+        {
+            "page_title": "Riwayat Pengeluaran Administrasi",
+            "title": "Riwayat Pengeluaran",
+            "history_scope": "Pengeluaran",
+            "source_url": reverse_lazy("distribution:distribution_list"),
+            "source_label": "Buka daftar pengeluaran aktif",
+            "next_focus": [
+                "Pisahkan riwayat distribusi operasional dari arsip administrasi final.",
+                "Tambahkan filter tipe dokumen, fasilitas, dan status distribusi.",
+                "Sambungkan ke format cetak dan ekspor yang konsisten dengan modul laporan.",
+            ],
+        },
     )
 
     # Stats

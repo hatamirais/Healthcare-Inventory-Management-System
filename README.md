@@ -46,7 +46,7 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 - `lplpo`: pelaporan pemakaian dan permintaan rutin bulanan dari Puskesmas.
 - `users`: manajemen pengguna dan pengaturan cakupan akses modul.
 
-- `core`: dashboard, middleware akses panel admin, dan pengaturan sistem (label platform login, logo, header dokumen, nama fasilitas, serta template penomoran dokumen distribusi) secara dinamis.
+- `core`: dashboard, middleware akses panel admin, pengaturan sistem (label platform login, logo, header dokumen, nama fasilitas, serta template penomoran dokumen distribusi) secara dinamis, dan placeholder riwayat administrasi terpisah untuk penerimaan serta pengeluaran.
 - `reports`: halaman ringkasan laporan dengan keluaran `rekap`, `penerimaan hibah`, `pengadaan`, `kadaluarsa`, dan `pengeluaran`.
 
 ## Ringkasan Workflow

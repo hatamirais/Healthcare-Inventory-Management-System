@@ -7,6 +7,16 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-05-04
+
+### Added
+
+- New `Administrasi` sidebar entries for `Riwayat Penerimaan` and `Riwayat Pengeluaran`, each backed by an MVP placeholder page to separate archive work from the operational transaction screens.
+
+### Changed
+
+- Documentation now records the new administration history routes and their intended follow-up scope as part of the feature baseline.
+
 ## [1.19.6] - 2026-05-04
 
 ### Changed
