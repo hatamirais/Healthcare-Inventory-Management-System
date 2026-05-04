@@ -138,9 +138,9 @@ Several AJAX quick-create endpoints currently require only `@login_required` and
 
 - `backend/apps/items/views.py:222-325`
 - `backend/apps/items/urls.py:14-28`
+- `backend/apps/items/views.py:151-197`
 - `backend/apps/receiving/views.py:604-676`
 - `backend/apps/receiving/views.py:173-206`
-- `backend/apps/items/views.py:151-197`
 
 ## Risk
 
