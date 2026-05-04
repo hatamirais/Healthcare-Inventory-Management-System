@@ -11,7 +11,7 @@ Alokasi is a pre-distribution planning and orchestration feature for the governm
 ## Flow
 
 ```
-Draft → Submitted → Approved (Kepala Instalasi) → Distributions Auto-Generated → Partially Fulfilled → Fulfilled
+Draft → Submitted → Approved (Kepala Instalasi) → Child Distributions auto-created in VERIFIED → Partially Fulfilled → Fulfilled
 ```
 
 ---
@@ -25,6 +25,8 @@ Draft → Submitted → Approved (Kepala Instalasi) → Distributions Auto-Gener
 - Stock is deducted **at delivery confirmation**, not at approval
 - Warehouse is the **only party** that confirms delivery — no facility-side interaction
 - Quantities on generated distributions are **locked** — cannot be edited post-approval
+- Alokasi header **does not** store `sumber_dana`; funding source follows the selected stock batch per item
+- Each generated distribution is created as `distribution_type=ALLOCATION`, `status=VERIFIED`, with `verified_by` and `verified_at` filled from the allocation approver
 
 ---
 
@@ -43,9 +45,9 @@ Draft → Submitted → Approved (Kepala Instalasi) → Distributions Auto-Gener
 ### Distribution Status (per facility)
 | Status | Description |
 |---|---|
-| `generated` | Auto-created from Alokasi approval |
+| `verified` | Auto-created from Alokasi approval and ready for warehouse preparation |
 | `prepared` | Warehouse has prepared the items |
-| `delivered` | Warehouse confirmed delivery |
+| `distributed` | Warehouse confirmed delivery and stock has been posted out |
 
 ---
 
@@ -53,9 +55,9 @@ Draft → Submitted → Approved (Kepala Instalasi) → Distributions Auto-Gener
 
 ```
 Alokasi
-├── id                        UUID, PK
+├── id                        bigint, PK
 ├── nomor_alokasi             string, auto-generated (e.g. ALK-2025-0042)
-├── sumber_dana               enum: APBD | HIBAH_PROVINSI | KEMENKES | BTT | DONASI | DAK
+├── title                     string, optional
 ├── referensi                 string, nullable (BAST number, SP, etc.)
 ├── tanggal_alokasi           date
 ├── catatan                   string, nullable
@@ -67,37 +69,37 @@ Alokasi
 ├── rejection_reason          string, nullable
 │
 ├── AlokasiItems[]
-│   ├── id                    UUID, PK
+│   ├── id                    bigint, PK
 │   ├── alokasi_id            FK → Alokasi
 │   ├── item_id               FK → Item
-│   ├── batch_id              FK → Batch
+│   ├── stock_id              FK → Stock (nullable while draft is incomplete)
 │   ├── total_qty_available   integer (snapshot at draft time)
 │   ├── total_qty_allocated   integer (sum of all facility allocations)
 │   │
 │   └── AlokasiItemFacilities[]
-│       ├── id                UUID, PK
+│       ├── id                bigint, PK
 │       ├── alokasi_item_id   FK → AlokasiItem
 │       ├── facility_id       FK → Facility
 │       └── qty_allocated     integer (LOCKED after approval)
 │
 └── Distributions[]           (auto-generated on approval, one per facility)
-    ├── id                    UUID, PK
-    ├── nomor_distribusi      string, auto-generated (e.g. DIST-2025-0210)
+    ├── id                    bigint, PK
+    ├── nomor_distribusi      string, auto-generated (e.g. DIST-202505-00001)
     ├── alokasi_id            FK → Alokasi (traceability link)
     ├── facility_id           FK → Facility
-    ├── status                enum: generated | prepared | delivered
-    ├── prepared_by           FK → User, nullable
-    ├── prepared_at           timestamp, nullable
-    ├── delivered_by          FK → User, nullable
-    ├── delivered_at          timestamp, nullable
+    ├── status                enum: verified | prepared | distributed
+    ├── verified_by           FK → User, nullable
+    ├── verified_at           timestamp, nullable
+    ├── distributed_date      date, nullable
     │
     └── DistributionItems[]   (copied from AlokasiItemFacilities, immutable)
-        ├── id                UUID, PK
+        ├── id                bigint, PK
         ├── distribution_id   FK → Distribution
         ├── item_id           FK → Item
-        ├── batch_id          FK → Batch
-        ├── qty               integer (immutable)
-        └── unit_price        decimal (snapshot at time of generation)
+        ├── stock_id          FK → Stock
+        ├── quantity_requested / quantity_approved
+        ├── issued_batch_lot / issued_expiry_date / issued_unit_price / issued_sumber_dana
+        └── notes
 ```
 
 ---
@@ -106,17 +108,16 @@ Alokasi
 
 ### On Submit
 - Per item: `SUM(AlokasiItemFacilities.qty_allocated) <= AlokasiItem.total_qty_available`
-- All facilities must have at least 1 item with `qty > 0`
-- No null or zero quantities across all items
-- `sumber_dana` must be set
-- At least 1 item and 1 facility must be present
+- At least 1 selected facility, 1 assigned staff, and 1 item row must be present
+- Each item row must already choose a stock batch
+- No null or zero quantities across all persisted facility allocations
 
 ### On Approval
 - Re-validate stock availability (stock may have changed between draft and approval)
 - If stock is insufficient at approval time → reject with system reason, return to draft
 
 ### Auto-close Alokasi
-- When all child `Distributions` have status `delivered` → Alokasi auto-transitions to `fulfilled`
+- When all child `Distributions` have status `distributed` → Alokasi auto-transitions to `fulfilled`
 
 ---
 
@@ -124,22 +125,22 @@ Alokasi
 
 ### Stock Deduction Timing
 - Stock is **NOT deducted at approval**
-- Stock is deducted when a Distribution status changes to `delivered`
+- Stock is deducted when a child Distribution status changes to `distributed`
 - This means stock can theoretically go negative if another transaction runs concurrently — handle with optimistic locking or stock reservation depending on implementation preference
 
 ### Auto-generation of Distributions
 - Triggered atomically on approval
 - One `Distribution` record per unique `facility_id` in `AlokasiItemFacilities`
-- `DistributionItems` are copied (not referenced) from `AlokasiItemFacilities` — immutable snapshot
-- `unit_price` is snapshotted from the item's current price at generation time
+- Each generated child distribution starts in `VERIFIED`, because allocation approval already re-validates stock and approved quantities
+- `DistributionItems` are copied from `AlokasiItemFacilities` into immutable requested/approved quantities plus issued batch/value snapshots
 
 ### Nomor Alokasi Format
 - `ALK-{YYYY}-{NNNN}` — sequential per year, zero-padded to 4 digits
 - e.g. `ALK-2025-0042`
 
 ### Nomor Distribusi Format
-- `DIST-{YYYY}-{NNNN}` — sequential per year, zero-padded to 4 digits
-- e.g. `DIST-2025-0210`
+- `DIST-{YYYYMM}-{NNNNN}` — sequential per month for non-rule-based distribution types such as `ALLOCATION`
+- e.g. `DIST-202505-00001`
 
 ---
 
@@ -147,18 +148,20 @@ Alokasi
 
 ### Screen 1 — Alokasi List
 - Table/list of all Alokasi records
-- Columns: Nomor, Sumber Dana, Item count, Facility count, Tanggal, Status
-- Progress bar per row showing delivery completion (delivered / total distributions)
-- Filter by: status, sumber dana, date range
+- Columns: Nomor, Item count, Facility count, Petugas count, Tanggal, Status
+- Progress bar per row showing delivery completion (distributed / total distributions)
+- Filter by: keyword search + status
 - CTA: "Buat Alokasi" → creates new Draft
 
 ### Screen 2 — Create/Edit Draft (4-step form)
 **Step 1 — Info Umum**
 - Nomor Alokasi (auto-generated, read-only)
-- Sumber Dana (required)
+- Judul Alokasi (optional)
 - Referensi / BAST / SP (optional)
 - Tanggal Alokasi (defaults to today)
 - Catatan (optional)
+- Pilih fasilitas tujuan
+- Pilih petugas
 
 **Step 2 — Pilih Item**
 - Select items from inventory
@@ -166,7 +169,7 @@ Alokasi
 - System shows available stock per batch
 
 **Step 3 — Alokasi per Fasilitas**
-- Table: Item | Sumber Dana | Stok Tersedia | Total Dialokasi | Per Fasilitas breakdown
+- Table: Item | Batch Stok | Stok Tersedia | Total Dialokasi | Per Fasilitas breakdown
 - Per-facility qty input inline per item
 - Real-time validation: total allocated vs available — red warning if over-allocated
 - Cannot proceed to next step if any item is over-allocated
@@ -187,16 +190,16 @@ Alokasi
 - Header: Alokasi info + approved by + approved at
 - Table of all generated distributions:
   - Columns: Fasilitas | Nomor Distribusi | Status | Disiapkan Oleh | Action
-  - Action per row: "Konfirmasi Kirim" (when status = `prepared`) or "Lihat Detail"
+  - Action per row: "Siapkan", "Konfirmasi Kirim" (when status = `prepared`) atau "Lihat Detail"
 - Lock notice: "Quantities are locked and cannot be changed after approval"
-- Alokasi auto-closes when all rows show `delivered`
+- Alokasi auto-closes when all rows show `distributed`
 
 ---
 
 ## Reports Integration
 
 Alokasi-generated distributions must appear in the Reports module with:
-- `sumber_dana` traceable back to the Alokasi
+- `sumber_dana` traceable through the selected stock batch and `issued_sumber_dana` snapshot on each child distribution item
 - `alokasi_id` linkable in distribution detail
 - Distribution quantities count toward **Total Distribusi** in the filtered date range report
 - The Alokasi itself is filterable as a separate report view (planned vs actual per facility)

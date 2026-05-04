@@ -59,23 +59,25 @@ All Django apps live under `backend/apps/`. Each app is a self-contained module 
 | `items`        | Item master (Master Barang) + all lookup tables (Unit, Category, Location, FundingSource, Program, Supplier, Facility) |
 | `stock`        | `Stock` (live inventory per batch/location) + `Transaction` (immutable audit trail) |
 | `receiving`    | Incoming stock documents, planned receiving flows, and custom receiving type options |
-| `distribution` | Outgoing stock to facilities with DRAFT → SUBMITTED → VERIFIED → PREPARED → DISTRIBUTED workflow (non-distributed docs can be reset to DRAFT) |
+| `distribution` | Outgoing stock to facilities with DRAFT → SUBMITTED → VERIFIED → PREPARED → DISTRIBUTED workflow (allocation-generated child distributions start at VERIFIED) |
+| `allocation`   | Pre-distribution planning that auto-generates one child `Distribution` per facility on approval and deducts stock only on delivery confirmation |
 | `recall`       | Return/recall documents to supplier with DRAFT → SUBMITTED → VERIFIED → COMPLETED workflow |
 | `expired`      | Expired/disposal documents with DRAFT → SUBMITTED → VERIFIED → DISPOSED workflow |
 | `stock_opname` | Physical inventory counting (stock opname), discrepancy reports |
 | `puskesmas`    | Ad-hoc requests from Puskesmas that can create special-request distributions |
 | `lplpo`        | Monthly reporting and request workflows linked to distribution |
-| `reports`      | Reporting (in progress)                                     |
+| `reports`      | Rekap, hibah receiving, procurement, expiry, outbound reports, and numbering history |
 
 ### Key Data Flow
 
 1. **Receiving** creates `ReceivingItem` line items → on VERIFIED, creates/updates `Stock` entries and writes `Transaction(type=IN)` records.
 2. **Distribution** decrements `Stock.quantity` and writes `Transaction(type=OUT)` only when the document reaches DISTRIBUTED; PREPARED is non-stock-impacting.
-3. **Recall** verifies return batches → decrements `Stock.quantity` and writes `Transaction(type=OUT, reference_type=RECALL)`.
-4. **Expired** verifies disposal batches → decrements `Stock.quantity` and writes `Transaction(type=OUT, reference_type=EXPIRED)`.
-5. **Stock Opname** compares physical counts against system stock, generates discrepancy reports for investigation.
-6. **LPLPO** links 1:1 to Distribution and auto-closes when the linked Distribution reaches DISTRIBUTED.
-7. `Transaction` is the immutable audit trail — never update or delete records in this table.
+3. **Allocation** approval auto-generates per-facility `Distribution(type=ALLOCATION, status=VERIFIED)` rows; each child distribution writes `Transaction(type=OUT, reference_type=ALLOCATION)` only when delivered.
+4. **Recall** verifies return batches → decrements `Stock.quantity` and writes `Transaction(type=OUT, reference_type=RECALL)`.
+5. **Expired** verifies disposal batches → decrements `Stock.quantity` and writes `Transaction(type=OUT, reference_type=EXPIRED)`.
+6. **Stock Opname** compares physical counts against system stock, generates discrepancy reports for investigation.
+7. **LPLPO** links 1:1 to Distribution and auto-closes when the linked Distribution reaches DISTRIBUTED.
+8. `Transaction` is the immutable audit trail — never update or delete records in this table.
 
 ### Stock Model Uniqueness
 

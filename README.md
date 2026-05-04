@@ -11,7 +11,7 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 | Lapisan | Teknologi |
 | --- | --- |
 | Bahasa | Python 3.13+ |
-| Framework | Django 6.0.2 |
+| Framework | Django 6.0.4 |
 | Database | PostgreSQL 16 |
 | Cache/Broker | Redis 7 |
 | Antarmuka | Django Templates + Bootstrap 5 |
@@ -53,7 +53,7 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 
 - Receiving terencana: `DRAFT -> SUBMITTED -> APPROVED -> PARTIAL/RECEIVED -> CLOSED`
 - Receiving reguler, tipe kustom, atau hasil import: umumnya tercatat sebagai `VERIFIED` setelah posting.
-- Distribution: `DRAFT -> SUBMITTED -> VERIFIED -> PREPARED -> DISTRIBUTED`, dapat berakhir `REJECTED`, dan dokumen yang belum terdistribusi dapat dikembalikan ke `DRAFT`.
+- Distribution: `DRAFT -> SUBMITTED -> VERIFIED -> PREPARED -> DISTRIBUTED`, dapat berakhir `REJECTED`, dan dokumen yang belum terdistribusi dapat dikembalikan ke `DRAFT`. Distribution hasil approval Allocation langsung dibuat pada status `VERIFIED`.
 - Allocation: `DRAFT -> SUBMITTED -> APPROVED -> PARTIALLY_FULFILLED -> FULFILLED`, dapat berakhir `REJECTED`. Child distributions otomatis dibuat saat approval dan dihapus saat step-back ke SUBMITTED.
 - Recall: `DRAFT -> SUBMITTED -> VERIFIED -> COMPLETED`
 - Expired: `DRAFT -> SUBMITTED -> VERIFIED -> DISPOSED`

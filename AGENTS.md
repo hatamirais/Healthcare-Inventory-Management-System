@@ -11,7 +11,7 @@ This project is a Django-based healthcare inventory system used by internal gove
 | Item | Value |
 | --- | --- |
 | Python | 3.13+ |
-| Django | 6.0.2 |
+| Django | 6.0.4 |
 | Database | PostgreSQL 16 |
 | Cache/Broker | Redis 7 |
 | UI | Django templates + Bootstrap 5 |
@@ -96,7 +96,7 @@ Default scopes per role are defined in `backend/apps/users/access.py`.
 - Receiving supports built-in and custom type codes; UI labels for non-built-in types are resolved from `ReceivingTypeOption`.
 - `Distribution(distribution_type=LPLPO)` is system-generated from `lplpo_finalize`; do not expose it as a manual distribution type in the generic distribution create/edit flow.
 - Distribution numbering templates for `LPLPO` and `SPECIAL_REQUEST` are user-configurable through `SystemSettings`; supported placeholders are `{seq}` and `{year}` and sequence counters remain scoped per distribution type and matched against the active template.
-- `Distribution(distribution_type=ALLOCATION)` is system-generated from `allocation` approval; one per facility, starts in `GENERATED` status, quantities are locked and cannot be edited.
+- `Distribution(distribution_type=ALLOCATION)` is system-generated from `allocation` approval; one per facility, starts in `VERIFIED` status, quantities are locked and cannot be edited.
 - Allocation approval atomically creates `Distribution` + `DistributionItem` records for each facility. Stepping an allocation back from `APPROVED` to `SUBMITTED` deletes those child distributions so they can be regenerated on the next approval. Stock deduction is deferred to per-distribution delivery confirmation.
 - Allocation auto-transitions to `PARTIALLY_FULFILLED` when any child distribution is delivered, and `FULFILLED` when all are delivered.
 - Availability checks across distribution, recall, expired, transfer, and several selectors use `Stock.available_quantity` (`quantity - reserved`), but current workflows do not automatically increment or decrement `reserved` during distribution processing.
@@ -141,7 +141,7 @@ Windows test helper:
 
 ```powershell
 .\scripts\run-django-test.ps1 -Target apps.items
-.\scripts\run-django-test.ps1 -Target apps.items.tests.ItemModelTest -KeepDb
+.\scripts\run-django-test.ps1 -Target apps.core.tests -KeepDb
 ```
 
 ## Quality Checklist for Agent PRs

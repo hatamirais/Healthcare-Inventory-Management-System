@@ -54,12 +54,15 @@ Variabel opsional yang saat ini dibaca oleh aplikasi:
 - `CSRF_TRUSTED_ORIGINS`
 - `EMAIL_BACKEND`
 - `DATA_UPLOAD_MAX_NUMBER_FIELDS`
+- `FEATURE_ALLOCATION_UI_ENABLED`
+- `DJANGO_LOG_LEVEL`
 - `SECURE_SSL_REDIRECT`
 
 Catatan:
 
 - `manage.py`, `config/wsgi.py`, dan `config/asgi.py` sudah default ke `config.settings`, sehingga `DJANGO_SETTINGS_MODULE` tidak perlu diubah untuk setup standar.
 - `DATA_UPLOAD_MAX_NUMBER_FIELDS` default `10000` untuk mengakomodasi form LPLPO dan form bulk serupa yang mengirim banyak field dalam satu request.
+- `FEATURE_ALLOCATION_UI_ENABLED` masih dibaca ke Django settings untuk kompatibilitas dan test override, tetapi route/UI runtime Allocation saat ini tidak bercabang pada flag tersebut; akses tetap dikendalikan oleh permission Django + `ModuleAccess`.
 
 ### 3. Jalankan infrastruktur
 
@@ -118,6 +121,7 @@ Metode yang direkomendasikan di Windows adalah menggunakan helper script dari ro
 ```
 
 Script ini akan berpindah ke direktori `backend/`, mengaktifkan virtual environment bila tersedia, lalu menjalankan test target.
+Jika target hanya berupa nama app seperti `apps.items`, script akan menormalkan target itu menjadi `apps.items.tests`.
 
 Opsi tambahan yang tersedia:
 
@@ -152,7 +156,7 @@ Versi aplikasi dibaca dari file `VERSION` saat startup dan ditampilkan di header
 Saat file `VERSION` berubah di branch `main`, GitHub Actions menjalankan `.github/workflows/release-on-version-change.yml` untuk:
 
 - memverifikasi hasil `python manage.py app_version` sama dengan isi file `VERSION`
-- menjalankan `python manage.py test apps.core`
+- menjalankan `python manage.py test apps.core.tests`
 - membuat tag git `v<version>` bila belum ada
 - membuat GitHub Release untuk tag tersebut
 
