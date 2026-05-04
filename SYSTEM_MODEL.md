@@ -2,8 +2,8 @@
 
 Canonical reference for current schema, route topology, permission model, and stock mutation behavior.
 
-Last verified: 2026-04-27
-Verification sources: `backend/apps/*/models.py`, `backend/config/urls.py`, `backend/apps/*/urls.py`, `backend/apps/core/decorators.py`, `backend/apps/users/access.py`, `backend/config/settings.py`, `backend/apps/receiving/admin.py`, `backend/apps/distribution/services.py`, `backend/apps/stock/views.py`, `backend/apps/lplpo/models.py`
+Last verified: 2026-05-04
+Verification sources: `backend/apps/*/models.py`, `backend/config/urls.py`, `backend/apps/*/urls.py`, `backend/apps/core/decorators.py`, `backend/apps/users/access.py`, `backend/config/settings.py`, `backend/apps/receiving/admin.py`, `backend/apps/distribution/services.py`, `backend/apps/allocation/services.py`, `backend/apps/stock/views.py`, `backend/apps/lplpo/models.py`
 
 ## 1) Domain Overview
 
@@ -15,6 +15,7 @@ Core domains:
 - Stock and movement journal (`stock`)
 - Inbound receiving (`receiving`)
 - Outbound distribution (`distribution`)
+- Pre-distribution allocation orchestration (`allocation`)
 - Supplier return (`recall`)
 - Expired disposal (`expired`)
 - Physical counting (`stock_opname`)
@@ -180,8 +181,8 @@ This section reflects model code in `backend/apps/*/models.py`.
 - `distribution.Distribution` (`distributions`):
   - Type: `LPLPO`, `ALLOCATION`, `SPECIAL_REQUEST`
   - Status: `DRAFT`, `SUBMITTED`, `VERIFIED`, `GENERATED`, `PREPARED`, `DISTRIBUTED`, `REJECTED`
-  - `GENERATED` status is used for allocation-auto-generated distributions (bypasses DRAFT/SUBMITTED/VERIFIED)
-  - Workflow includes manual reset action back to `DRAFT` from `SUBMITTED`, `VERIFIED`, `PREPARED`, and `REJECTED` (but not from `DISTRIBUTED` or `GENERATED`)
+  - Current allocation workflow auto-generates child distributions directly in `VERIFIED`; `GENERATED` remains in the enum for compatibility with older rows and migrations, but is not emitted by the active services
+  - Workflow includes manual reset action back to `DRAFT` from `SUBMITTED`, `VERIFIED`, `PREPARED`, and `REJECTED` (but not from `DISTRIBUTED` or compatibility-only `GENERATED`)
   - Provides `kepala_instalasi` and `petugas` assignments logic for print outputs
   - Fields: `document_number` (auto-generated `DIST-YYYYMM-XXXXX` when blank for non-rule types; `LPLPO` and `SPECIAL_REQUEST` use the templates stored in `SystemSettings`), `request_date`, `program`, `distributed_date`, `notes`, `ocr_text`
   - FKs: `facility`, `created_by`, `verified_by` (nullable), `approved_by` (nullable), `allocation` (nullable, links to parent `allocation.Allocation` for auto-generated distributions)
@@ -205,7 +206,7 @@ This section reflects model code in `backend/apps/*/models.py`.
   - FKs: `created_by`, `submitted_by` (nullable), `approved_by` (nullable)
   - Timestamps: `submitted_at`, `approved_at`
   - Index: `idx_alloc_status_date` on `(status, allocation_date)`
-  - Approval triggers atomic auto-generation of one `Distribution` per facility (type=ALLOCATION, status=GENERATED)
+  - Approval triggers atomic auto-generation of one `Distribution` per facility (type=ALLOCATION, status=VERIFIED)
   - `title` is an optional document header field intended for display and future print/report output
   - Funding source is derived from each selected stock batch rather than stored on the allocation header
   - Stock deduction occurs at each child Distribution's delivery confirmation, not on the Allocation itself
@@ -323,7 +324,7 @@ Operational mutation points (from app behavior and admin import logic):
 - Stock transfer complete posts paired `OUT` and `IN` transfer transactions and adjusts source/destination stock
 - Stock opname completion may post adjustment transactions based on discrepancy handling
 - Allocation:
-  - Approval phase auto-generates `Distribution(type=ALLOCATION, status=GENERATED)` per facility — no stock mutation at this point
+  - Approval phase auto-generates `Distribution(type=ALLOCATION, status=VERIFIED)` per facility — no stock mutation at this point
   - Per-distribution delivery confirmation decreases `Stock.quantity` and posts `Transaction(OUT, reference_type=ALLOCATION, reference_id=allocation.pk)`
   - Parent Allocation auto-transitions to `PARTIALLY_FULFILLED` / `FULFILLED` based on child distribution delivery progress
 
@@ -334,14 +335,16 @@ From `backend/config/settings.py`:
 - `AUTH_USER_MODEL = "users.User"`
 - `APP_VERSION` is loaded from root `VERSION` (semantic version `MAJOR.MINOR.PATCH`)
 - `SECRET_KEY` loaded from environment and required (`os.environ[...]`)
-- `DEBUG` defaults to `True` unless overridden by environment
+- `DEBUG` defaults to `False` unless overridden by environment
 - `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` are environment-driven comma-separated lists
+- `FEATURE_ALLOCATION_UI_ENABLED` is still loaded into settings for compatibility/tests, but current runtime routing and navigation rely on permissions/module scope instead of branching on this flag
 - `AUTHENTICATION_BACKENDS` order:
   1. `axes.backends.AxesStandaloneBackend`
   2. `django.contrib.auth.backends.ModelBackend`
 - `axes.middleware.AxesMiddleware` included after standard auth/session middleware
 - `AXES_FAILURE_LIMIT = 5`, `AXES_COOLOFF_TIME = 0.5`, `AXES_RESET_ON_SUCCESS = True`
 - `EMAIL_BACKEND` is environment-configurable and defaults to Django's console backend
+- `DJANGO_LOG_LEVEL` controls the Django logger level and defaults to `WARNING`
 - `DATA_UPLOAD_MAX_NUMBER_FIELDS` defaults to `10000` to support wide LPLPO and similar bulk forms
 - Session hardening: `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE="Lax"`, browser-close expiry
 - CSRF hardening: `CSRF_COOKIE_HTTPONLY`, `CSRF_COOKIE_SAMESITE="Lax"`

@@ -2,7 +2,7 @@
 
 CSV templates used for bootstrap imports via Django Admin.
 
-Last verified: 2026-04-27
+Last verified: 2026-05-04
 Verification sources: `backend/seed/*.csv`, `backend/apps/items/admin.py`, `backend/apps/stock/admin.py`, `backend/apps/receiving/admin.py`
 
 ## Import Order
@@ -39,6 +39,7 @@ Import behavior summary:
 
 - Rows are grouped by `document_number` into one `Receiving` header plus multiple `ReceivingItem` rows.
 - The first row supplies header-level values such as `supplier_code`, `receiving_date`, and default `sumber_dana_code` or `location_code`.
+- Imported receivings are created in status `VERIFIED`, with `Stock` and `Transaction(IN)` posted immediately.
 - `sumber_dana_code` and `location_code` can still be overridden per row when a document mixes line-level values.
 
 ## CSV Column Specifications
@@ -136,8 +137,8 @@ Expected columns for custom receiving import:
 - `receiving_type` (optional; defaults to `GRANT` in import handler)
 - `receiving_date` (required)
 - `supplier_code` (optional; applied from the first row of each grouped document)
-- `sumber_dana_code` (required at least header/row effective value)
-- `location_code` (required at least header/row effective value)
+- `sumber_dana_code` (required on the first row of each `document_number`; later rows may inherit or override it)
+- `location_code` (required on the first row of each `document_number`; later rows may inherit or override it)
 - `item_code` (required, maps to `Item.kode_barang`)
 - `quantity` (required)
 - `batch_lot` (optional; auto-generated if blank)
