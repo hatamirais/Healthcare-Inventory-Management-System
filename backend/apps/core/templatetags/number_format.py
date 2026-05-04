@@ -45,7 +45,7 @@ def idr(value):
 
 @register.filter
 def safe_media_url(value):
-    """Allow only root-relative media URLs or explicit http(s) URLs."""
+    """Allow only root-relative media URLs (offline-first deployment)."""
     if not value:
         return ""
 
@@ -59,9 +59,6 @@ def safe_media_url(value):
 
     parsed = urlparse(url)
     if url.startswith("/") and not parsed.scheme and not parsed.netloc:
-        return url
-
-    if parsed.scheme in {"http", "https"}:
         return url
 
     return ""

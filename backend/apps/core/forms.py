@@ -27,6 +27,12 @@ class SystemSettingsForm(forms.ModelForm):
             'special_request_distribution_number_template': forms.TextInput(attrs={'class': 'form-control font-monospace'}),
         }
 
+    def clean_logo(self):
+        logo = self.cleaned_data.get("logo")
+        if logo is not None and logo is not False and not hasattr(logo, "read"):
+            raise forms.ValidationError("Logo harus berupa file gambar, bukan URL.")
+        return logo
+
     def clean_lplpo_distribution_number_template(self):
         return self._clean_numbering_template(
             'lplpo_distribution_number_template',

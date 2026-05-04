@@ -1,12 +1,15 @@
+from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import ProgrammingError
 from django.test import TestCase
 from django.test import SimpleTestCase
 from django.test import RequestFactory
+from django.template import Context, Template
 from django.urls import reverse
 
 from apps.core.context_processors import nav_notifications
@@ -58,17 +61,38 @@ class SafeMediaUrlFilterTests(SimpleTestCase):
     def test_allows_root_relative_url(self):
         self.assertEqual(safe_media_url("/media/settings/logo.png"), "/media/settings/logo.png")
 
-    def test_allows_https_url(self):
-        self.assertEqual(
-            safe_media_url("https://example.com/logo.png"),
-            "https://example.com/logo.png",
-        )
+    def test_rejects_https_url(self):
+        self.assertEqual(safe_media_url("https://example.com/logo.png"), "")
+
+    def test_rejects_http_url(self):
+        self.assertEqual(safe_media_url("http://example.com/logo.png"), "")
 
     def test_rejects_javascript_scheme(self):
         self.assertEqual(safe_media_url("javascript:alert(1)"), "")
 
     def test_rejects_protocol_relative_url(self):
         self.assertEqual(safe_media_url("//example.com/logo.png"), "")
+
+    def test_returns_empty_for_none(self):
+        self.assertEqual(safe_media_url(None), "")
+
+    def test_returns_empty_for_blank(self):
+        self.assertEqual(safe_media_url(""), "")
+
+    def test_returns_empty_for_whitespace(self):
+        self.assertEqual(safe_media_url("   "), "")
+
+    def test_returns_empty_for_data_uri(self):
+        self.assertEqual(safe_media_url("data:image/png;base64,abc123"), "")
+
+    def test_rejects_ftp_scheme(self):
+        self.assertEqual(safe_media_url("ftp://example.com/logo.png"), "")
+
+    def test_root_relative_with_special_chars(self):
+        self.assertEqual(
+            safe_media_url("/media/settings/my-logo_v2.png"),
+            "/media/settings/my-logo_v2.png",
+        )
 
 
 class SystemSettingsFormTests(SimpleTestCase):
@@ -540,3 +564,138 @@ class NavNotificationsContextProcessorTests(TestCase):
                 for item in context["nav_notification_items"]
             )
         )
+
+
+class SafeMediaUrlIntegrationTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        img = BytesIO()
+        from PIL import Image
+        Image.new("RGBA", (100, 100), (255, 0, 0, 255)).save(img, format="PNG")
+        img.seek(0)
+        cls.test_image = SimpleUploadedFile(
+            "test_logo.png",
+            img.read(),
+            "image/png",
+        )
+
+    def setUp(self):
+        self.settings = SystemSettings.get_settings()
+
+    def test_logo_renders_local_url_in_template(self):
+        self.settings.logo = self.test_image
+        self.settings.save()
+
+        template = Template(
+            "{% load number_format %}"
+            "{% if system_settings.logo %}"
+            "{% with logo_url=system_settings.logo.url|safe_media_url %}"
+            "{% if logo_url %}{{ logo_url }}{% else %}NO_URL{% endif %}"
+            "{% endwith %}"
+            "{% else %}"
+            "FALLBACK"
+            "{% endif %}"
+        )
+        rendered = template.render(Context({"system_settings": self.settings}))
+
+        self.assertTrue(rendered.strip().startswith("/media/settings/"))
+
+    def test_null_logo_renders_fallback_in_template(self):
+        self.settings.logo = None
+        self.settings.save()
+
+        template = Template(
+            "{% load number_format %}"
+            "{% if system_settings.logo %}"
+            "{% with logo_url=system_settings.logo.url|safe_media_url %}"
+            "{% if logo_url %}{{ logo_url }}{% else %}NO_URL{% endif %}"
+            "{% endwith %}"
+            "{% else %}"
+            "FALLBACK"
+            "{% endif %}"
+        )
+        rendered = template.render(Context({"system_settings": self.settings}))
+
+        self.assertEqual(rendered.strip(), "FALLBACK")
+
+    def test_external_url_blocked_in_template(self):
+        template = Template(
+            "{% load number_format %}"
+            '{{ "https://evil.com/malware.png"|safe_media_url }}'
+        )
+        rendered = template.render(Context({}))
+
+        self.assertEqual(rendered.strip(), "")
+
+    def test_http_url_blocked_in_template(self):
+        template = Template(
+            "{% load number_format %}"
+            '{{ "http://evil.com/malware.png"|safe_media_url }}'
+        )
+        rendered = template.render(Context({}))
+
+        self.assertEqual(rendered.strip(), "")
+
+    def test_protocol_relative_url_blocked_in_template(self):
+        template = Template(
+            "{% load number_format %}"
+            '{{ "//evil.com/malware.png"|safe_media_url }}'
+        )
+        rendered = template.render(Context({}))
+
+        self.assertEqual(rendered.strip(), "")
+
+    def test_javascript_scheme_blocked_in_template(self):
+        template = Template(
+            "{% load number_format %}"
+            '{{ "javascript:alert(1)"|safe_media_url }}'
+        )
+        rendered = template.render(Context({}))
+
+        self.assertEqual(rendered.strip(), "")
+
+    def test_empty_string_blocked_in_template(self):
+        template = Template(
+            "{% load number_format %}"
+            '{{ ""|safe_media_url }}'
+        )
+        rendered = template.render(Context({}))
+
+        self.assertEqual(rendered.strip(), "")
+
+    def test_root_relative_logo_passes_template_guard_and_renders(self):
+        self.settings.logo = self.test_image
+        self.settings.save()
+
+        template = Template(
+            "{% load number_format %}"
+            "{% with logo_url=system_settings.logo.url|safe_media_url %}"
+            "{% if logo_url %}"
+            '<img src="{{ logo_url }}" alt="Logo">'
+            "{% else %}"
+            '<i class="bi bi-hospital"></i>'
+            "{% endif %}"
+            "{% endwith %}"
+        )
+        rendered = template.render(Context({"system_settings": self.settings}))
+
+        self.assertIn('<img src="/media/settings/', rendered)
+
+    def test_blocked_url_triggers_fallback_icon(self):
+        self.settings.logo = self.test_image
+        self.settings.save()
+
+        template = Template(
+            "{% load number_format %}"
+            '{% with logo_url="https://external.com/bad.png"|safe_media_url %}'
+            "{% if logo_url %}"
+            '<img src="{{ logo_url }}" alt="Logo">'
+            "{% else %}"
+            '<i class="bi bi-hospital"></i>'
+            "{% endif %}"
+            "{% endwith %}"
+        )
+        rendered = template.render(Context({}))
+
+        self.assertIn('<i class="bi bi-hospital"></i>', rendered)
+        self.assertNotIn("<img", rendered)
