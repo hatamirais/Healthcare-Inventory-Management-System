@@ -69,7 +69,9 @@
     - ~~`SYSTEM_MODEL.md`~~
     - ~~`AGENTS.md` if numbering/report navigation conventions change~~
 
-18. Printable Kartu Stok
+18. ``Printable Kartu Stok``
+
+19. Add new column on Puskesmas's LPLPO for `Pengadaan` data that adding up to the `Persediaan` for those item
 
 ## Version 2
 
