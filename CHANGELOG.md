@@ -147,7 +147,7 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 ### Changed
 
 - **Deferred Stock Deduction**: Stock is no longer deducted at Allocation approval. It is now correctly deducted only when individual child `Distribution` records are marked as delivered.
-- **Feature Flag Removal**: Removed the `FEATURE_ALLOCATION_UI_ENABLED` feature flag. The Allocation module is now fully active and gated by `ModuleAccess` scopes exactly like all other modules.
+- **Feature Flag Runtime Removal**: Allocation runtime access no longer branches on `FEATURE_ALLOCATION_UI_ENABLED`; the module is governed by `ModuleAccess` scopes, while the setting remains for compatibility and tests.
 
 ## [1.13.0] - 2026-04-20
 
