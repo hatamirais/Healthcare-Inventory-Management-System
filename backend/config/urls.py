@@ -75,6 +75,10 @@ handler403 = "apps.core.views.permission_denied_handler"
 handler404 = "apps.core.views.page_not_found_handler"
 handler500 = "apps.core.views.server_error_handler"
 
-urlpatterns += [
-    re_path(r"^(?P<unmatched_path>.*)$", debug_page_not_found, name="debug_page_not_found")
-]
+# Debug catch-all route - only active in DEBUG mode
+# This must be conditional to avoid interfering with APPEND_SLASH middleware
+# which needs to redirect URLs without trailing slashes to their slash-terminated versions
+if settings.DEBUG:
+    urlpatterns += [
+        re_path(r"^(?P<unmatched_path>.*)$", debug_page_not_found, name="debug_page_not_found")
+    ]

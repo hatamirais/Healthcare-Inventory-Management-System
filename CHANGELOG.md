@@ -7,6 +7,10 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 ## [Unreleased]
 
+### Fixed
+
+- GitHub issue #26: Django URL patterns causing test failures due to missing trailing slashes (301 redirects). Debug catch-all route now conditional on `DEBUG` setting to allow `APPEND_SLASH` middleware to work correctly. Added explicit `APPEND_SLASH = True` setting and automated URL consistency validation tests.
+
 ## [1.22.0] - 2026-05-05
 
 ### Added

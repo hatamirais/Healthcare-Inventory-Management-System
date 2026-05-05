@@ -156,6 +156,37 @@ Before opening a PR, verify:
 - Security behavior in docs mirrors `backend/config/settings.py`.
 - CSV column docs match actual import resources/forms/admin parser logic.
 
+## URL Routing Convention
+
+**All URL patterns MUST end with a trailing slash (`/`)** to prevent 301 redirects caused by Django's `APPEND_SLASH` middleware.
+
+### Rules
+
+1. **URL patterns in `urls.py`**: Every `path()` must end with `/`
+   - ✅ `path("create/", views.create, name="create")`
+   - ✅ `path("<int:pk>/", views.detail, name="detail")`
+   - ❌ `path("create", views.create, name="create")`
+   - ❌ `path("<int:pk>", views.detail, name="detail")`
+
+2. **Test client calls**: Use `reverse()` when possible, or ensure hardcoded URLs have trailing slashes
+   - ✅ `self.client.get(reverse("app:create"))`
+   - ✅ `self.client.get("/app/create/")`
+   - ❌ `self.client.get("/app/create")`
+
+3. **Templates**: Always use `{% url %}` template tag (which resolves correctly)
+   - ✅ `<a href="{% url 'app:create' %}">`
+   - ❌ `<a href="/app/create">`
+
+4. **Settings**: `APPEND_SLASH = True` is explicitly set in `backend/config/settings.py`
+
+### Validation
+
+URL consistency tests in `apps.core.tests.test_url_consistency` automatically verify:
+- All URL patterns end with trailing slashes
+- No hardcoded test URLs are missing trailing slashes
+
+Run with: `.\scripts\run-django-test.ps1 -Target apps.core.tests.test_url_consistency`
+
 ## Notes
 
 - Do not claim REST API/React production paths as implemented; those are planned.

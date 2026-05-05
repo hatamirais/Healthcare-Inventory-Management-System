@@ -434,6 +434,13 @@ class ErrorHandlerTests(SimpleTestCase):
 
     @override_settings(DEBUG=True)
     def test_unmatched_route_uses_custom_404_page_in_debug(self):
+        # Reload the URLconf module to pick up DEBUG=True setting
+        import importlib
+        from django.urls import clear_url_caches
+        from config import urls
+        importlib.reload(urls)
+        clear_url_caches()
+        
         response = self.client.get("/route-yang-tidak-ada/")
 
         self.assertEqual(response.status_code, 404)

@@ -22,6 +22,13 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
+# ─── URL Trailing Slash Convention ──────────────────────────────────
+# All URL patterns in this project MUST end with a trailing slash (/).
+# APPEND_SLASH=True (Django default) ensures that requests to URLs without
+# trailing slashes are redirected to their slash-terminated versions.
+# This prevents 301 redirect issues in tests and ensures consistent URLs.
+APPEND_SLASH = True
+
 APP_VERSION = str(read_version(get_version_file(PROJECT_ROOT)))
 
 FEATURE_ALLOCATION_UI_ENABLED = (
