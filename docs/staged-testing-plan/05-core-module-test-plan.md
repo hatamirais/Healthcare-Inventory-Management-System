@@ -18,7 +18,6 @@ Komponen dalam cakupan plan ini:
   - `nav_notifications`
 - decorator:
   - `perm_required`
-  - `role_required`
   - `module_scope_required`
 - utilitas versioning:
   - `SemanticVersion`
@@ -77,7 +76,7 @@ Dependency teknis utama:
 
 ### Risiko Menengah
 
-1. `role_required` lama berperilaku tidak konsisten dibanding ekspektasi backward compatibility.
+1. Decorator otorisasi dikonfigurasi salah setelah penghapusan `role_required` yang deprecated.
 2. `TimeStampedModel` tidak memuat timestamp dengan konsisten pada model turunan.
 3. `app_version` atau `system_settings_processor` gagal dalam kondisi fallback.
 
@@ -176,8 +175,7 @@ Skenario:
 5. `perm_required` mendukung banyak permission dan meloloskan jika salah satu valid.
 6. `module_scope_required` meloloskan user dengan minimum scope yang cukup.
 7. `module_scope_required` menolak user di bawah minimum scope.
-8. `role_required` masih bekerja untuk backward compatibility pada role yang diizinkan.
-9. `role_required` menolak role di luar allow-list.
+
 
 ### E. Main Dashboard Aggregation
 

@@ -1,9 +1,9 @@
 """
 Permission-based access control decorators for Healthcare IMS.
 
-perm_required: Checks Django permissions (managed via Groups in Admin panel).
-role_required: DEPRECATED — kept for backward compatibility but new code
-               should use perm_required.
+perm_required: Checks Django permissions (managed via Groups in Admin panel)
+               with fallback to module-scope access model.
+module_scope_required: Checks minimum module scope level.
 
 Usage:
     @perm_required('receiving.add_receiving')
