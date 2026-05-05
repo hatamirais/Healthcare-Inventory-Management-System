@@ -7,10 +7,27 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-05-05
+
 ### Added
 
-- New `Procurement Source` column (`procurement_source`) on LPLPO item matrix with choice values `BLUD`, `APBD`, `BHP`, `Hibah`, and `Lainnya`. Field appears on create, edit, detail, review, and print views so operators can tag funding source per line item.
-- Admin role users can now view all Puskesmas LPLPO pages (list, detail, print) alongside Puskesmas operators, with facility isolation preserved for edit/delete actions.
+- `Procurement Source` column (`procurement_source`) on LPLPO item matrix with choice values `BLUD`, `APBD`, `BHP`, `Hibah`, and `Lainnya`. Field appears on create, edit, detail, review, and print views.
+- Admin role can now view all Puskesmas LPLPO pages (list, detail, print) alongside Puskesmas operators, with facility isolation preserved for edit/delete actions.
+- Centralized `400/403/404/500` error-page handling with shared standalone layout, contextual fallback navigation, and `/maintenance/` preview route returning `503`.
+
+### Changed
+
+- Admin-panel and Puskesmas authorization denials now flow through centralized forbidden-page path instead of raw inline HTML fragments.
+- Error-page navigation compatible with strict CSP via external script instead of inline JavaScript.
+
+### Fixed
+
+- LPLPO draft mutations restricted to Puskesmas-only with proper role-enum guards and submit/delete access controls.
+- LPLPO print category header colspan alignment.
+- Custom 404 page renders correctly in `DEBUG=True` mode.
+- Stock API totals remain numeric (no type coercion issues).
+- **HIGH/CRITICAL audit fixes**: `transaction.atomic()` on distribution create/edit, N+1 elimination in item search and stock card, batch_lot prefetch optimization, DB-level opening balance aggregate, permission checks added to 17+ views (AJAX quick-create, receiving, stock).
+- **MEDIUM/LOW audit fixes**: `bulk_update` in LPLPO edit, `bulk_create` for receiving transactions, IntegrityError retry on stock transfer document number collision, narrowed bare exceptions, deprecated `role_required` decorator removal, query optimizations across dashboard and stock card, permission enforcement on item list and system settings.
 
 ## [1.21.0] - 2026-05-05
 
