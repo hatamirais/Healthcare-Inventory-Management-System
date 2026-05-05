@@ -201,17 +201,17 @@ def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
 
     reference_labels = {}
     _ref_model_map = {
-        Transaction.ReferenceType.RECEIVING: "apps.receiving.models.Receiving",
-        Transaction.ReferenceType.DISTRIBUTION: "apps.distribution.models.Distribution",
-        Transaction.ReferenceType.RECALL: "apps.recall.models.Recall",
-        Transaction.ReferenceType.EXPIRED: "apps.expired.models.Expired",
-        Transaction.ReferenceType.TRANSFER: "apps.stock.models.StockTransfer",
+        Transaction.ReferenceType.RECEIVING: ("apps.receiving.models", "Receiving"),
+        Transaction.ReferenceType.DISTRIBUTION: ("apps.distribution.models", "Distribution"),
+        Transaction.ReferenceType.RECALL: ("apps.recall.models", "Recall"),
+        Transaction.ReferenceType.EXPIRED: ("apps.expired.models", "Expired"),
+        Transaction.ReferenceType.TRANSFER: ("apps.stock.models", "StockTransfer"),
     }
     for ref_type, ids in ref_id_sets.items():
-        model_path = _ref_model_map.get(ref_type)
-        if not model_path:
+        entry = _ref_model_map.get(ref_type)
+        if not entry:
             continue
-        module_path, class_name = model_path.rsplit(".", 1)
+        module_path, class_name = entry
         import importlib
         mod = importlib.import_module(module_path)
         model_cls = getattr(mod, class_name)
@@ -302,24 +302,29 @@ def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
         #   3. Latest Transaction.unit_price for this item + sumber_dana
         unit_price = Decimal("0")
         if sd_key:
-            ri_qs = ReceivingItem.objects.filter(
-                item=item,
-                receiving__sumber_dana_id=sd_key,
-            ).order_by("-receiving__receiving_date", "-pk")
-            latest_ri = ri_qs.first()
-            if latest_ri and latest_ri.unit_price:
-                unit_price = latest_ri.unit_price
+            ri = (
+                ReceivingItem.objects.filter(
+                    item=item,
+                    receiving__sumber_dana_id=sd_key,
+                    unit_price__gt=0,
+                )
+                .order_by("-receiving__receiving_date", "-pk")
+                .values_list("unit_price", flat=True)
+                .first()
+            )
+            if ri:
+                unit_price = ri
 
         if not unit_price and sd_key:
-            stock_entry = (
+            stock_price = (
                 Stock.objects.filter(item=item, sumber_dana_id=sd_key)
                 .exclude(unit_price=0)
                 .order_by("-pk")
                 .values_list("unit_price", flat=True)
                 .first()
             )
-            if stock_entry:
-                unit_price = stock_entry
+            if stock_price:
+                unit_price = stock_price
 
         if not unit_price:
             tx_price = (

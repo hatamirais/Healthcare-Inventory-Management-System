@@ -209,7 +209,7 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     X_FRAME_OPTIONS = "DENY"
-    SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False") == "True"
+    SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True") == "True"
 
     # HSTS (HTTP Strict Transport Security)
     SECURE_HSTS_SECONDS = 31536000  # 1 year
@@ -237,12 +237,12 @@ SECURE_CSP = {
     "form-action": ["'self'"],
 }
 
-# ─── Structured Logging (stdout JSON) ────────────────────────────────
+# ─── Structured Logging (stdout plain-text) ─────────────────────────
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "json": {
+        "plain": {
             "()": "django.utils.log.ServerFormatter",
             "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
         },
@@ -250,7 +250,7 @@ LOGGING = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "json",
+            "formatter": "plain",
         },
     },
     "loggers": {

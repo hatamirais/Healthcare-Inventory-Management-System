@@ -236,9 +236,24 @@ class StockTransfer(TimeStampedModel):
                 )
 
     def save(self, *args, **kwargs):
+        from django.db import IntegrityError
+
         if not self.document_number:
             self.document_number = self.generate_document_number()
-        super().save(*args, **kwargs)
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                super().save(*args, **kwargs)
+                return
+            except IntegrityError:
+                if attempt < max_retries - 1 and "document_number" in str(
+                    getattr(self, "document_number", "")
+                ):
+                    # Regenerate and retry on duplicate document number
+                    self.document_number = self.generate_document_number()
+                else:
+                    raise
 
 
 class StockTransferItem(models.Model):

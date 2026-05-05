@@ -1,9 +1,11 @@
+import logging
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
+from django.views.decorators.csrf import requires_csrf_token
 
 from django.db.models import Count, Sum, Q, F, DecimalField, ExpressionWrapper, Value
 from django.db.models.functions import Coalesce
@@ -15,12 +17,137 @@ from apps.stock.models import Stock, Transaction
 from apps.users.models import User
 from apps.users.access import has_module_scope
 from apps.users.models import ModuleAccess
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views.generic.edit import UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from apps.core.models import SystemSettings
 from apps.core.forms import SystemSettingsForm
+
+
+security_logger = logging.getLogger("security")
+request_logger = logging.getLogger("django.request")
+
+
+def _get_client_ip(request):
+    xff = request.META.get("HTTP_X_FORWARDED_FOR")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "unknown")
+
+
+def _get_error_fallback(request):
+    if getattr(request.user, "is_authenticated", False):
+        return reverse("dashboard"), "Buka Dashboard"
+    return reverse("login"), "Buka Login"
+
+
+def _build_error_context(request, status_code, title, message, icon, tone, help_text):
+    fallback_url, fallback_label = _get_error_fallback(request)
+    return {
+        "status_code": str(status_code),
+        "title": title,
+        "message": message,
+        "icon": icon,
+        "tone": tone,
+        "help_text": help_text,
+        "fallback_url": fallback_url,
+        "fallback_label": fallback_label,
+        "requested_path": request.get_full_path(),
+    }
+
+
+def _log_error_event(logger, level, event, request, status_code, exception=None):
+    log_method = getattr(logger, level)
+    log_method(
+        event,
+        extra={
+            "event": event,
+            "status_code": status_code,
+            "path": request.path,
+            "method": request.method,
+            "username": request.user.username if getattr(request.user, "is_authenticated", False) else "anonymous",
+            "ip": _get_client_ip(request),
+            "exception": exception.__class__.__name__ if exception else "",
+        },
+    )
+
+
+def _render_error_page(request, template_name, response_status, **context):
+    return render(request, template_name, context, status=response_status)
+
+
+def maintenance_mode(request):
+    _log_error_event(request_logger, "warning", "service_unavailable", request, 503)
+    context = _build_error_context(
+        request,
+        503,
+        "Layanan sedang dalam perawatan",
+        "Aplikasi untuk sementara tidak tersedia karena pemeliharaan atau deployment sedang berlangsung. Silakan kembali ke halaman sebelumnya atau coba lagi beberapa saat lagi.",
+        "bi bi-tools",
+        "info",
+        "Gunakan halaman ini sebagai fallback maintenance manual atau endpoint preview untuk pesan downtime yang konsisten.",
+    )
+    return _render_error_page(request, "503.html", 503, **context)
+
+
+def bad_request(request, exception):
+    _log_error_event(security_logger, "warning", "bad_request", request, 400, exception)
+    context = _build_error_context(
+        request,
+        400,
+        "Permintaan tidak dapat diproses",
+        "Server menerima permintaan yang tidak lengkap atau tidak valid. Kembali ke halaman sebelumnya untuk memeriksa data yang terakhir Anda kirim.",
+        "bi bi-slash-circle",
+        "info",
+        "Periksa kembali parameter, filter, atau data formulir sebelum mencoba lagi.",
+    )
+    return _render_error_page(request, "400.html", 400, **context)
+
+
+@requires_csrf_token
+def permission_denied_handler(request, exception):
+    _log_error_event(security_logger, "warning", "permission_denied", request, 403, exception)
+    context = _build_error_context(
+        request,
+        403,
+        "Anda tidak memiliki akses ke halaman ini",
+        "Hak akses Anda tidak mencukupi untuk membuka halaman ini atau melakukan aksi yang diminta.",
+        "bi bi-lock",
+        "warning",
+        "Kembali ke halaman sebelumnya untuk melanjutkan pekerjaan yang diizinkan, atau gunakan dashboard untuk memilih modul yang sesuai dengan izin Anda.",
+    )
+    return _render_error_page(request, "403.html", 403, **context)
+
+
+@requires_csrf_token
+def page_not_found_handler(request, exception):
+    _log_error_event(request_logger, "info", "page_not_found", request, 404, exception)
+    context = _build_error_context(
+        request,
+        404,
+        "Halaman yang Anda cari tidak ditemukan",
+        "Alamat yang diminta tidak tersedia, mungkin sudah dipindahkan, dihapus, atau URL yang dibuka tidak lengkap.",
+        "bi bi-signpost-split",
+        "warning",
+        "Kembali ke halaman sebelumnya untuk melanjutkan alur terakhir Anda, atau buka tujuan fallback untuk mulai dari titik yang aman.",
+    )
+    return _render_error_page(request, "404.html", 404, **context)
+
+
+@requires_csrf_token
+def server_error_handler(request):
+    _log_error_event(request_logger, "error", "server_error", request, 500)
+    context = _build_error_context(
+        request,
+        500,
+        "Terjadi kesalahan pada server",
+        "Permintaan Anda sudah sampai ke server, tetapi sistem gagal menyelesaikannya. Muat ulang dari halaman sebelumnya atau kembali ke tujuan fallback.",
+        "bi bi-server",
+        "danger",
+        "Jika error ini terus muncul pada langkah yang sama, catat aktivitas terakhir Anda lalu periksa log aplikasi untuk diagnosis lebih lanjut.",
+    )
+    return _render_error_page(request, "500.html", 500, **context)
 
 @login_required
 def dashboard(request):
@@ -114,9 +241,10 @@ def dashboard(request):
     )[:10]
     expiring_soon_count = expiring_soon_queryset.count()
 
-    today_transaction_count = Transaction.objects.filter(created_at__date=today).count()
+    today_tx_filter = Q(created_at__date=today)
     tx_last_30_days = Transaction.objects.filter(created_at__date__gte=thirty_days_ago)
     tx_summary = tx_last_30_days.aggregate(
+        today_transaction_count=Count("pk", filter=today_tx_filter),
         inbound_30_days=Coalesce(
             Sum(
                 "quantity",
@@ -132,6 +260,7 @@ def dashboard(request):
             zero_decimal,
         ),
     )
+    today_transaction_count = tx_summary["today_transaction_count"]
     inbound_30_days = tx_summary["inbound_30_days"]
     outbound_30_days = tx_summary["outbound_30_days"]
     movement_total_30_days = inbound_30_days + outbound_30_days
@@ -235,7 +364,10 @@ class SystemSettingsUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVi
     login_url = reverse_lazy('login')
 
     def test_func(self):
-        return self.request.user.role == User.Role.ADMIN
+        user = self.request.user
+        return user.is_superuser or has_module_scope(
+            user, ModuleAccess.Module.ADMIN_PANEL, ModuleAccess.Scope.MANAGE
+        )
 
     def get_object(self, queryset=None):
         return SystemSettings.get_settings()
