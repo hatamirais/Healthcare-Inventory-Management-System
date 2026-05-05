@@ -57,6 +57,14 @@ def _check_puskesmas_creator_access(request):
         raise PermissionDenied("Hanya operator Puskesmas yang dapat membuat LPLPO.")
 
 
+def _check_puskesmas_draft_action_access(request):
+    """Restrict draft LPLPO mutations to PUSKESMAS operators only."""
+    if request.user.role != "PUSKESMAS":
+        raise PermissionDenied(
+            "Hanya operator Puskesmas yang dapat mengubah LPLPO draft."
+        )
+
+
 def _get_submission_month_choices():
     return [(str(month), calendar.month_name[month]) for month in range(1, 13)]
 
@@ -347,6 +355,8 @@ def lplpo_detail(request, pk):
 @perm_required("lplpo.change_lplpo")
 def lplpo_edit(request, pk):
     """Puskesmas fills their columns — only DRAFT status."""
+    _check_puskesmas_draft_action_access(request)
+
     lplpo_obj = get_object_or_404(LPLPO.objects.select_related("facility"), pk=pk)
 
     if lplpo_obj.status != LPLPO.Status.DRAFT:
@@ -443,6 +453,8 @@ def lplpo_edit(request, pk):
 @perm_required("lplpo.change_lplpo")
 def lplpo_submit(request, pk):
     """Transition DRAFT → SUBMITTED."""
+    _check_puskesmas_draft_action_access(request)
+
     lplpo_obj = get_object_or_404(LPLPO, pk=pk)
     denied = _check_facility_access(request, lplpo_obj)
     if denied:
@@ -715,6 +727,8 @@ def lplpo_print_report(request):
 @perm_required("lplpo.delete_lplpo")
 def lplpo_delete(request, pk):
     """Delete a DRAFT LPLPO document."""
+    _check_puskesmas_draft_action_access(request)
+
     lplpo_obj = get_object_or_404(LPLPO, pk=pk)
 
     if request.method != "POST":
