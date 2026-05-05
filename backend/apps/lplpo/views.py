@@ -396,6 +396,7 @@ def lplpo_edit(request, pk):
                     fields=[
                         "stock_awal",
                         "penerimaan",
+                        "procurement_source",
                         "pemakaian",
                         "stock_gudang_puskesmas",
                         "waktu_kosong",
