@@ -84,6 +84,7 @@ def _create_verified_receiving(request, form, formset):
 
 
 @login_required
+@perm_required("receiving.view_receiving")
 def receiving_list(request):
     queryset = (
         Receiving.objects.select_related("supplier", "sumber_dana", "created_by")
@@ -119,6 +120,7 @@ def receiving_list(request):
 
 
 @login_required
+@perm_required("receiving.view_receiving")
 def receiving_plan_list(request):
     queryset = (
         Receiving.objects.select_related("supplier", "sumber_dana", "created_by")
@@ -240,6 +242,7 @@ def receiving_plan_create(request):
 
 
 @login_required
+@perm_required("receiving.view_receiving")
 def receiving_detail(request, pk):
     receiving = get_object_or_404(
         Receiving.objects.select_related(
@@ -261,6 +264,7 @@ def receiving_detail(request, pk):
 
 
 @login_required
+@perm_required("receiving.view_receiving")
 def receiving_plan_detail(request, pk):
     receiving = get_object_or_404(
         Receiving.objects.select_related(
@@ -602,6 +606,7 @@ def receiving_plan_receive(request, pk):
 
 
 @login_required
+@perm_required("receiving.add_receiving")
 @require_POST
 def quick_create_supplier(request):
     """AJAX endpoint to create a new Supplier."""
@@ -628,6 +633,7 @@ def quick_create_supplier(request):
 
 
 @login_required
+@perm_required("receiving.add_receiving")
 @require_POST
 def quick_create_funding_source(request):
     """AJAX endpoint to create a new FundingSource."""
@@ -651,6 +657,7 @@ def quick_create_funding_source(request):
 
 
 @login_required
+@perm_required("receiving.add_receiving")
 @require_POST
 def quick_create_receiving_type(request):
     """AJAX endpoint to create a new custom receiving type."""

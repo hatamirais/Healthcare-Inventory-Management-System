@@ -220,6 +220,7 @@ def program_create(request):
 
 
 @login_required
+@perm_required("items.add_unit")
 @require_POST
 def quick_create_unit(request):
     """AJAX endpoint to create a new Unit."""
@@ -243,6 +244,7 @@ def quick_create_unit(request):
 
 
 @login_required
+@perm_required("items.add_category")
 @require_POST
 def quick_create_category(request):
     """AJAX endpoint to create a new Category."""
@@ -271,6 +273,7 @@ def quick_create_category(request):
 
 
 @login_required
+@perm_required("items.add_program")
 @require_POST
 def quick_create_program(request):
     """AJAX endpoint to create a new Program."""
@@ -294,6 +297,7 @@ def quick_create_program(request):
 
 
 @login_required
+@perm_required("items.add_facility")
 @require_POST
 def quick_create_facility(request):
     """AJAX endpoint to create a new Facility."""

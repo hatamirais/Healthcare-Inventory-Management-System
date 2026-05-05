@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -205,17 +206,18 @@ def _save_special_request(request):
         formset = DistributionItemFormSet(request.POST, prefix="items")
 
         if form.is_valid() and formset.is_valid():
-            dist = form.save(commit=False)
-            dist.distribution_type = Distribution.DistributionType.SPECIAL_REQUEST
-            dist.created_by = request.user
-            dist.status = Distribution.Status.DRAFT
-            dist.save()
-            sync_distribution_staff_assignments(
-                dist, form.cleaned_data.get("assigned_staff", [])
-            )
+            with transaction.atomic():
+                dist = form.save(commit=False)
+                dist.distribution_type = Distribution.DistributionType.SPECIAL_REQUEST
+                dist.created_by = request.user
+                dist.status = Distribution.Status.DRAFT
+                dist.save()
+                sync_distribution_staff_assignments(
+                    dist, form.cleaned_data.get("assigned_staff", [])
+                )
 
-            formset.instance = dist
-            formset.save()
+                formset.instance = dist
+                formset.save()
 
             messages.success(
                 request,
@@ -269,14 +271,15 @@ def distribution_edit(request, pk):
         formset = DistributionItemFormSet(request.POST, instance=dist, prefix="items")
 
         if form.is_valid() and formset.is_valid():
-            dist = form.save(commit=False)
-            if forced_distribution_type:
-                dist.distribution_type = forced_distribution_type
-            dist.save()
-            sync_distribution_staff_assignments(
-                dist, form.cleaned_data.get("assigned_staff", [])
-            )
-            formset.save()
+            with transaction.atomic():
+                dist = form.save(commit=False)
+                if forced_distribution_type:
+                    dist.distribution_type = forced_distribution_type
+                dist.save()
+                sync_distribution_staff_assignments(
+                    dist, form.cleaned_data.get("assigned_staff", [])
+                )
+                formset.save()
             messages.success(
                 request,
                 (

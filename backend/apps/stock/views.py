@@ -6,7 +6,8 @@ from django.db import transaction as db_transaction
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q, F
+from django.db.models import Case, Q, F, Sum, Value, When
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from apps.core.decorators import perm_required
@@ -17,6 +18,7 @@ from django.http import JsonResponse
 
 
 @login_required
+@perm_required("stock.view_stock")
 def stock_list(request):
     queryset = (
         Stock.objects.select_related("item", "location", "sumber_dana")
@@ -79,6 +81,7 @@ def stock_list(request):
 
 
 @login_required
+@perm_required("stock.view_transaction")
 def transaction_list(request):
     queryset = Transaction.objects.select_related("item", "user", "location").order_by(
         "-created_at"
@@ -116,6 +119,7 @@ def transaction_list(request):
 
 
 @login_required
+@perm_required("stock.view_stock")
 def stock_card_select(request):
     """Landing page for selecting an item to view its stock card."""
     recent_ids = request.session.get("stock_card_recent_items", [])
@@ -180,6 +184,14 @@ def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
         queryset = queryset.filter(created_at__date__lte=date_to)
 
     transactions = list(queryset)
+
+    # ── Pre-fetch batch expiry dates for this item (avoids N+1) ───────
+    batch_expiry_map = dict(
+        Stock.objects.filter(item=item)
+        .exclude(expiry_date__isnull=True)
+        .values_list("batch_lot", "expiry_date")
+        .distinct()
+    )
 
     # ── Resolve document number labels ───────────────────────────────
     ref_id_sets = {}
@@ -253,7 +265,7 @@ def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
         sd_txs = group["transactions"]
         sd_obj = group["sumber_dana"]
 
-        # Opening balance for this sumber_dana
+        # Opening balance for this sumber_dana (aggregate in DB)
         opening_balance = Decimal("0")
         if date_from:
             past_qs = Transaction.objects.filter(
@@ -263,14 +275,24 @@ def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
                 past_qs = past_qs.filter(location_id=location_id)
             if sd_key:
                 past_qs = past_qs.filter(sumber_dana_id=sd_key)
-            for ptx in past_qs:
-                if ptx.transaction_type in [
-                    Transaction.TransactionType.IN,
-                    Transaction.TransactionType.RETURN,
-                ]:
-                    opening_balance += ptx.quantity
-                else:
-                    opening_balance -= ptx.quantity
+            agg = past_qs.aggregate(
+                balance=Coalesce(
+                    Sum(
+                        Case(
+                            When(
+                                transaction_type__in=[
+                                    Transaction.TransactionType.IN,
+                                    Transaction.TransactionType.RETURN,
+                                ],
+                                then=F("quantity"),
+                            ),
+                            default=-F("quantity"),
+                        )
+                    ),
+                    Value(Decimal("0")),
+                )
+            )
+            opening_balance = agg["balance"]
 
         # Unit price from Receiving module for this item + sumber_dana.
         # Fallback chain:
@@ -363,16 +385,12 @@ def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
             else:
                 tx.dari_kepada = ""
 
-            # Expiry date from batch if available
+            # Expiry date from batch if available (pre-fetched)
             tx.expiry_display = ""
             if tx.batch_lot:
-                stock_entry = (
-                    Stock.objects.filter(item=item, batch_lot=tx.batch_lot)
-                    .values_list("expiry_date", flat=True)
-                    .first()
-                )
-                if stock_entry:
-                    tx.expiry_display = stock_entry.strftime("%d/%m/%Y")
+                expiry_date = batch_expiry_map.get(tx.batch_lot)
+                if expiry_date:
+                    tx.expiry_display = expiry_date.strftime("%d/%m/%Y")
 
         # Determine Tahun Anggaran from earliest receiving year
         tahun_anggaran = timezone.now().year
@@ -427,6 +445,7 @@ def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
 
 
 @login_required
+@perm_required("stock.view_stock")
 def stock_card_detail(request, item_id):
     """View the stock card (running balance) for a specific item, grouped by sumber dana."""
     item = get_object_or_404(Item, pk=item_id)
@@ -465,6 +484,7 @@ def stock_card_detail(request, item_id):
 
 
 @login_required
+@perm_required("stock.view_stock")
 def stock_card_print(request, item_id):
     """Standalone print view for government-style Kartu Stok."""
     item = get_object_or_404(Item, pk=item_id)
@@ -496,6 +516,7 @@ def stock_card_print(request, item_id):
 
 
 @login_required
+@perm_required("stock.view_stock")
 def api_item_search(request):
     """AJAX endpoint for item typeahead."""
     q = request.GET.get("q", "").strip()
@@ -505,6 +526,11 @@ def api_item_search(request):
     items = (
         Item.objects.filter(is_active=True)
         .filter(Q(kode_barang__icontains=q) | Q(nama_barang__icontains=q))
+        .annotate(
+            total_stock=Coalesce(
+                Sum("stock_entries__quantity"), Value(Decimal("0"))
+            )
+        )
         .select_related("satuan", "kategori")[:20]
     )
 
@@ -516,9 +542,7 @@ def api_item_search(request):
                 "text": f"{item.kode_barang} - {item.nama_barang}",
                 "satuan": item.satuan.name if item.satuan else "",
                 "kategori": item.kategori.name if item.kategori else "",
-                "stock": sum(
-                    [s.quantity for s in item.stock_entries.all()]
-                ),  # Quick stock sum
+                "stock": str(item.total_stock),
             }
         )
 
@@ -526,6 +550,7 @@ def api_item_search(request):
 
 
 @login_required
+@perm_required("stock.view_stocktransfer")
 def transfer_list(request):
     queryset = StockTransfer.objects.select_related(
         "source_location", "destination_location", "created_by", "completed_by"
@@ -633,6 +658,7 @@ def transfer_create(request):
 
 
 @login_required
+@perm_required("stock.view_stocktransfer")
 def transfer_detail(request, transfer_id):
     transfer = get_object_or_404(
         StockTransfer.objects.select_related(
