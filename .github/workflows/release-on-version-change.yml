@@ -64,7 +64,7 @@ jobs:
           fi
 
       - name: Run core versioning tests
-        run: python manage.py test apps.core.tests
+        run: python manage.py test apps.core.tests.test_core apps.core.tests.test_url_consistency
 
   release:
     name: Create tag and release
