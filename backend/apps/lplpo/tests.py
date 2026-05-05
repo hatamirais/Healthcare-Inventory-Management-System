@@ -157,6 +157,11 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		response = self.client.get(reverse("lplpo:lplpo_create"))
 
 		self.assertEqual(response.status_code, 403)
+		self.assertContains(
+			response,
+			"Hanya operator Puskesmas yang dapat membuat LPLPO.",
+			status_code=403,
+		)
 
 	def test_instalasi_farmasi_list_hides_create_button(self):
 		self.client.force_login(self.staff_user)

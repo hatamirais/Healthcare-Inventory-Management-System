@@ -264,6 +264,11 @@ LOGGING = {
             "level": "ERROR",
             "propagate": False,
         },
+        "core": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
         "security": {
             "handlers": ["console"],
             "level": "INFO",

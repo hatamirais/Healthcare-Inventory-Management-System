@@ -26,7 +26,7 @@ from apps.core.forms import SystemSettingsForm
 
 
 security_logger = logging.getLogger("security")
-request_logger = logging.getLogger("django.request")
+app_logger = logging.getLogger("core")
 
 
 def _get_client_ip(request):
@@ -59,18 +59,18 @@ def _build_error_context(request, status_code, title, message, icon, tone, help_
 
 def _log_error_event(logger, level, event, request, status_code, exception=None):
     log_method = getattr(logger, level)
-    log_method(
-        event,
-        extra={
-            "event": event,
-            "status_code": status_code,
-            "path": request.path,
-            "method": request.method,
-            "username": request.user.username if getattr(request.user, "is_authenticated", False) else "anonymous",
-            "ip": _get_client_ip(request),
-            "exception": exception.__class__.__name__ if exception else "",
-        },
+    username = (
+        request.user.username
+        if getattr(request.user, "is_authenticated", False)
+        else "anonymous"
     )
+    message = (
+        f"event={event} status_code={status_code} method={request.method} "
+        f"path={request.path} username={username} ip={_get_client_ip(request)}"
+    )
+    if exception:
+        message = f"{message} exception={exception.__class__.__name__}"
+    log_method(message)
 
 
 def _render_error_page(request, template_name, response_status, **context):
@@ -78,7 +78,7 @@ def _render_error_page(request, template_name, response_status, **context):
 
 
 def maintenance_mode(request):
-    _log_error_event(request_logger, "warning", "service_unavailable", request, 503)
+    _log_error_event(app_logger, "warning", "service_unavailable", request, 503)
     context = _build_error_context(
         request,
         503,
@@ -107,12 +107,15 @@ def bad_request(request, exception):
 
 @requires_csrf_token
 def permission_denied_handler(request, exception):
+    message = str(exception).strip() if exception and str(exception).strip() else (
+        "Hak akses Anda tidak mencukupi untuk membuka halaman ini atau melakukan aksi yang diminta."
+    )
     _log_error_event(security_logger, "warning", "permission_denied", request, 403, exception)
     context = _build_error_context(
         request,
         403,
         "Anda tidak memiliki akses ke halaman ini",
-        "Hak akses Anda tidak mencukupi untuk membuka halaman ini atau melakukan aksi yang diminta.",
+        message,
         "bi bi-lock",
         "warning",
         "Kembali ke halaman sebelumnya untuk melanjutkan pekerjaan yang diizinkan, atau gunakan dashboard untuk memilih modul yang sesuai dengan izin Anda.",
@@ -122,7 +125,7 @@ def permission_denied_handler(request, exception):
 
 @requires_csrf_token
 def page_not_found_handler(request, exception):
-    _log_error_event(request_logger, "info", "page_not_found", request, 404, exception)
+    _log_error_event(app_logger, "info", "page_not_found", request, 404, exception)
     context = _build_error_context(
         request,
         404,
@@ -137,7 +140,7 @@ def page_not_found_handler(request, exception):
 
 @requires_csrf_token
 def server_error_handler(request):
-    _log_error_event(request_logger, "error", "server_error", request, 500)
+    _log_error_event(app_logger, "error", "server_error", request, 500)
     context = _build_error_context(
         request,
         500,

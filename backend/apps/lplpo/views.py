@@ -55,7 +55,6 @@ def _check_puskesmas_creator_access(request):
     """Restrict create flow to PUSKESMAS operators only."""
     if request.user.role != "PUSKESMAS":
         raise PermissionDenied("Hanya operator Puskesmas yang dapat membuat LPLPO.")
-    return None
 
 
 def _get_submission_month_choices():
@@ -168,9 +167,7 @@ def lplpo_my_list(request):
 @perm_required("lplpo.add_lplpo")
 def lplpo_create(request):
     """Create a new LPLPO for a given period. Auto-generates all item lines."""
-    denied = _check_puskesmas_creator_access(request)
-    if denied:
-        return denied
+    _check_puskesmas_creator_access(request)
 
     if request.method == "POST":
         form = LPLPOCreateForm(request.POST, user=request.user)

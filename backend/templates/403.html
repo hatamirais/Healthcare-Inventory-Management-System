@@ -5,5 +5,5 @@
 {% block title %}Anda tidak memiliki akses ke halaman ini{% endblock %}
 {% block tone %}warning{% endblock %}
 {% block icon %}bi bi-lock{% endblock %}
-{% block message %}Hak akses Anda tidak mencukupi untuk membuka halaman ini atau melakukan aksi yang diminta.{% endblock %}
-{% block help_text %}Kembali ke halaman sebelumnya untuk melanjutkan pekerjaan yang diizinkan, atau gunakan dashboard untuk memilih modul yang sesuai dengan izin Anda.{% endblock %}
+{% block message %}{{ message|default:"Hak akses Anda tidak mencukupi untuk membuka halaman ini atau melakukan aksi yang diminta." }}{% endblock %}
+{% block help_text %}{{ help_text|default:"Kembali ke halaman sebelumnya untuk melanjutkan pekerjaan yang diizinkan, atau gunakan dashboard untuk memilih modul yang sesuai dengan izin Anda." }}{% endblock %}
