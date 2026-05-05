@@ -238,7 +238,8 @@ class StockTransfer(TimeStampedModel):
     def save(self, *args, **kwargs):
         from django.db import IntegrityError
 
-        if not self.document_number:
+        auto_generated_document_number = not self.document_number
+        if auto_generated_document_number:
             self.document_number = self.generate_document_number()
 
         max_retries = 3
@@ -246,9 +247,19 @@ class StockTransfer(TimeStampedModel):
             try:
                 super().save(*args, **kwargs)
                 return
-            except IntegrityError:
-                if attempt < max_retries - 1 and "document_number" in str(
-                    getattr(self, "document_number", "")
+            except IntegrityError as exc:
+                error_message = " ".join(str(arg) for arg in exc.args)
+                constraint_name = (
+                    getattr(getattr(exc.__cause__, "diag", None), "constraint_name", "")
+                    or ""
+                )
+                if (
+                    auto_generated_document_number
+                    and attempt < max_retries - 1
+                    and (
+                        "document_number" in error_message
+                        or "document_number" in constraint_name
+                    )
                 ):
                     # Regenerate and retry on duplicate document number
                     self.document_number = self.generate_document_number()

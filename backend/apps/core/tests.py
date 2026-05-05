@@ -4,6 +4,7 @@ from tempfile import TemporaryDirectory
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.contrib.auth.models import AnonymousUser
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import ProgrammingError
 from django.test import TestCase
@@ -16,6 +17,7 @@ from apps.core.context_processors import nav_notifications
 from apps.core.forms import SystemSettingsForm
 from apps.core.models import SystemSettings
 from apps.core.templatetags.number_format import safe_media_url
+from apps.core.views import bad_request, maintenance_mode, permission_denied_handler
 from apps.core.versioning import DEFAULT_VERSION, SemanticVersion, read_version, write_version
 from apps.distribution.models import Distribution
 from apps.items.models import Facility, FundingSource
@@ -296,6 +298,45 @@ class AdministrationHistoryAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Riwayat Pengeluaran")
         self.assertContains(response, reverse("distribution:distribution_list"))
+
+
+class ErrorHandlerTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def test_maintenance_mode_renders_503_template(self):
+        request = self.factory.get("/maintenance/")
+        request.user = AnonymousUser()
+
+        response = maintenance_mode(request)
+
+        self.assertEqual(response.status_code, 503)
+        self.assertContains(response, "503", status_code=503)
+        self.assertContains(response, "Layanan sedang dalam perawatan", status_code=503)
+
+    def test_bad_request_renders_400_template(self):
+        request = self.factory.get("/bad-request/")
+        request.user = AnonymousUser()
+
+        response = bad_request(request, ValueError("invalid input"))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, "400", status_code=400)
+        self.assertContains(response, "Permintaan tidak dapat diproses", status_code=400)
+
+    def test_permission_denied_handler_renders_403_template(self):
+        request = self.factory.get("/forbidden/")
+        request.user = AnonymousUser()
+
+        response = permission_denied_handler(request, PermissionError("forbidden"))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, "403", status_code=403)
+        self.assertContains(
+            response,
+            "Anda tidak memiliki akses ke halaman ini",
+            status_code=403,
+        )
 
 class NavNotificationsContextProcessorTests(TestCase):
     def setUp(self):

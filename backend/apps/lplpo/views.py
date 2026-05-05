@@ -399,9 +399,13 @@ def lplpo_edit(request, pk):
                     fields=[
                         "stock_awal",
                         "penerimaan",
+                        "pemakaian",
+                        "stock_gudang_puskesmas",
+                        "waktu_kosong",
+                        "permintaan_alasan",
                         "persediaan",
-                        "pemakaian_rata_rata",
                         "stock_keseluruhan",
+                        "stock_optimum",
                         "jumlah_kebutuhan",
                         "permintaan_jumlah",
                         "pemberian_jumlah",
@@ -734,4 +738,3 @@ def lplpo_delete(request, pk):
     if request.user.role == "PUSKESMAS":
         return redirect("lplpo:lplpo_my_list")
     return redirect("lplpo:lplpo_list")
-
