@@ -73,6 +73,8 @@ class StockCardTest(TestCase):
         self.assertEqual(len(data['results']), 1)
         self.assertEqual(data['results'][0]['id'], self.item.id)
         self.assertIn('Paracetamol', data['results'][0]['text'])
+        self.assertIsInstance(data['results'][0]['stock'], float)
+        self.assertEqual(data['results'][0]['stock'], 0.0)
 
     def test_stock_card_detail_view_and_balance(self):
         response = self.client.get(reverse('stock:stock_card_detail', args=[self.item.id]))
