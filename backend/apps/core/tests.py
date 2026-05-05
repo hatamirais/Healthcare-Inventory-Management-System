@@ -5,11 +5,13 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.exceptions import SuspiciousOperation
 from django.db import ProgrammingError
 from django.test import TestCase
 from django.test import SimpleTestCase
 from django.test import RequestFactory
 from django.template import Context, Template
+from django.template.loader import render_to_string
 from django.urls import reverse
 
 from apps.core.context_processors import nav_notifications
@@ -17,6 +19,7 @@ from apps.core.forms import SystemSettingsForm
 from apps.core.models import SystemSettings
 from apps.core.templatetags.number_format import safe_media_url
 from apps.core.versioning import DEFAULT_VERSION, SemanticVersion, read_version, write_version
+from apps.core.views import bad_request, maintenance_mode
 from apps.distribution.models import Distribution
 from apps.items.models import Facility, FundingSource
 from apps.lplpo.models import LPLPO
@@ -212,6 +215,70 @@ class DashboardViewTests(TestCase):
         self.assertIsNone(response.context["facility"])
         self.assertEqual(list(response.context["recent_lplpos"]), [])
         self.assertEqual(list(response.context["recent_requests"]), [])
+
+
+class ErrorPageTemplateTests(TestCase):
+    def test_404_page_renders_back_and_fallback_actions(self):
+        response = self.client.get("/halaman-yang-tidak-ada/")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, "Kembali ke Halaman Sebelumnya", status_code=404)
+        self.assertContains(response, "Buka Login", status_code=404)
+
+    def test_403_page_keeps_same_error_layout_actions(self):
+        user = User.objects.create_user(
+            username="forbidden-user",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("settings"))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, "Kembali ke Halaman Sebelumnya", status_code=403)
+        self.assertContains(response, "Buka Dashboard", status_code=403)
+
+    def test_admin_middleware_uses_custom_403_page(self):
+        user = User.objects.create_user(
+            username="admin-panel-blocked",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get("/admin/")
+
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, "Kembali ke Halaman Sebelumnya", status_code=403)
+        self.assertContains(response, "Buka Dashboard", status_code=403)
+
+    def test_bad_request_handler_uses_login_fallback_for_anonymous_user(self):
+        request = self.client.request().wsgi_request
+        request.path = "/rusak/"
+        request.method = "GET"
+
+        response = bad_request(request, SuspiciousOperation("invalid"))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(reverse("login"), response.content.decode())
+
+    def test_500_template_renders_shared_error_shell_with_external_script(self):
+        rendered = render_to_string(
+            "500.html",
+            {"fallback_url": reverse("login"), "fallback_label": "Buka Login"},
+        )
+
+        self.assertIn("Kembali ke Halaman Sebelumnya", rendered)
+        self.assertIn("Buka Login", rendered)
+        self.assertIn("js/error-page.js", rendered)
+
+    def test_maintenance_route_returns_503_page(self):
+        response = self.client.get(reverse("maintenance_mode"))
+
+        self.assertEqual(response.status_code, 503)
+        self.assertContains(response, "Layanan sedang dalam perawatan", status_code=503)
+        self.assertContains(response, "Kembali ke Halaman Sebelumnya", status_code=503)
 
 
 class SystemSettingsAccessTests(TestCase):

@@ -1,0 +1,9 @@
+{% extends "errors/status.html" %}
+
+{% block page_title %}503 - Layanan Tidak Tersedia{% endblock %}
+{% block status_code %}{{ status_code|default:"503" }}{% endblock %}
+{% block title %}{{ title|default:"Layanan sedang dalam perawatan" }}{% endblock %}
+{% block tone %}{{ tone|default:"info" }}{% endblock %}
+{% block icon %}{{ icon|default:"bi bi-tools" }}{% endblock %}
+{% block message %}{{ message|default:"Aplikasi untuk sementara tidak tersedia karena pemeliharaan atau deployment sedang berlangsung. Silakan coba lagi beberapa saat lagi." }}{% endblock %}
+{% block help_text %}{{ help_text|default:"Gunakan halaman ini sebagai fallback maintenance manual atau endpoint preview untuk pesan downtime yang konsisten." }}{% endblock %}
