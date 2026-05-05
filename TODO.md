@@ -76,4 +76,5 @@
 ## Version 2
 
 1. Mobile clients, whether dedicated mobile apps or PWA
-2. Storage system to store images, documents, and so on
+2. Storage system to store images, documents, and so on using MinIO
+3. Reddis for cache storage especially for the expiry date which are refresh daily on user's dashboard
