@@ -345,6 +345,21 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 			status_code=403,
 		)
 
+	def test_non_puskesmas_cannot_submit_draft_lplpo(self):
+		lplpo = self.create_lplpo()
+
+		self.client.force_login(self.gudang_user)
+		response = self.client.post(reverse("lplpo:lplpo_submit", args=[lplpo.pk]))
+
+		self.assertEqual(response.status_code, 403)
+		self.assertContains(
+			response,
+			"Hanya operator Puskesmas yang dapat mengubah LPLPO draft.",
+			status_code=403,
+		)
+		lplpo.refresh_from_db()
+		self.assertEqual(lplpo.status, LPLPO.Status.DRAFT)
+
 	def test_non_puskesmas_detail_hides_draft_mutation_actions(self):
 		lplpo = self.create_lplpo()
 
@@ -363,6 +378,11 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		response = self.client.post(reverse("lplpo:lplpo_delete", args=[lplpo.pk]))
 
 		self.assertEqual(response.status_code, 403)
+		self.assertContains(
+			response,
+			"Hanya operator Puskesmas yang dapat mengubah LPLPO draft.",
+			status_code=403,
+		)
 		self.assertTrue(LPLPO.objects.filter(pk=lplpo.pk).exists())
 
 	def test_unique_constraint_facility_period(self):
