@@ -4,18 +4,26 @@ from tempfile import TemporaryDirectory
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.contrib.auth.models import AnonymousUser
+from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import ProgrammingError
 from django.test import TestCase
 from django.test import SimpleTestCase
 from django.test import RequestFactory
 from django.template import Context, Template
-from django.urls import reverse
+from django.urls import resolve, reverse
 
 from apps.core.context_processors import nav_notifications
 from apps.core.forms import SystemSettingsForm
 from apps.core.models import SystemSettings
 from apps.core.templatetags.number_format import safe_media_url
+from apps.core.views import (
+    bad_request,
+    maintenance_mode,
+    page_not_found_handler,
+    permission_denied_handler,
+)
 from apps.core.versioning import DEFAULT_VERSION, SemanticVersion, read_version, write_version
 
 from apps.distribution.models import Distribution
@@ -221,7 +229,7 @@ class ErrorPageTemplateTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
         self.assertContains(response, "Kembali ke Halaman Sebelumnya", status_code=404)
-        self.assertContains(response, "Buka Halaman Utama", status_code=404)
+        self.assertContains(response, "Buka Login", status_code=404)
 
     def test_403_page_keeps_same_error_layout_actions(self):
         user = User.objects.create_user(
@@ -235,7 +243,7 @@ class ErrorPageTemplateTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertContains(response, "Kembali ke Halaman Sebelumnya", status_code=403)
-        self.assertContains(response, "Buka Halaman Utama", status_code=403)
+        self.assertContains(response, "Buka Dashboard", status_code=403)
 
     def test_admin_middleware_uses_custom_403_page(self):
         user = User.objects.create_user(
@@ -249,7 +257,7 @@ class ErrorPageTemplateTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertContains(response, "Kembali ke Halaman Sebelumnya", status_code=403)
-        self.assertContains(response, "Buka Halaman Utama", status_code=403)
+        self.assertContains(response, "Buka Dashboard", status_code=403)
 
 
 
@@ -335,6 +343,95 @@ class AdministrationHistoryAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Riwayat Pengeluaran")
         self.assertContains(response, reverse("distribution:distribution_list"))
+
+
+class ErrorHandlerTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def test_maintenance_route_and_error_handlers_are_registered(self):
+        from config import urls as root_urls
+
+        self.assertEqual(resolve("/maintenance/").func, maintenance_mode)
+        self.assertEqual(root_urls.handler400, "apps.core.views.bad_request")
+        self.assertEqual(
+            root_urls.handler403, "apps.core.views.permission_denied_handler"
+        )
+        self.assertEqual(root_urls.handler404, "apps.core.views.page_not_found_handler")
+        self.assertEqual(root_urls.handler500, "apps.core.views.server_error_handler")
+
+    def test_maintenance_mode_renders_503_template(self):
+        request = self.factory.get("/maintenance/")
+        request.user = AnonymousUser()
+
+        response = maintenance_mode(request)
+
+        self.assertEqual(response.status_code, 503)
+        self.assertContains(response, "503", status_code=503)
+        self.assertContains(response, "Layanan sedang dalam perawatan", status_code=503)
+
+    def test_bad_request_renders_400_template(self):
+        request = self.factory.get("/bad-request/")
+        request.user = AnonymousUser()
+
+        response = bad_request(request, ValueError("invalid input"))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, "400", status_code=400)
+        self.assertContains(response, "Permintaan tidak dapat diproses", status_code=400)
+
+    def test_permission_denied_handler_renders_403_template(self):
+        request = self.factory.get("/forbidden/")
+        request.user = AnonymousUser()
+
+        response = permission_denied_handler(request, PermissionError("forbidden"))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, "403", status_code=403)
+        self.assertContains(
+            response,
+            "Anda tidak memiliki akses ke halaman ini",
+            status_code=403,
+        )
+
+    def test_permission_denied_handler_surfaces_specific_exception_message(self):
+        request = self.factory.get("/forbidden/")
+        request.user = AnonymousUser()
+
+        response = permission_denied_handler(
+            request,
+            PermissionDenied("Hanya operator Puskesmas yang dapat membuat LPLPO."),
+        )
+
+        self.assertContains(
+            response,
+            "Hanya operator Puskesmas yang dapat membuat LPLPO.",
+            status_code=403,
+        )
+
+    def test_maintenance_mode_logs_through_core_logger(self):
+        request = self.factory.get("/maintenance/")
+        request.user = AnonymousUser()
+        request.META["REMOTE_ADDR"] = "127.0.0.1"
+
+        with self.assertLogs("core", level="WARNING") as captured:
+            maintenance_mode(request)
+
+        self.assertIn("event=service_unavailable", captured.output[0])
+        self.assertIn("status_code=503", captured.output[0])
+        self.assertIn("path=/maintenance/", captured.output[0])
+
+    def test_page_not_found_handler_logs_contextual_request_details(self):
+        request = self.factory.get("/missing-page/")
+        request.user = AnonymousUser()
+        request.META["REMOTE_ADDR"] = "127.0.0.1"
+
+        with self.assertLogs("core", level="INFO") as captured:
+            page_not_found_handler(request, FileNotFoundError("missing"))
+
+        self.assertIn("event=page_not_found", captured.output[0])
+        self.assertIn("status_code=404", captured.output[0])
+        self.assertIn("exception=FileNotFoundError", captured.output[0])
 
 class NavNotificationsContextProcessorTests(TestCase):
     def setUp(self):

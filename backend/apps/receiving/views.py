@@ -40,6 +40,7 @@ def _create_verified_receiving(request, form, formset):
         if not receipt_items:
             raise ValueError("Tambahkan minimal 1 item penerimaan.")
 
+        pending_transactions = []
         for item in receipt_items:
             item.receiving = receiving
             item.received_by = request.user
@@ -62,19 +63,24 @@ def _create_verified_receiving(request, form, formset):
                 stock.quantity += item.quantity
                 stock.save(update_fields=["quantity", "updated_at"])
 
-            Transaction.objects.create(
-                transaction_type=Transaction.TransactionType.IN,
-                item=item.item,
-                location=item.location,
-                batch_lot=item.batch_lot,
-                quantity=item.quantity,
-                unit_price=item.unit_price,
-                sumber_dana=receiving.sumber_dana,
-                reference_type=Transaction.ReferenceType.RECEIVING,
-                reference_id=receiving.pk,
-                user=request.user,
-                notes=f"Penerimaan reguler {receiving.document_number}",
+            pending_transactions.append(
+                Transaction(
+                    transaction_type=Transaction.TransactionType.IN,
+                    item=item.item,
+                    location=item.location,
+                    batch_lot=item.batch_lot,
+                    quantity=item.quantity,
+                    unit_price=item.unit_price,
+                    sumber_dana=receiving.sumber_dana,
+                    reference_type=Transaction.ReferenceType.RECEIVING,
+                    reference_id=receiving.pk,
+                    user=request.user,
+                    notes=f"Penerimaan reguler {receiving.document_number}",
+                )
             )
+
+        if pending_transactions:
+            Transaction.objects.bulk_create(pending_transactions)
 
         for deleted_form in formset.deleted_forms:
             if deleted_form.instance.pk:
@@ -504,6 +510,7 @@ def receiving_plan_receive(request, pk):
 
         try:
             with transaction.atomic():
+                pending_transactions = []
                 for form in formset.forms:
                     cleaned = form.cleaned_data
                     if not cleaned:
@@ -543,19 +550,24 @@ def receiving_plan_receive(request, pk):
                         stock.quantity += item.quantity
                         stock.save(update_fields=["quantity", "updated_at"])
 
-                    Transaction.objects.create(
-                        transaction_type=Transaction.TransactionType.IN,
-                        item=item.item,
-                        location=item.location,
-                        batch_lot=item.batch_lot,
-                        quantity=item.quantity,
-                        unit_price=item.unit_price,
-                        sumber_dana=receiving.sumber_dana,
-                        reference_type=Transaction.ReferenceType.RECEIVING,
-                        reference_id=receiving.pk,
-                        user=request.user,
-                        notes=f"Penerimaan dari rencana {receiving.document_number}",
+                    pending_transactions.append(
+                        Transaction(
+                            transaction_type=Transaction.TransactionType.IN,
+                            item=item.item,
+                            location=item.location,
+                            batch_lot=item.batch_lot,
+                            quantity=item.quantity,
+                            unit_price=item.unit_price,
+                            sumber_dana=receiving.sumber_dana,
+                            reference_type=Transaction.ReferenceType.RECEIVING,
+                            reference_id=receiving.pk,
+                            user=request.user,
+                            notes=f"Penerimaan dari rencana {receiving.document_number}",
+                        )
                     )
+
+                if pending_transactions:
+                    Transaction.objects.bulk_create(pending_transactions)
 
                 remaining = (
                     receiving.order_items.filter(is_cancelled=False)

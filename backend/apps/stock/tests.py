@@ -1,12 +1,16 @@
 from decimal import Decimal
 from datetime import timedelta
+from unittest.mock import patch
+
+from django.db import IntegrityError
 from django.test import TestCase
+from django.test import SimpleTestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from apps.users.models import User
 from apps.items.models import Unit, Category, Item, Location, FundingSource
-from apps.stock.models import Stock, Transaction
+from apps.stock.models import Stock, StockTransfer, Transaction
 
 class StockCardTest(TestCase):
     def setUp(self):
@@ -69,6 +73,8 @@ class StockCardTest(TestCase):
         self.assertEqual(len(data['results']), 1)
         self.assertEqual(data['results'][0]['id'], self.item.id)
         self.assertIn('Paracetamol', data['results'][0]['text'])
+        self.assertIsInstance(data['results'][0]['stock'], float)
+        self.assertEqual(data['results'][0]['stock'], 0.0)
 
     def test_stock_card_detail_view_and_balance(self):
         response = self.client.get(reverse('stock:stock_card_detail', args=[self.item.id]))
@@ -110,3 +116,28 @@ class StockCardTest(TestCase):
 
         # tx2 running balance should still be 80
         self.assertEqual(transactions[0].running_balance, Decimal('80'))
+
+
+class StockTransferModelTests(SimpleTestCase):
+    def test_save_retries_when_auto_generated_document_number_conflicts(self):
+        transfer = StockTransfer(
+            source_location_id=1,
+            destination_location_id=2,
+            created_by_id=1,
+        )
+
+        with (
+            patch.object(
+                StockTransfer,
+                "generate_document_number",
+                side_effect=["TRF-2026-00001", "TRF-2026-00002"],
+            ),
+            patch(
+                "django.db.models.base.Model.save",
+                side_effect=[IntegrityError("duplicate key value violates unique constraint stock_transfers_document_number_key"), None],
+            ) as mock_save,
+        ):
+            transfer.save()
+
+        self.assertEqual(mock_save.call_count, 2)
+        self.assertEqual(transfer.document_number, "TRF-2026-00002")

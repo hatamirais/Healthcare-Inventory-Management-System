@@ -4,10 +4,10 @@ import calendar
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import DecimalField, ExpressionWrapper, F, Q, Sum
-from django.http import HttpResponseForbidden
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -54,11 +54,7 @@ def _check_instalasi_farmasi_access(request):
 def _check_puskesmas_creator_access(request):
     """Restrict create flow to PUSKESMAS operators only."""
     if request.user.role != "PUSKESMAS":
-        return HttpResponseForbidden(
-            "<h1>403 Forbidden</h1>"
-            "<p>Hanya operator Puskesmas yang dapat membuat LPLPO.</p>"
-        )
-    return None
+        raise PermissionDenied("Hanya operator Puskesmas yang dapat membuat LPLPO.")
 
 
 def _get_submission_month_choices():
@@ -171,9 +167,7 @@ def lplpo_my_list(request):
 @perm_required("lplpo.add_lplpo")
 def lplpo_create(request):
     """Create a new LPLPO for a given period. Auto-generates all item lines."""
-    denied = _check_puskesmas_creator_access(request)
-    if denied:
-        return denied
+    _check_puskesmas_creator_access(request)
 
     if request.method == "POST":
         form = LPLPOCreateForm(request.POST, user=request.user)
@@ -217,7 +211,7 @@ def lplpo_create(request):
                 prev_lplpo = get_previous_lplpo(facility, bulan, tahun)
                 prev_stock = {}
                 if prev_lplpo:
-                    for pi in prev_lplpo.items.all():
+                    for pi in prev_lplpo.items.only("item_id", "stock_keseluruhan").all():
                         prev_stock[pi.item_id] = pi.stock_keseluruhan
 
                 # Auto-fill penerimaan from distributions
@@ -388,12 +382,32 @@ def lplpo_edit(request, pk):
                 forms_data.append(f)
 
         if all_valid:
+            updated_objs = []
             for f in forms_data:
                 obj = f.save(commit=False)
                 obj.compute_fields()
                 # Pre-set pemberian suggestion
                 obj.pemberian_jumlah = obj.jumlah_kebutuhan
-                obj.save()
+                updated_objs.append(obj)
+
+            if updated_objs:
+                LPLPOItem.objects.bulk_update(
+                    updated_objs,
+                    fields=[
+                        "stock_awal",
+                        "penerimaan",
+                        "pemakaian",
+                        "stock_gudang_puskesmas",
+                        "waktu_kosong",
+                        "permintaan_alasan",
+                        "persediaan",
+                        "stock_keseluruhan",
+                        "stock_optimum",
+                        "jumlah_kebutuhan",
+                        "permintaan_jumlah",
+                        "pemberian_jumlah",
+                    ],
+                )
 
             messages.success(request, f"LPLPO {lplpo_obj.document_number} berhasil disimpan.")
             return redirect("lplpo:lplpo_detail", pk=pk)
@@ -626,7 +640,7 @@ def lplpo_finalize(request, pk):
                 update_fields=["distribution", "status", "updated_at"]
             )
 
-    except Exception as exc:
+    except (IntegrityError, ValueError) as exc:
         messages.error(
             request, f"Terjadi kesalahan saat memfinalisasi LPLPO: {exc}"
         )
@@ -721,4 +735,3 @@ def lplpo_delete(request, pk):
     if request.user.role == "PUSKESMAS":
         return redirect("lplpo:lplpo_my_list")
     return redirect("lplpo:lplpo_list")
-

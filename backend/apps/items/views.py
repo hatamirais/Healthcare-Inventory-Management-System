@@ -33,6 +33,7 @@ def _redirect_next_or_default(request, fallback_url_name):
 
 
 @login_required
+@perm_required("items.view_item")
 def item_list(request):
     # include program in select_related to avoid N+1 queries when rendering program name
     queryset = Item.objects.select_related("satuan", "kategori", "program").filter(
@@ -66,7 +67,7 @@ def item_list(request):
 
     # Build category list with selected state
     categories = []
-    for cat in Category.objects.all():
+    for cat in Category.objects.order_by("sort_order", "name"):
         categories.append(
             {
                 "id": cat.id,

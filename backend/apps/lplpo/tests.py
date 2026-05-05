@@ -157,6 +157,11 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		response = self.client.get(reverse("lplpo:lplpo_create"))
 
 		self.assertEqual(response.status_code, 403)
+		self.assertContains(
+			response,
+			"Hanya operator Puskesmas yang dapat membuat LPLPO.",
+			status_code=403,
+		)
 
 	def test_instalasi_farmasi_list_hides_create_button(self):
 		self.client.force_login(self.staff_user)
@@ -279,6 +284,45 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertEqual(line.stock_keseluruhan, Decimal("7.00"))
 		self.assertEqual(line.stock_optimum, Decimal("8.40"))
 		self.assertEqual(line.jumlah_kebutuhan, Decimal("3.40"))
+
+	def test_edit_persists_form_and_computed_fields_with_bulk_update(self):
+		lplpo = self.create_lplpo()
+		line = LPLPOItem.objects.create(
+			lplpo=lplpo,
+			item=self.item_a,
+			stock_awal=Decimal("2.00"),
+			penerimaan=Decimal("3.00"),
+			pemakaian=Decimal("1.00"),
+		)
+
+		self.client.force_login(self.puskesmas_user)
+		response = self.client.post(
+			reverse("lplpo:lplpo_edit", args=[lplpo.pk]),
+			{
+				f"item_{line.pk}-stock_awal": "10.00",
+				f"item_{line.pk}-penerimaan": "5.00",
+				f"item_{line.pk}-pemakaian": "8.00",
+				f"item_{line.pk}-stock_gudang_puskesmas": "4.00",
+				f"item_{line.pk}-waktu_kosong": "2.00",
+				f"item_{line.pk}-permintaan_jumlah": "6.00",
+				f"item_{line.pk}-permintaan_alasan": "Buffer stok menipis",
+			},
+		)
+
+		self.assertEqual(response.status_code, 302)
+		line.refresh_from_db()
+		self.assertEqual(line.stock_awal, Decimal("10.00"))
+		self.assertEqual(line.penerimaan, Decimal("5.00"))
+		self.assertEqual(line.pemakaian, Decimal("8.00"))
+		self.assertEqual(line.stock_gudang_puskesmas, Decimal("4.00"))
+		self.assertEqual(line.waktu_kosong, Decimal("2.00"))
+		self.assertEqual(line.permintaan_jumlah, Decimal("6.00"))
+		self.assertEqual(line.permintaan_alasan, "Buffer stok menipis")
+		self.assertEqual(line.persediaan, Decimal("15.00"))
+		self.assertEqual(line.stock_keseluruhan, Decimal("7.00"))
+		self.assertEqual(line.stock_optimum, Decimal("8.40"))
+		self.assertEqual(line.jumlah_kebutuhan, Decimal("3.40"))
+		self.assertEqual(line.pemberian_jumlah, Decimal("3.40"))
 
 	def test_unique_constraint_facility_period(self):
 		self.create_lplpo(bulan=2, tahun=2026)
