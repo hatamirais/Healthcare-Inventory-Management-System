@@ -91,7 +91,7 @@ All models (except `Transaction` and inline line-item models) inherit from `apps
 
 ### RBAC
 
-Newer views should use `@login_required` + `@perm_required(...)` from `apps.core.decorators`. Always apply `@login_required` first, then `@perm_required`. Superusers bypass permission checks. `@role_required` remains for backward compatibility only.
+Newer views should use `@login_required` + `@perm_required(...)` from `apps.core.decorators`. Always apply `@login_required` first, then `@perm_required`. Superusers bypass permission checks. The deprecated `@role_required` decorator has been removed.
 
 ```python
 @login_required

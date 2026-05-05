@@ -8,18 +8,9 @@ from apps.core.views import (
     SystemSettingsUpdateView,
     administration_distribution_history,
     administration_receiving_history,
-    bad_request,
     dashboard,
-    maintenance_mode,
-    page_not_found_handler,
-    permission_denied_handler,
-    server_error_handler,
 )
 
-handler400 = "apps.core.views.bad_request"
-handler403 = "apps.core.views.permission_denied_handler"
-handler404 = "apps.core.views.page_not_found_handler"
-handler500 = "apps.core.views.server_error_handler"
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -36,7 +27,7 @@ urlpatterns = [
         administration_distribution_history,
         name="administration_distribution_history",
     ),
-    path("maintenance/", maintenance_mode, name="maintenance_mode"),
+
     # Auth
     path("login/", auth_views.LoginView.as_view(), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),

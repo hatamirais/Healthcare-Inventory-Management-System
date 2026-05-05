@@ -1,9 +1,9 @@
 """
 Permission-based access control decorators for Healthcare IMS.
 
-perm_required: Checks Django permissions (managed via Groups in Admin panel).
-role_required: DEPRECATED — kept for backward compatibility but new code
-               should use perm_required.
+perm_required: Checks Django permissions (managed via Groups in Admin panel)
+               with fallback to module-scope access model.
+module_scope_required: Checks minimum module scope level.
 
 Usage:
     @perm_required('receiving.add_receiving')
@@ -62,30 +62,6 @@ def perm_required(*perms):
 
     return decorator
 
-
-def role_required(*allowed_roles):
-    """
-    DEPRECATED: Use @perm_required instead for permission-based access control.
-
-    This decorator checks the user.role field directly. New views should use
-    @perm_required which checks Django group permissions manageable from Admin.
-    """
-
-    def decorator(view_func):
-        @wraps(view_func)
-        def _wrapped_view(request, *args, **kwargs):
-            if request.user.is_superuser:
-                return view_func(request, *args, **kwargs)
-            if request.user.role in allowed_roles:
-                return view_func(request, *args, **kwargs)
-            return HttpResponseForbidden(
-                "<h1>403 Forbidden</h1>"
-                "<p>Anda tidak memiliki izin untuk mengakses halaman ini.</p>"
-            )
-
-        return _wrapped_view
-
-    return decorator
 
 
 def module_scope_required(module: str, min_scope: int):
