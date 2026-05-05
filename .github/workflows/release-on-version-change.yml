@@ -32,6 +32,7 @@ jobs:
     env:
       DJANGO_SECRET_KEY: ci-release-placeholder-secret
       DEBUG: "False"
+      SECURE_SSL_REDIRECT: "False"
       DB_NAME: healthcare_ims
       DB_USER: postgres
       DB_PASSWORD: postgres
