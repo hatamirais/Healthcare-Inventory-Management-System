@@ -110,6 +110,8 @@ def expired_create(request):
                 )
 
         formset = ExpiredItemFormSet(prefix="items", initial=initial_rows)
+        if initial_rows:
+            formset.extra = len(initial_rows)
 
     return render(
         request,
