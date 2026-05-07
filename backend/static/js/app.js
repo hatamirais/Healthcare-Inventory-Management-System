@@ -393,7 +393,8 @@ function initStockCardSearch() {
     if (!searchInput || !searchResults) return;
 
     const searchUrl = searchInput.getAttribute('data-search-url') || '/stock/api/item-search/';
-    const rawDetailTemplate = searchInput.getAttribute('data-detail-template') || '/stock/stock-card/0/';
+    const defaultDetailTemplate = '/stock/stock-card/0/';
+    const rawDetailTemplate = searchInput.getAttribute('data-detail-template') || defaultDetailTemplate;
     const getSafeDetailTemplate = (template) => {
         try {
             const candidate = new URL(template, window.location.origin);
@@ -406,19 +407,29 @@ function initStockCardSearch() {
         } catch (e) {
             // Fall through to default template.
         }
-        return '/stock/stock-card/0/';
+        return defaultDetailTemplate;
     };
     const detailTemplate = getSafeDetailTemplate(rawDetailTemplate);
     let debounceTimer = null;
     let activeIndex = -1;
 
     const buildDetailUrl = (id) => {
-        const detailUrl = new URL(detailTemplate, window.location.origin);
-        detailUrl.pathname = detailUrl.pathname.replace(
-            /\/0\/?$/,
-            `/${encodeURIComponent(String(id))}/`
-        );
-        return `${detailUrl.pathname}${detailUrl.search}${detailUrl.hash}`;
+        try {
+            const detailUrl = new URL(detailTemplate, window.location.origin);
+            if (
+                detailUrl.origin !== window.location.origin ||
+                !/\/0\/?$/.test(detailUrl.pathname)
+            ) {
+                return defaultDetailTemplate.replace(/0\/?$/, `${encodeURIComponent(String(id))}/`);
+            }
+            detailUrl.pathname = detailUrl.pathname.replace(
+                /\/0\/?$/,
+                `/${encodeURIComponent(String(id))}/`
+            );
+            return `${detailUrl.pathname}${detailUrl.search}${detailUrl.hash}`;
+        } catch (e) {
+            return defaultDetailTemplate.replace(/0\/?$/, `${encodeURIComponent(String(id))}/`);
+        }
     };
 
     const getResultItems = () => Array.from(searchResults.querySelectorAll('.search-result-item'));
