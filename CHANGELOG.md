@@ -7,6 +7,31 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 ## [Unreleased]
 
+## [1.23.2] - 2026-05-07
+
+### Added
+
+- User list: color-coded role badges matching each jabatan (Admin, Kepala, Admin Umum, Petugas Gudang, Auditor, Operator Puskesmas) for quick visual scanning.
+- User list: avatar initials circle derived from user's full name with per-letter color mapping.
+- User list: `Login Terakhir` column showing relative time since last login with absolute timestamp tooltip.
+- User list: inline AJAX active-status toggle switch replacing the static Aktif/Nonaktif badge, with optimistic UI and fallback on failure.
+- User list: sortable column headers (Nama Pengguna, Nama Lengkap, Jabatan, Login Terakhir, Status) with ascending/descending toggle and visual sort indicators.
+- User list: filter-preserving pagination that retains search, jabatan, and status filters across page navigation.
+- User list: wider pagination range displaying 3 pages before and after the current page.
+- User list: total pengguna count badge in the table header.
+- User list: checkbox column with select-all and bulk action bar for activate, deactivate, and delete operations on multiple users.
+- User list: Bootstrap modal confirmation for single and bulk delete, replacing the browser-native `confirm()` dialog.
+- New read-only `/users/<pk>/` detail page showing user profile, role badge, active status, facility, NIP, email, account timestamps, and a complete UAC module scope matrix with color-coded scope badges.
+
+### Changed
+
+- User list: username now links to the new user detail page for quick inspection.
+
+### Fixed
+
+- AJAX active toggle: replaced `innerHTML` badge rendering with safe DOM API (`createElement` + `textContent`) to resolve CodeQL `js/xss-through-dom` alert.
+- Delete modal: URL validation via `getSafeDeleteUrl()` to prevent open-redirect risks on delete action URLs.
+
 ## [1.23.1] - 2026-05-06
 
 ### Changed
