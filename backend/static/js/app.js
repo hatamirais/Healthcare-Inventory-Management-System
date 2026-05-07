@@ -394,13 +394,14 @@ function initStockCardSearch() {
 
     const searchUrl = searchInput.getAttribute('data-search-url') || '/stock/api/item-search/';
     const defaultDetailTemplate = '/stock/stock-card/0/';
+    const detailTemplatePathPattern = /\/0\/?$/;
     const rawDetailTemplate = searchInput.getAttribute('data-detail-template') || defaultDetailTemplate;
     const getSafeDetailTemplate = (template) => {
         try {
             const candidate = new URL(template, window.location.origin);
             const isHttp = candidate.protocol === 'http:' || candidate.protocol === 'https:';
             const isSameOrigin = candidate.origin === window.location.origin;
-            const hasPlaceholder = /\/0\/?$/.test(candidate.pathname);
+            const hasPlaceholder = detailTemplatePathPattern.test(candidate.pathname);
             if (isHttp && isSameOrigin && hasPlaceholder) {
                 return `${candidate.pathname}${candidate.search}${candidate.hash}`;
             }
@@ -416,7 +417,7 @@ function initStockCardSearch() {
     const buildDefaultDetailUrl = (id) => {
         const detailUrl = new URL(defaultDetailTemplate, window.location.origin);
         detailUrl.pathname = detailUrl.pathname.replace(
-            /\/0\/?$/,
+            detailTemplatePathPattern,
             `/${encodeURIComponent(String(id))}/`
         );
         return detailUrl;
@@ -427,12 +428,12 @@ function initStockCardSearch() {
             const detailUrl = new URL(detailTemplate, window.location.origin);
             if (
                 detailUrl.origin !== window.location.origin ||
-                !/\/0\/?$/.test(detailUrl.pathname)
+                !detailTemplatePathPattern.test(detailUrl.pathname)
             ) {
                 return buildDefaultDetailUrl(id);
             }
             detailUrl.pathname = detailUrl.pathname.replace(
-                /\/0\/?$/,
+                detailTemplatePathPattern,
                 `/${encodeURIComponent(String(id))}/`
             );
             return detailUrl;
@@ -484,10 +485,7 @@ function initStockCardSearch() {
 
             const a = document.createElement('a');
             const detailUrl = buildDetailUrl(item.id);
-            a.href = window.location.origin;
-            a.pathname = detailUrl.pathname;
-            a.search = detailUrl.search;
-            a.hash = detailUrl.hash;
+            a.href = detailUrl.href;
             a.className = 'search-result-item';
 
             const row = document.createElement('div');
