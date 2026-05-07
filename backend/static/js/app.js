@@ -413,6 +413,15 @@ function initStockCardSearch() {
     let debounceTimer = null;
     let activeIndex = -1;
 
+    const buildDefaultDetailUrl = (id) => {
+        const detailUrl = new URL(defaultDetailTemplate, window.location.origin);
+        detailUrl.pathname = detailUrl.pathname.replace(
+            /\/0\/?$/,
+            `/${encodeURIComponent(String(id))}/`
+        );
+        return detailUrl;
+    };
+
     const buildDetailUrl = (id) => {
         try {
             const detailUrl = new URL(detailTemplate, window.location.origin);
@@ -420,15 +429,15 @@ function initStockCardSearch() {
                 detailUrl.origin !== window.location.origin ||
                 !/\/0\/?$/.test(detailUrl.pathname)
             ) {
-                return defaultDetailTemplate.replace(/0\/?$/, `${encodeURIComponent(String(id))}/`);
+                return buildDefaultDetailUrl(id);
             }
             detailUrl.pathname = detailUrl.pathname.replace(
                 /\/0\/?$/,
                 `/${encodeURIComponent(String(id))}/`
             );
-            return `${detailUrl.pathname}${detailUrl.search}${detailUrl.hash}`;
+            return detailUrl;
         } catch (e) {
-            return defaultDetailTemplate.replace(/0\/?$/, `${encodeURIComponent(String(id))}/`);
+            return buildDefaultDetailUrl(id);
         }
     };
 
@@ -474,7 +483,10 @@ function initStockCardSearch() {
             const stockText = `Stok: ${item.stock ?? 0} ${item.satuan || ''}`;
 
             const a = document.createElement('a');
-            a.href = buildDetailUrl(item.id);
+            const detailUrl = buildDetailUrl(item.id);
+            a.pathname = detailUrl.pathname;
+            a.search = detailUrl.search;
+            a.hash = detailUrl.hash;
             a.className = 'search-result-item';
 
             const row = document.createElement('div');
