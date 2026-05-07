@@ -484,6 +484,7 @@ function initStockCardSearch() {
 
             const a = document.createElement('a');
             const detailUrl = buildDetailUrl(item.id);
+            a.href = window.location.origin;
             a.pathname = detailUrl.pathname;
             a.search = detailUrl.search;
             a.hash = detailUrl.hash;
