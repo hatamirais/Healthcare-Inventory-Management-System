@@ -393,11 +393,26 @@ function initStockCardSearch() {
     if (!searchInput || !searchResults) return;
 
     const searchUrl = searchInput.getAttribute('data-search-url') || '/stock/api/item-search/';
-    const detailTemplate = searchInput.getAttribute('data-detail-template') || '/stock/stock-card/0/';
+    const rawDetailTemplate = searchInput.getAttribute('data-detail-template') || '/stock/stock-card/0/';
+    const getSafeDetailTemplate = (template) => {
+        try {
+            const candidate = new URL(template, window.location.origin);
+            const isHttp = candidate.protocol === 'http:' || candidate.protocol === 'https:';
+            const isSameOrigin = candidate.origin === window.location.origin;
+            const hasPlaceholder = /\/0\/?$/.test(candidate.pathname);
+            if (isHttp && isSameOrigin && hasPlaceholder) {
+                return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+            }
+        } catch (e) {
+            // Fall through to default template.
+        }
+        return '/stock/stock-card/0/';
+    };
+    const detailTemplate = getSafeDetailTemplate(rawDetailTemplate);
     let debounceTimer = null;
     let activeIndex = -1;
 
-    const buildDetailUrl = (id) => detailTemplate.replace(/0\/?$/, `${id}/`);
+    const buildDetailUrl = (id) => detailTemplate.replace(/0\/?$/, `${encodeURIComponent(String(id))}/`);
 
     const getResultItems = () => Array.from(searchResults.querySelectorAll('.search-result-item'));
 
