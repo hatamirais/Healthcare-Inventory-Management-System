@@ -412,7 +412,14 @@ function initStockCardSearch() {
     let debounceTimer = null;
     let activeIndex = -1;
 
-    const buildDetailUrl = (id) => detailTemplate.replace(/0\/?$/, `${encodeURIComponent(String(id))}/`);
+    const buildDetailUrl = (id) => {
+        const detailUrl = new URL(detailTemplate, window.location.origin);
+        detailUrl.pathname = detailUrl.pathname.replace(
+            /\/0\/?$/,
+            `/${encodeURIComponent(String(id))}/`
+        );
+        return `${detailUrl.pathname}${detailUrl.search}${detailUrl.hash}`;
+    };
 
     const getResultItems = () => Array.from(searchResults.querySelectorAll('.search-result-item'));
 
