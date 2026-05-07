@@ -1,0 +1,63 @@
+/**
+ * User list: inline AJAX active toggle and tooltips.
+ */
+document.addEventListener('DOMContentLoaded', function () {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(function (el) {
+        new bootstrap.Tooltip(el);
+    });
+
+    function getCsrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    function badgeHtml(isActive) {
+        if (isActive) {
+            return '<span class="badge bg-success-subtle text-success">Aktif</span>';
+        }
+        return '<span class="badge bg-secondary-subtle text-secondary">Nonaktif</span>';
+    }
+
+    document.querySelectorAll('.user-active-toggle').forEach(function (toggle) {
+        toggle.addEventListener('change', function () {
+            var url = this.getAttribute('data-url');
+            var isActive = this.checked;
+            var label = this.parentElement.querySelector('.form-check-label');
+            var switchEl = this;
+
+            switchEl.disabled = true;
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: 'csrfmiddlewaretoken=' + encodeURIComponent(getCsrfToken()),
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('Request failed');
+                    }
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (data.success) {
+                        label.innerHTML = badgeHtml(data.is_active);
+                    } else {
+                        switchEl.checked = !isActive;
+                        label.innerHTML = badgeHtml(!isActive);
+                    }
+                })
+                .catch(function () {
+                    switchEl.checked = !isActive;
+                    label.innerHTML = badgeHtml(!isActive);
+                })
+                .finally(function () {
+                    switchEl.disabled = switchEl.hasAttribute('disabled');
+                });
+        });
+    });
+});

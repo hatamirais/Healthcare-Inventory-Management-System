@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import ProtectedError
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .access import ROLE_DEFAULT_SCOPES, get_user_module_scope, has_module_scope
@@ -63,7 +64,11 @@ def user_list(request):
             "Anda tidak memiliki izin untuk membuka manajemen user.",
         )
 
-    queryset = User.objects.select_related("facility").order_by("-date_joined")
+    queryset = User.objects.select_related("facility").order_by("-date_joined") \
+        .only(
+            "id", "username", "full_name", "nip", "email",
+            "role", "is_active", "last_login", "facility",
+        )
 
     search = request.GET.get("q", "").strip()
     if search:
@@ -166,7 +171,11 @@ def user_update(request, pk):
 
 @login_required
 def user_toggle_active(request, pk):
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
     if not _can_manage_users(request.user):
+        if is_ajax:
+            return JsonResponse({"success": False, "error": "Tidak memiliki izin."}, status=403)
         return _forbidden_manage_user(
             request,
             "Anda tidak memiliki izin untuk mengubah status user.",
@@ -174,14 +183,25 @@ def user_toggle_active(request, pk):
 
     target_user = get_object_or_404(User, pk=pk)
     if request.method != "POST":
+        if is_ajax:
+            return JsonResponse({"success": False, "error": "Metode tidak diizinkan."}, status=405)
         return redirect("users:user_list")
 
     if target_user == request.user and target_user.is_active:
+        if is_ajax:
+            return JsonResponse({"success": False, "error": "Tidak dapat menonaktifkan akun sendiri."}, status=400)
         messages.error(request, "Anda tidak dapat menonaktifkan akun Anda sendiri.")
         return redirect("users:user_list")
 
     target_user.is_active = not target_user.is_active
     target_user.save(update_fields=["is_active"])
+
+    if is_ajax:
+        return JsonResponse({
+            "success": True,
+            "is_active": target_user.is_active,
+            "status_text": "Aktif" if target_user.is_active else "Nonaktif",
+        })
 
     if target_user.is_active:
         messages.success(request, f"User {target_user.username} berhasil diaktifkan.")
