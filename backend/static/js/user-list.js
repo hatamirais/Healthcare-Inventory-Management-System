@@ -20,7 +20,12 @@ document.addEventListener('DOMContentLoaded', function () {
             var isHttp = parsed.protocol === 'http:' || parsed.protocol === 'https:';
             var isSameOrigin = parsed.origin === window.location.origin;
             if (!isHttp || !isSameOrigin) return null;
-            return parsed.pathname + parsed.search + parsed.hash;
+
+            var normalized = parsed.pathname + parsed.search + parsed.hash;
+            if (/[<>"'`\\]/.test(normalized)) return null;
+            if (normalized.charAt(0) !== '/') return null;
+
+            return normalized;
         } catch (e) {
             return null;
         }
@@ -130,6 +135,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 var safeUrl = getSafeDeleteUrl(rawUrl);
                 var username = this.getAttribute('data-username');
                 if (!safeUrl) {
+                    return;
+                }
+                if (safeUrl.charAt(0) !== '/' || /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(safeUrl)) {
                     return;
                 }
                 deleteConfirmForm.action = safeUrl;
