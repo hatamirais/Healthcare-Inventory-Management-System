@@ -13,6 +13,19 @@ document.addEventListener('DOMContentLoaded', function () {
         return meta ? meta.getAttribute('content') : '';
     }
 
+    function getSafeDeleteUrl(rawUrl) {
+        if (!rawUrl) return null;
+        try {
+            var parsed = new URL(rawUrl, window.location.origin);
+            var isHttp = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+            var isSameOrigin = parsed.origin === window.location.origin;
+            if (!isHttp || !isSameOrigin) return null;
+            return parsed.pathname + parsed.search + parsed.hash;
+        } catch (e) {
+            return null;
+        }
+    }
+
     function badgeHtml(isActive) {
         if (isActive) {
             return '<span class="badge bg-success-subtle text-success">Aktif</span>';
@@ -106,9 +119,13 @@ document.addEventListener('DOMContentLoaded', function () {
     if (deleteModal && deleteConfirmForm) {
         document.querySelectorAll('.single-delete-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                var url = this.getAttribute('data-delete-url');
+                var rawUrl = this.getAttribute('data-delete-url');
+                var safeUrl = getSafeDeleteUrl(rawUrl);
                 var username = this.getAttribute('data-username');
-                deleteConfirmForm.action = url;
+                if (!safeUrl) {
+                    return;
+                }
+                deleteConfirmForm.action = safeUrl;
                 if (deleteConfirmMessage) {
                     deleteConfirmMessage.textContent = 'Apakah Anda yakin ingin menghapus pengguna "' + username + '" secara permanen? Tindakan ini tidak dapat dibatalkan.';
                 }
