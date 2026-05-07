@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function createBadge(isActive) {
+    function createStatusBadge(isActive) {
         var badge = document.createElement('span');
         badge.className = isActive
             ? 'badge bg-success-subtle text-success'
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function setBadge(container, isActive) {
         if (!container) return;
-        container.replaceChildren(createBadge(Boolean(isActive)));
+        container.replaceChildren(createStatusBadge(Boolean(isActive)));
     }
 
     // ── Sortable column headers ────────────────────────────────────

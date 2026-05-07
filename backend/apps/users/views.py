@@ -39,16 +39,9 @@ def _effective_scope_rows(user_obj):
         ModuleAccess.Scope.APPROVE: "Persetujuan",
         ModuleAccess.Scope.MANAGE: "Kelola",
     }
-    prefetched_accesses = getattr(user_obj, "_prefetched_objects_cache", {}).get(
-        "module_accesses"
-    )
     module_scopes = {
         access.module: access.scope
-        for access in (
-            prefetched_accesses
-            if prefetched_accesses is not None
-            else user_obj.module_accesses.only("module", "scope")
-        )
+        for access in user_obj.module_accesses.all()
     }
     rows = []
     for module_code, module_label in ModuleAccess.Module.choices:
