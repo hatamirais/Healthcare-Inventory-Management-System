@@ -20,7 +20,12 @@ document.addEventListener('DOMContentLoaded', function () {
             var isHttp = parsed.protocol === 'http:' || parsed.protocol === 'https:';
             var isSameOrigin = parsed.origin === window.location.origin;
             if (!isHttp || !isSameOrigin) return null;
-            return parsed.pathname + parsed.search + parsed.hash;
+
+            var normalized = parsed.pathname + parsed.search + parsed.hash;
+            if (/[<>"'`\\]/.test(normalized)) return null;
+            if (normalized.charAt(0) !== '/') return null;
+
+            return normalized;
         } catch (e) {
             return null;
         }
@@ -132,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!safeUrl) {
                     return;
                 }
-                deleteConfirmForm.action = safeUrl;
+                deleteConfirmForm.setAttribute('action', safeUrl);
                 if (deleteConfirmMessage) {
                     deleteConfirmMessage.textContent = 'Apakah Anda yakin ingin menghapus pengguna "' + username + '" secara permanen? Tindakan ini tidak dapat dibatalkan.';
                 }
