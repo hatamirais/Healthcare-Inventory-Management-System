@@ -2,9 +2,10 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import ProtectedError
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .access import ROLE_DEFAULT_SCOPES, get_user_module_scope, has_module_scope
+from .access import ROLE_DEFAULT_SCOPES, has_module_scope
 from .forms import UserCreateForm, UserUpdateForm
 from .models import ModuleAccess, User
 
@@ -38,11 +39,17 @@ def _effective_scope_rows(user_obj):
         ModuleAccess.Scope.APPROVE: "Persetujuan",
         ModuleAccess.Scope.MANAGE: "Kelola",
     }
+    module_scopes = {
+        access.module: access.scope
+        for access in user_obj.module_accesses.all()
+    }
     rows = []
     for module_code, module_label in ModuleAccess.Module.choices:
         if not module_code:
             continue
-        scope_value = get_user_module_scope(user_obj, module_code)
+        scope_value = module_scopes.get(
+            module_code, ROLE_DEFAULT_SCOPES.get(user_obj.role, {}).get(module_code, 0)
+        )
         rows.append(
             {
                 "module": module_label,
@@ -63,7 +70,11 @@ def user_list(request):
             "Anda tidak memiliki izin untuk membuka manajemen user.",
         )
 
-    queryset = User.objects.select_related("facility").order_by("-date_joined")
+    queryset = User.objects.select_related("facility") \
+        .only(
+            "id", "username", "full_name", "nip", "email",
+            "role", "is_active", "last_login", "facility_id", "facility__name",
+        )
 
     search = request.GET.get("q", "").strip()
     if search:
@@ -85,18 +96,43 @@ def user_list(request):
     elif active == "0":
         queryset = queryset.filter(is_active=False)
 
+    sort = request.GET.get("sort", "").strip()
+    order = request.GET.get("order", "asc").strip()
+    allowed_sorts = ["username", "full_name", "role", "is_active", "last_login"]
+    sort_icon = {}
+    if sort in allowed_sorts:
+        direction = "" if order == "asc" else "-"
+        queryset = queryset.order_by(f"{direction}{sort}")
+        for col in allowed_sorts:
+            if col == sort:
+                sort_icon[col] = "bi-arrow-down" if order == "asc" else "bi-arrow-up"
+            else:
+                sort_icon[col] = None
+    else:
+        queryset = queryset.order_by("-date_joined")
+
+    total_count = queryset.count()
     paginator = Paginator(queryset, 25)
     users = paginator.get_page(request.GET.get("page"))
+
+    filter_params = request.GET.copy()
+    if "page" in filter_params:
+        del filter_params["page"]
 
     return render(
         request,
         "users/user_list.html",
         {
             "users": users,
+            "total_count": total_count,
             "search": search,
             "selected_jabatan": jabatan,
             "selected_active": active,
             "jabatan_choices": User.Role.choices,
+            "sort": sort,
+            "order": order,
+            "sort_icon": sort_icon,
+            "filter_params": filter_params.urlencode(),
             "can_add_user": _can_manage_users(request.user),
             "can_change_user": _can_manage_users(request.user),
             "can_delete_user": _can_manage_users(request.user),
@@ -166,7 +202,11 @@ def user_update(request, pk):
 
 @login_required
 def user_toggle_active(request, pk):
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
     if not _can_manage_users(request.user):
+        if is_ajax:
+            return JsonResponse({"success": False, "error": "Tidak memiliki izin."}, status=403)
         return _forbidden_manage_user(
             request,
             "Anda tidak memiliki izin untuk mengubah status user.",
@@ -174,14 +214,25 @@ def user_toggle_active(request, pk):
 
     target_user = get_object_or_404(User, pk=pk)
     if request.method != "POST":
+        if is_ajax:
+            return JsonResponse({"success": False, "error": "Metode tidak diizinkan."}, status=405)
         return redirect("users:user_list")
 
     if target_user == request.user and target_user.is_active:
+        if is_ajax:
+            return JsonResponse({"success": False, "error": "Tidak dapat menonaktifkan akun sendiri."}, status=400)
         messages.error(request, "Anda tidak dapat menonaktifkan akun Anda sendiri.")
         return redirect("users:user_list")
 
     target_user.is_active = not target_user.is_active
     target_user.save(update_fields=["is_active"])
+
+    if is_ajax:
+        return JsonResponse({
+            "success": True,
+            "is_active": target_user.is_active,
+            "status_text": "Aktif" if target_user.is_active else "Nonaktif",
+        })
 
     if target_user.is_active:
         messages.success(request, f"User {target_user.username} berhasil diaktifkan.")
@@ -227,4 +278,97 @@ def user_delete(request, pk):
         )
         return redirect("users:user_list")
     messages.success(request, f"User {username} berhasil dihapus.")
+    return redirect("users:user_list")
+
+
+@login_required
+def user_detail(request, pk):
+    if not _can_view_users(request.user):
+        return _forbidden_manage_user(
+            request,
+            "Anda tidak memiliki izin untuk membuka detail user.",
+        )
+
+    target_user = get_object_or_404(
+        User.objects.select_related("facility").prefetch_related("module_accesses"),
+        pk=pk,
+    )
+
+    return render(
+        request,
+        "users/user_detail.html",
+        {
+            "target_user": target_user,
+            "effective_scopes": _effective_scope_rows(target_user),
+            "can_manage_users": _can_manage_users(request.user),
+        },
+    )
+
+
+@login_required
+def user_bulk_action(request):
+    if not _can_manage_users(request.user):
+        return _forbidden_manage_user(
+            request,
+            "Anda tidak memiliki izin untuk aksi massal.",
+        )
+
+    if request.method != "POST":
+        return redirect("users:user_list")
+
+    action = request.POST.get("action", "")
+    pks = request.POST.getlist("selected_users", [])
+
+    if not pks:
+        messages.error(request, "Tidak ada pengguna yang dipilih.")
+        return redirect("users:user_list")
+
+    queryset = User.objects.filter(pk__in=pks)
+    count = queryset.count()
+
+    if action == "activate":
+        queryset.update(is_active=True)
+        messages.success(request, f"{count} pengguna berhasil diaktifkan.")
+    elif action == "deactivate":
+        updated = queryset.exclude(pk=request.user.pk).update(is_active=False)
+        if updated < count:
+            messages.warning(
+                request,
+                f"{updated} dari {count} pengguna dinonaktifkan. "
+                f"Akun Anda sendiri tidak dapat dinonaktifkan.",
+            )
+        else:
+            messages.success(request, f"{updated} pengguna berhasil dinonaktifkan.")
+    elif action == "delete":
+        inactive = queryset.filter(is_active=False)
+        active_count = queryset.filter(is_active=True).count()
+        deleted_count = 0
+        protected_count = 0
+        for user_obj in inactive:
+            try:
+                user_obj.delete()
+                deleted_count += 1
+            except ProtectedError:
+                protected_count += 1
+        if active_count or protected_count:
+            message_parts = [f"{deleted_count} pengguna dihapus."]
+            if active_count:
+                message_parts.append(
+                    f"{active_count} pengguna aktif tidak dapat dihapus."
+                )
+            if protected_count:
+                message_parts.append(
+                    f"{protected_count} pengguna memiliki data terkait dan tidak dapat dihapus."
+                )
+            messages.warning(
+                request,
+                " ".join(message_parts),
+            )
+        elif deleted_count:
+            messages.success(request, f"{deleted_count} pengguna berhasil dihapus.")
+        else:
+            messages.error(request, "Tidak ada pengguna yang dapat dihapus.")
+    else:
+        messages.error(request, "Aksi tidak dikenali.")
+
     return redirect("users:user_list")

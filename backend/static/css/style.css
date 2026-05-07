@@ -520,6 +520,161 @@ body {
 .badge-distributed { background: rgba(34, 197, 94, 0.12); color: #16a34a; }
 .badge-rejected { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
 
+/* ===== Role Badges (User Management) ===== */
+.badge-role-admin { background: rgba(79, 140, 255, 0.12); color: #3b82f6; font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; }
+.badge-role-kepala { background: rgba(245, 158, 11, 0.12); color: #d97706; font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; }
+.badge-role-admin_umum { background: rgba(6, 182, 212, 0.12); color: #0891b2; font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; }
+.badge-role-gudang { background: rgba(34, 197, 94, 0.12); color: #16a34a; font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; }
+.badge-role-auditor { background: rgba(148, 163, 184, 0.15); color: #475569; font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; }
+.badge-role-puskesmas { background: rgba(30, 41, 59, 0.1); color: #334155; font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(30, 41, 59, 0.15); }
+
+/* ===== Avatar Circle ===== */
+.avatar-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    user-select: none;
+}
+
+.avatar-sm {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+}
+
+.avatar-lg {
+    width: 64px;
+    height: 64px;
+    font-size: 1.4rem;
+    margin: 0 auto;
+}
+
+.avatar-circle[data-initial*="A"],
+.avatar-circle[data-initial*="a"] { background: rgba(79, 140, 255, 0.15); color: #3b82f6; }
+.avatar-circle[data-initial*="B"],
+.avatar-circle[data-initial*="b"] { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+.avatar-circle[data-initial*="C"],
+.avatar-circle[data-initial*="c"] { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+.avatar-circle[data-initial*="D"],
+.avatar-circle[data-initial*="d"] { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+.avatar-circle[data-initial*="E"],
+.avatar-circle[data-initial*="e"] { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+.avatar-circle[data-initial*="F"],
+.avatar-circle[data-initial*="f"] { background: rgba(6, 182, 212, 0.15); color: #0891b2; }
+.avatar-circle[data-initial*="G"],
+.avatar-circle[data-initial*="g"] { background: rgba(236, 72, 153, 0.15); color: #db2777; }
+.avatar-circle[data-initial*="H"],
+.avatar-circle[data-initial*="h"] { background: rgba(249, 115, 22, 0.15); color: #ea580c; }
+.avatar-circle[data-initial*="I"],
+.avatar-circle[data-initial*="i"] { background: rgba(99, 102, 241, 0.15); color: #6366f1; }
+.avatar-circle[data-initial*="J"],
+.avatar-circle[data-initial*="j"] { background: rgba(20, 184, 166, 0.15); color: #0d9488; }
+.avatar-circle[data-initial*="K"],
+.avatar-circle[data-initial*="k"] { background: rgba(251, 146, 60, 0.15); color: #f97316; }
+.avatar-circle[data-initial*="L"],
+.avatar-circle[data-initial*="l"] { background: rgba(79, 140, 255, 0.15); color: #3b82f6; }
+.avatar-circle[data-initial*="M"],
+.avatar-circle[data-initial*="m"] { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+.avatar-circle[data-initial*="N"],
+.avatar-circle[data-initial*="n"] { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+.avatar-circle[data-initial*="O"],
+.avatar-circle[data-initial*="o"] { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+.avatar-circle[data-initial*="P"],
+.avatar-circle[data-initial*="p"] { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+.avatar-circle[data-initial*="Q"],
+.avatar-circle[data-initial*="q"] { background: rgba(6, 182, 212, 0.15); color: #0891b2; }
+.avatar-circle[data-initial*="R"],
+.avatar-circle[data-initial*="r"] { background: rgba(236, 72, 153, 0.15); color: #db2777; }
+.avatar-circle[data-initial*="S"],
+.avatar-circle[data-initial*="s"] { background: rgba(249, 115, 22, 0.15); color: #ea580c; }
+.avatar-circle[data-initial*="T"],
+.avatar-circle[data-initial*="t"] { background: rgba(99, 102, 241, 0.15); color: #6366f1; }
+.avatar-circle[data-initial*="U"],
+.avatar-circle[data-initial*="u"] { background: rgba(20, 184, 166, 0.15); color: #0d9488; }
+.avatar-circle[data-initial*="V"],
+.avatar-circle[data-initial*="v"] { background: rgba(251, 146, 60, 0.15); color: #f97316; }
+.avatar-circle[data-initial*="W"],
+.avatar-circle[data-initial*="w"] { background: rgba(79, 140, 255, 0.15); color: #3b82f6; }
+.avatar-circle[data-initial*="X"],
+.avatar-circle[data-initial*="x"] { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+.avatar-circle[data-initial*="Y"],
+.avatar-circle[data-initial*="y"] { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+.avatar-circle[data-initial*="Z"],
+.avatar-circle[data-initial*="z"] { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+
+/* Fallback for empty or non-alpha initials */
+.avatar-circle:not([data-initial]) { background: rgba(148, 163, 184, 0.2); color: #64748b; }
+
+/* ===== Active Toggle Switch ===== */
+.active-toggle-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0;
+}
+
+.active-toggle-switch .form-check-input {
+    cursor: pointer;
+    width: 2.5em;
+    height: 1.3em;
+}
+
+.active-toggle-switch .form-check-input:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.active-toggle-switch .form-check-label {
+    font-size: 0.8rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* ===== Sortable Table Headers ===== */
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: color 0.15s ease;
+}
+
+.sortable-header:hover {
+    color: var(--primary);
+}
+
+.sortable-header i {
+    font-size: 0.7rem;
+    vertical-align: middle;
+}
+
+/* ===== Bulk Action Bar ===== */
+.bulk-action-bar {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    background: rgba(79, 140, 255, 0.06);
+    border-bottom: 1px solid rgba(79, 140, 255, 0.15);
+    transition: opacity 0.2s ease;
+}
+
+.bulk-action-bar.d-none {
+    display: none;
+}
+
+.bulk-action-bar .selected-count {
+    color: var(--primary);
+}
+
+/* Checkbox column sizing */
+.table .form-check-input.select-all-checkbox,
+.table .form-check-input.user-checkbox {
+    cursor: pointer;
+}
+
 /* ===== Buttons ===== */
 .btn-primary {
     background: var(--primary);
