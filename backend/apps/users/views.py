@@ -468,10 +468,11 @@ def user_export_csv(request):
 
     def generate_rows():
         writer = csv.writer(_Echo())
-        yield writer.writerow([
+        header_row = writer.writerow([
             "Username", "Nama Lengkap", "NIP", "Email",
             "Jabatan", "Fasilitas", "Status", "Login Terakhir",
         ])
+        yield f"\ufeff{header_row}"
         for user in queryset.iterator(chunk_size=200):
             yield writer.writerow([
                 user.username,
@@ -488,7 +489,7 @@ def user_export_csv(request):
 
     response = StreamingHttpResponse(
         generate_rows(),
-        content_type="text/csv; charset=utf-8-sig",
+        content_type="text/csv; charset=utf-8",
     )
     response["Content-Disposition"] = 'attachment; filename="users_export.csv"'
     return response
