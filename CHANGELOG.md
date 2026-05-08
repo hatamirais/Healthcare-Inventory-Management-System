@@ -1,3 +1,6 @@
+## Unreleased
+
+- Added Expired Audit Report in the `expired` module with combined `OUT` and `Destroy` rows, filter modal, CSV export, and print-friendly preview for browser PDF save.
 # Changelog
 <!-- markdownlint-disable MD024 -->
 

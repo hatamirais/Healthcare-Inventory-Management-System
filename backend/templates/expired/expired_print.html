@@ -1,0 +1,110 @@
+{% load number_format %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Dokumen Kedaluwarsa - {{ expired_doc.document_number }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 11px; color: #333; padding: 20px; }
+        h1 { font-size: 16px; text-align: center; margin-bottom: 4px; }
+        .subtitle { text-align: center; font-size: 12px; color: #666; margin-bottom: 16px; }
+        .meta { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 11px; gap: 16px; }
+        .meta div { flex: 1; }
+        .meta strong { display: inline-block; min-width: 110px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
+        th { background: #f0f0f0; font-weight: bold; font-size: 10px; text-transform: uppercase; }
+        .text-end { text-align: right; }
+        .text-center { text-align: center; }
+        .footer { margin-top: 24px; display: flex; justify-content: space-between; }
+        .sign-box { width: 220px; text-align: center; }
+        .sign-line { border-top: 1px solid #333; margin-top: 60px; padding-top: 4px; }
+        @media print {
+            body { padding: 10px; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="margin-bottom:16px;">
+        <button data-action="print" style="padding:6px 16px; cursor:pointer;">🖨️ Cetak</button>
+        <button data-action="close" style="padding:6px 16px; cursor:pointer; margin-left:8px;">✖ Tutup</button>
+    </div>
+
+    <h1>DOKUMEN BARANG KEDALUWARSA</h1>
+    <div class="subtitle">
+        {% if system_settings and system_settings.header_title %}
+            {{ system_settings.header_title }}
+        {% endif %}
+        {% if system_settings and system_settings.facility_name %}
+            <br>{{ system_settings.facility_name }}
+        {% else %}
+            Healthcare Inventory Management System
+        {% endif %}
+    </div>
+
+    <div class="meta">
+        <div>
+            <strong>No. Dokumen:</strong> {{ expired_doc.document_number }}<br>
+            <strong>Tanggal:</strong> {{ expired_doc.report_date|date:'d/m/Y' }}<br>
+            <strong>Status:</strong> {{ expired_doc.get_status_display }}
+        </div>
+        <div>
+            <strong>Dibuat Oleh:</strong> {{ expired_doc.created_by.full_name|default:expired_doc.created_by.username }}<br>
+            <strong>Tanggal Cetak:</strong> {{ print_date|date:'d/m/Y H:i' }}<br>
+            <strong>Total Kuantitas:</strong> {{ total_quantity|id_decimal:2 }}
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:40px;" class="text-center">No</th>
+                <th>Kode Barang</th>
+                <th>Nama Barang</th>
+                <th>Batch</th>
+                <th>Lokasi</th>
+                <th>Sumber Dana</th>
+                <th class="text-end">Kuantitas</th>
+                <th>Keterangan</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td class="text-center">{{ forloop.counter }}</td>
+                <td>{{ item.item.kode_barang }}</td>
+                <td>{{ item.item.nama_barang }}</td>
+                <td>{{ item.stock.batch_lot }}</td>
+                <td>{{ item.stock.location.name }}</td>
+                <td>{{ item.stock.sumber_dana.name|default:'-' }}</td>
+                <td class="text-end">{{ item.quantity|id_decimal:2 }}</td>
+                <td>{{ item.notes|default:'-' }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center">Belum ada item kedaluwarsa.</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td colspan="6" class="text-end"><strong>Total</strong></td>
+                <td class="text-end"><strong>{{ total_quantity|id_decimal:2 }}</strong></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <div class="sign-box">
+            <div>Diperiksa oleh,</div>
+            <div class="sign-line">Nama / NIP</div>
+        </div>
+        <div class="sign-box">
+            <div>Mengetahui,</div>
+            <div class="sign-line">Kepala Instalasi Farmasi</div>
+        </div>
+    </div>
+<script src="/static/js/confirm-actions.js"></script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from apps.core.models import TimeStampedModel
+from apps.core.numbering import generate_document_number
 from django.utils import timezone
 
 
@@ -57,14 +58,11 @@ class Expired(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         if not self.document_number:
-            prefix = f"EXP-{timezone.now().strftime('%Y%m')}-"
-            last_doc = Expired.objects.filter(document_number__startswith=prefix).order_by('-document_number').first()
-            if last_doc:
-                last_number = int(last_doc.document_number.split('-')[-1])
-                new_number = last_number + 1
-            else:
-                new_number = 1
-            self.document_number = f"{prefix}{str(new_number).zfill(5)}"
+            year_month = timezone.now().strftime('%Y%m')
+            self.document_number = generate_document_number(
+                Expired,
+                fallback_prefix=f"EXP-{year_month}",
+            )
         super().save(*args, **kwargs)
 
 

@@ -8,6 +8,9 @@
     <div class="table-header">
         <h5><i class="bi bi-trash me-2"></i>Daftar Pemusnahan (Kedaluwarsa)</h5>
         <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#expiredAuditReportModal">
+                <i class="bi bi-file-earmark-text me-1"></i>Generate Expired Audit Report
+            </button>
             <a href="{% url 'expired:expired_alerts' %}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-exclamation-triangle me-1"></i>Stok Mendekati/Kedaluwarsa
             </a>
@@ -49,6 +52,7 @@
                     <th>Tanggal</th>
                     <th>Status</th>
                     <th>Dibuat oleh</th>
+                    <th class="text-end">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -60,10 +64,18 @@
                         <span class="badge-status badge-{{ e.status|lower }}">{{ e.get_status_display }}</span>
                     </td>
                     <td>{{ e.created_by }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'expired:expired_detail' e.pk %}" class="btn btn-sm btn-outline-secondary" title="Lihat detail">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="{% url 'expired:expired_print' e.pk %}" class="btn btn-sm btn-outline-dark" target="_blank" title="Cetak dokumen">
+                            <i class="bi bi-printer"></i>
+                        </a>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4">
+                    <td colspan="5">
                         <div class="empty-state">
                             <i class="bi bi-trash d-block"></i>
                             <p>Belum ada data barang kedaluwarsa</p>
@@ -96,5 +108,59 @@
         </ul>
     </nav>
     {% endif %}
+</div>
+
+<div class="modal fade" id="expiredAuditReportModal" tabindex="-1" aria-labelledby="expiredAuditReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="expiredAuditReportModalLabel">Generate Expired Audit Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="get" action="{% url 'expired:expired_audit_report' %}">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ audit_form.date_field.label_tag }}
+                            {{ audit_form.date_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ audit_form.outcome_type.label_tag }}
+                            {{ audit_form.outcome_type }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ audit_form.start_date.label_tag }}
+                            {{ audit_form.start_date }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ audit_form.end_date.label_tag }}
+                            {{ audit_form.end_date }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ audit_form.location.label_tag }}
+                            {{ audit_form.location }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ audit_form.funding_source.label_tag }}
+                            {{ audit_form.funding_source }}
+                        </div>
+                        <div class="col-12">
+                            {{ audit_form.item.label_tag }}
+                            {{ audit_form.item }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" name="format" value="csv" class="btn btn-success">
+                        <i class="bi bi-filetype-csv me-1"></i>Download CSV
+                    </button>
+                    <button type="submit" name="format" value="print" class="btn btn-dark" formtarget="_blank">
+                        <i class="bi bi-printer me-1"></i>Print / Save PDF
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}
