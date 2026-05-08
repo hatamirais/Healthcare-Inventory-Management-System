@@ -1,9 +1,12 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import DecimalField, ExpressionWrapper, F, Q, Sum, Value
 from django.db.models.functions import Coalesce
+from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from datetime import timedelta
@@ -13,13 +16,26 @@ from apps.stock.models import Stock, Transaction
 from apps.items.models import Location
 from apps.users.models import ModuleAccess
 
-from .forms import ExpiredForm, ExpiredItemFormSet
+from .forms import ExpiredAuditReportFilterForm, ExpiredForm, ExpiredItemFormSet
 from .models import Expired, ExpiredItem
+from .services import (
+    build_expired_audit_report,
+    export_expired_audit_report_csv,
+)
+
+
+def _build_expired_audit_filter_form(request):
+    if request.GET:
+        return ExpiredAuditReportFilterForm(request.GET)
+    return ExpiredAuditReportFilterForm(
+        initial=ExpiredAuditReportFilterForm.get_default_initial()
+    )
 
 
 @login_required
 def expired_list(request):
     queryset = Expired.objects.select_related("created_by").order_by("-report_date")
+    audit_form = _build_expired_audit_filter_form(request)
 
     search = request.GET.get("q", "").strip()
     if search:
@@ -40,6 +56,7 @@ def expired_list(request):
             "search": search,
             "selected_status": status or "",
             "status_choices": Expired.Status.choices,
+            "audit_form": audit_form,
         },
     )
 
@@ -330,6 +347,62 @@ def expired_detail(request, pk):
         {
             "expired_doc": expired_doc,
             "items": items,
+        },
+    )
+
+
+@login_required
+def expired_print(request, pk):
+    expired_doc = get_object_or_404(
+        Expired.objects.select_related("created_by", "verified_by", "disposed_by"),
+        pk=pk,
+    )
+    items = list(
+        expired_doc.items.select_related(
+            "item",
+            "item__satuan",
+            "stock",
+            "stock__location",
+            "stock__sumber_dana",
+        )
+    )
+    total_quantity = sum((item.quantity for item in items), Decimal("0"))
+
+    return render(
+        request,
+        "expired/expired_print.html",
+        {
+            "expired_doc": expired_doc,
+            "items": items,
+            "total_quantity": total_quantity,
+            "print_date": timezone.now(),
+        },
+    )
+
+
+@login_required
+@perm_required("expired.view_expired")
+def expired_audit_report(request):
+    form = _build_expired_audit_filter_form(request)
+    if not form.is_valid():
+        messages.error(request, "Filter laporan audit kedaluwarsa tidak valid.")
+        return redirect("expired:expired_list")
+
+    export_format = request.GET.get("format", "").strip().lower()
+    if export_format not in {"csv", "print"}:
+        return HttpResponseBadRequest("Format export tidak valid.")
+
+    report_data = build_expired_audit_report(form.cleaned_data)
+    if export_format == "csv":
+        return export_expired_audit_report_csv(report_data)
+    return render(
+        request,
+        "expired/expired_audit_report_print.html",
+        {
+            "report_data": report_data,
+            "filters": form.cleaned_data,
+            "generated_at": timezone.now(),
+            "generated_by": request.user,
         },
     )
 

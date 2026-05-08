@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from apps.expired.forms import ExpiredItemForm
 from apps.expired.models import Expired, ExpiredItem
+from apps.expired.services import build_expired_audit_report
 from apps.items.models import Category, FundingSource, Item, Location, Unit
 from apps.stock.models import Stock, Transaction
 from apps.users.access import ensure_default_module_access
@@ -418,6 +419,121 @@ class ExpiredWorkflowTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "js/item-picker-table.js?v=")
+
+    def test_build_expired_audit_report_includes_out_and_destroy_rows(self):
+        out_transaction = Transaction.objects.create(
+            transaction_type=Transaction.TransactionType.OUT,
+            item=self.item,
+            location=self.location,
+            batch_lot=self.stock.batch_lot,
+            quantity=Decimal("7"),
+            unit_price=self.stock.unit_price,
+            sumber_dana=self.funding_source,
+            reference_type=Transaction.ReferenceType.DISTRIBUTION,
+            reference_id=999,
+            user=self.user,
+            notes="Distribusi darurat",
+        )
+        Transaction.objects.filter(pk=out_transaction.pk).update(
+            created_at=timezone.make_aware(timezone.datetime(2026, 3, 15, 8, 0, 0))
+        )
+
+        expired_doc = self._create_expired(status=Expired.Status.DISPOSED)
+        expired_doc.verified_by = self.user
+        expired_doc.verified_at = timezone.make_aware(timezone.datetime(2026, 3, 16, 9, 0, 0))
+        expired_doc.disposed_by = self.user
+        expired_doc.disposed_at = timezone.make_aware(timezone.datetime(2026, 3, 17, 10, 0, 0))
+        expired_doc.save(update_fields=["verified_by", "verified_at", "disposed_by", "disposed_at", "updated_at"])
+
+        report = build_expired_audit_report(
+            {
+                "start_date": timezone.datetime(2026, 3, 1).date(),
+                "end_date": timezone.datetime(2026, 3, 31).date(),
+                "date_field": "disposed_at",
+                "location": self.location,
+                "item": self.item,
+                "outcome_type": "BOTH",
+                "funding_source": self.funding_source,
+            }
+        )
+
+        self.assertEqual(len(report["rows"]), 2)
+        self.assertEqual(report["totals_by_outcome"]["OUT"], Decimal("7"))
+        self.assertEqual(report["totals_by_outcome"]["DESTROY"], Decimal("5"))
+        self.assertEqual(len(report["summary_rows"]), 1)
+        self.assertTrue(report["reconciliation_notes"])
+
+    def test_expired_audit_report_csv_endpoint_returns_combined_rows(self):
+        out_transaction = Transaction.objects.create(
+            transaction_type=Transaction.TransactionType.OUT,
+            item=self.item,
+            location=self.location,
+            batch_lot=self.stock.batch_lot,
+            quantity=Decimal("4"),
+            unit_price=self.stock.unit_price,
+            sumber_dana=self.funding_source,
+            reference_type=Transaction.ReferenceType.DISTRIBUTION,
+            reference_id=777,
+            user=self.user,
+            notes="Distribusi uji",
+        )
+        Transaction.objects.filter(pk=out_transaction.pk).update(
+            created_at=timezone.make_aware(timezone.datetime(2026, 3, 12, 8, 0, 0))
+        )
+        expired_doc = self._create_expired(status=Expired.Status.DISPOSED)
+        expired_doc.disposed_by = self.user
+        expired_doc.disposed_at = timezone.make_aware(timezone.datetime(2026, 3, 18, 9, 0, 0))
+        expired_doc.save(update_fields=["disposed_by", "disposed_at", "updated_at"])
+
+        response = self.client.get(
+            reverse("expired:expired_audit_report"),
+            {
+                "start_date": "2026-03-01",
+                "end_date": "2026-03-31",
+                "date_field": "disposed_at",
+                "outcome_type": "BOTH",
+                "location": str(self.location.pk),
+                "item": str(self.item.pk),
+                "funding_source": str(self.funding_source.pk),
+                "format": "csv",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        csv_output = b"".join(response.streaming_content).decode("utf-8")
+        self.assertIn("Outcome Type", csv_output)
+        self.assertIn("OUT", csv_output)
+        self.assertIn("DESTROY", csv_output)
+        self.assertIn(self.item.nama_barang, csv_output)
+
+    def test_expired_audit_report_print_endpoint_returns_printable_html(self):
+        response = self.client.get(
+            reverse("expired:expired_audit_report"),
+            {
+                "start_date": "2026-03-01",
+                "end_date": "2026-03-31",
+                "date_field": "disposed_at",
+                "outcome_type": "BOTH",
+                "format": "print",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Expired Audit Report")
+        self.assertContains(response, 'data-action="print"')
+
+    def test_expired_document_print_endpoint_returns_printable_html(self):
+        expired_doc = self._create_expired(status=Expired.Status.DRAFT)
+
+        response = self.client.get(
+            reverse("expired:expired_print", args=[expired_doc.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, expired_doc.document_number)
+        self.assertContains(response, 'data-action="print"')
+        self.assertContains(response, self.item.nama_barang)
 
     def test_expired_alerts_show_remaining_actionable_quantity(self):
         self._create_expired(status=Expired.Status.SUBMITTED)
