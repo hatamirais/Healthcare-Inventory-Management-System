@@ -58,6 +58,29 @@ document.addEventListener('DOMContentLoaded', function () {
     // ── Password Requirements Tracking ──────────────────────────────
     var pwdInput = document.getElementById('id_password1');
     var pwdReqBox = document.getElementById('password-requirements');
+    var strengthBar = document.getElementById('strengthBar');
+    var strengthLabel = document.getElementById('strengthLabel');
+
+    function updateStrength(val) {
+        if (!strengthBar || !strengthLabel) return;
+        var met = 0;
+        var reqsLocal = {
+            length: /.{10,}/,
+            upper: /[A-Z]/,
+            lower: /[a-z]/,
+            number: /\d/,
+            special: /[!@#$%^&*(),.?":{}|<>_+\-=\[\]\\;'/`~]/
+        };
+        for (var k in reqsLocal) {
+            if (reqsLocal[k].test(val)) met++;
+        }
+        strengthBar.className = 'strength-bar';
+        if (met <= 1) { strengthBar.classList.add('weak'); strengthLabel.textContent = 'Lemah'; }
+        else if (met === 2 || met === 3) { strengthBar.classList.add('fair'); strengthLabel.textContent = 'Cukup'; }
+        else if (met === 4) { strengthBar.classList.add('good'); strengthLabel.textContent = 'Baik'; }
+        else { strengthBar.classList.add('strong'); strengthLabel.textContent = 'Kuat'; }
+    }
+
     if (pwdInput && pwdReqBox) {
         pwdInput.addEventListener('focus', function() {
             pwdReqBox.classList.remove('d-none');
@@ -73,6 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         pwdInput.addEventListener('input', function() {
             var val = this.value;
+            updateStrength(val);
             for (var key in reqs) {
                 var req = reqs[key];
                 var icon = req.el.querySelector('i');
@@ -84,6 +108,37 @@ document.addEventListener('DOMContentLoaded', function () {
                     req.el.classList.replace('text-success', 'text-muted');
                 }
             }
+        });
+    }
+
+    // ── Generate Password ───────────────────────────────────────────
+    var genBtn = document.getElementById('generatePasswordBtn');
+    if (genBtn && pwdInput) {
+        genBtn.addEventListener('click', function () {
+            var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
+            var pwd = '';
+            for (var i = 0; i < 16; i++) {
+                pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            pwdInput.value = pwd;
+            pwdInput.dispatchEvent(new Event('input'));
+            pwdInput.focus();
+
+            var pwd2 = document.getElementById('id_password2');
+            if (pwd2) pwd2.value = pwd;
+
+            if (pwdReqBox) pwdReqBox.classList.remove('d-none');
+
+            navigator.clipboard.writeText(pwd).then(function () {
+                var toast = document.createElement('div');
+                toast.className = 'toast align-items-center text-bg-success border-0 position-fixed bottom-0 end-0 m-3';
+                toast.setAttribute('role', 'alert');
+                toast.innerHTML = '<div class="d-flex"><div class="toast-body">Password disalin!</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+                document.body.appendChild(toast);
+                var bsToast = new bootstrap.Toast(toast, { delay: 2000 });
+                bsToast.show();
+                toast.addEventListener('hidden.bs.toast', function () { toast.remove(); });
+            }).catch(function () {});
         });
     }
 

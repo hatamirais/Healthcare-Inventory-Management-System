@@ -42,10 +42,13 @@
                     <dd class="col-7">{{ effective_scopes|length }} modul</dd>
                 </dl>
             </div>
-            <div class="card-footer d-grid">
+            <div class="card-footer d-grid gap-2">
                 <a href="{% url 'users:user_detail' target_user.pk %}" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-eye me-1"></i>Lihat Detail
                 </a>
+                <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#passwordResetModal">
+                    <i class="bi bi-key me-1"></i>Reset Password
+                </button>
             </div>
         </div>
     </div>
@@ -101,10 +104,19 @@
                                     <button class="btn btn-outline-secondary toggle-password" type="button" tabindex="-1">
                                         <i class="bi bi-eye-slash"></i>
                                     </button>
+                                    {% if field.name == 'password1' %}
+                                    <button class="btn btn-outline-secondary" type="button" id="generatePasswordBtn" tabindex="-1" title="Buat password acak">
+                                        <i class="bi bi-shuffle"></i>
+                                    </button>
+                                    {% endif %}
                                 </div>
                                 {% if field.name == 'password1' %}
                                 <div id="password-requirements" class="mt-2 p-2 border rounded bg-light d-none">
-                                    <ul class="list-unstyled mb-0 small text-muted">
+                                    <div class="password-strength-meter mb-2">
+                                        <div class="strength-bar" id="strengthBar" style="width: 0;"></div>
+                                    </div>
+                                    <small class="text-muted" id="strengthLabel"></small>
+                                    <ul class="list-unstyled mb-0 mt-2 small text-muted">
                                         <li id="req-length" class="mb-1"><i class="bi bi-x text-danger fw-bold me-1"></i> Minimal 10 karakter</li>
                                         <li id="req-upper" class="mb-1"><i class="bi bi-x text-danger fw-bold me-1"></i> Huruf besar (A-Z)</li>
                                         <li id="req-lower" class="mb-1"><i class="bi bi-x text-danger fw-bold me-1"></i> Huruf kecil (a-z)</li>
@@ -220,6 +232,43 @@
         </div>
     </div>
 </div>
+
+{% if target_user %}
+<div class="modal fade" id="passwordResetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reset Password — {{ target_user.username }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'users:user_reset_password' target_user.pk %}" novalidate>
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="resetPassword1" class="form-label fw-semibold">Password Baru</label>
+                        <div class="input-group">
+                            <input type="password" name="password1" id="resetPassword1" class="form-control" minlength="10" required>
+                            <button class="btn btn-outline-secondary toggle-password" type="button" tabindex="-1">
+                                <i class="bi bi-eye-slash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="resetPassword2" class="form-label fw-semibold">Konfirmasi Password</label>
+                        <input type="password" name="password2" id="resetPassword2" class="form-control" minlength="10" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-key me-1"></i>Reset Password
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="modal fade" id="scopeInfoModal" tabindex="-1" aria-labelledby="scopeInfoModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">

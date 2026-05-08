@@ -1567,3 +1567,22 @@ body {
     line-height: 1;
     cursor: help;
 }
+
+/* ===== Password Strength Meter ===== */
+.password-strength-meter {
+    height: 4px;
+    background: #e9ecef;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.strength-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+.strength-bar.weak { width: 25%; background: #ef4444; }
+.strength-bar.fair { width: 50%; background: #f59e0b; }
+.strength-bar.good { width: 75%; background: #3b82f6; }
+.strength-bar.strong { width: 100%; background: #22c55e; }
