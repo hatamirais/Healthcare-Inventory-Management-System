@@ -6,6 +6,7 @@ app_name = "expired"
 urlpatterns = [
     path("", views.expired_list, name="expired_list"),
     path("alerts/", views.expired_alerts, name="expired_alerts"),
+    path("audit-report/", views.expired_audit_report, name="expired_audit_report"),
     path("create/", views.expired_create, name="expired_create"),
     path("<int:pk>/", views.expired_detail, name="expired_detail"),
     path("<int:pk>/edit/", views.expired_edit, name="expired_edit"),

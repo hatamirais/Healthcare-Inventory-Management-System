@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% load number_format %}
+
+{% block title %}Laporan Audit Kedaluwarsa - Healthcare IMS{% endblock %}
+{% block page_title %}Laporan Audit Kedaluwarsa{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-body bg-light">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-2">
+                        {{ form.start_date.label_tag }}
+                        {{ form.start_date }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.end_date.label_tag }}
+                        {{ form.end_date }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.location.label_tag }}
+                        {{ form.location }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.facility.label_tag }}
+                        {{ form.facility }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.outcome_type.label_tag }}
+                        {{ form.outcome_type }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.funding_source.label_tag }}
+                        {{ form.funding_source }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ form.item.label_tag }}
+                        {{ form.item }}
+                    </div>
+                    <div class="col-md-8 d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-filter me-1"></i>Terapkan Filter
+                        </button>
+                        <a href="{% url 'expired:expired_audit_report' %}" class="btn btn-outline-secondary">
+                            Reset
+                        </a>
+                        <button type="submit" name="format" value="csv" class="btn btn-success">
+                            <i class="bi bi-filetype-csv me-1"></i>Download CSV
+                        </button>
+                        <button type="submit" name="format" value="pdf" class="btn btn-danger">
+                            <i class="bi bi-filetype-pdf me-1"></i>Download PDF
+                        </button>
+                        <a href="{% url 'expired:expired_list' %}" class="btn btn-outline-dark">
+                            <i class="bi bi-arrow-left me-1"></i>Kembali ke Daftar
+                        </a>
+                    </div>
+                </form>
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger mt-3 mb-0">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    {% for summary in summary_by_outcome %}
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-1">{{ summary.label }}</div>
+                <div class="fs-4 fw-semibold">{{ summary.quantity|id_decimal:2 }}</div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white">
+                <strong>Detail Audit</strong>
+                <span class="text-muted small ms-2">{{ total_rows }} baris</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Hasil</th>
+                                <th>Dokumen</th>
+                                <th>Barang</th>
+                                <th>Batch</th>
+                                <th>ED</th>
+                                <th class="text-end">Jumlah</th>
+                                <th>Lokasi</th>
+                                <th>Fasilitas</th>
+                                <th>Pengguna</th>
+                                <th>Waktu</th>
+                                <th>Ref</th>
+                                <th>Catatan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                            <tr>
+                                <td>{{ row.outcome_label }}</td>
+                                <td>
+                                    <a href="{{ row.document_url }}" class="text-decoration-none fw-semibold">
+                                        {{ row.document_number }}
+                                    </a>
+                                    <div class="small text-muted">{{ row.document_type }}</div>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">{{ row.item_code }}</div>
+                                    <div>{{ row.item_name }}</div>
+                                </td>
+                                <td>{{ row.batch_lot }}</td>
+                                <td>{{ row.expiry_date|date:"Y-m-d"|default:"-" }}</td>
+                                <td class="text-end">{{ row.quantity|id_decimal:2 }} {{ row.unit_name }}</td>
+                                <td>{{ row.location_name }}</td>
+                                <td>{{ row.facility_name }}</td>
+                                <td>{{ row.responsible_user }}</td>
+                                <td>{{ row.event_timestamp|date:"Y-m-d H:i"|default:"-" }}</td>
+                                <td>{{ row.reference_label }}</td>
+                                <td>{{ row.notes }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="12" class="text-center text-muted py-4">
+                                    Tidak ada data audit untuk filter yang dipilih.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white">
+                <strong>Ringkasan per Barang</strong>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Barang</th>
+                                <th class="text-end">OUT</th>
+                                <th class="text-end">Destroy</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in summary_by_item %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ row.item_code }}</div>
+                                    <div>{{ row.item_name }}</div>
+                                </td>
+                                <td class="text-end">{{ row.out_quantity|id_decimal:2 }}</td>
+                                <td class="text-end">{{ row.destroy_quantity|id_decimal:2 }}</td>
+                                <td class="text-end">{{ row.total_quantity|id_decimal:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    Belum ada ringkasan barang.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white">
+                <strong>Catatan Rekonsiliasi</strong>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Barang</th>
+                                <th class="text-end">OUT</th>
+                                <th class="text-end">Destroy</th>
+                                <th class="text-end">Selisih</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in reconciliation_rows %}
+                            <tr class="{% if row.difference == 0 %}table-success{% else %}table-warning{% endif %}">
+                                <td>
+                                    <div class="fw-semibold">{{ row.item_code }}</div>
+                                    <div>{{ row.item_name }}</div>
+                                </td>
+                                <td class="text-end">{{ row.out_quantity|id_decimal:2 }}</td>
+                                <td class="text-end">{{ row.destroy_quantity|id_decimal:2 }}</td>
+                                <td class="text-end">{{ row.difference|id_decimal:2 }}</td>
+                                <td>{{ row.status }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    Tidak ada data rekonsiliasi.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

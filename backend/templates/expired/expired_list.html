@@ -8,6 +8,9 @@
     <div class="table-header">
         <h5><i class="bi bi-trash me-2"></i>Daftar Pemusnahan (Kedaluwarsa)</h5>
         <div class="d-flex gap-2">
+            <a href="{% url 'expired:expired_audit_report' %}" class="btn btn-outline-dark btn-sm">
+                <i class="bi bi-file-earmark-bar-graph me-1"></i>Generate Expired Audit Report
+            </a>
             <a href="{% url 'expired:expired_alerts' %}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-exclamation-triangle me-1"></i>Stok Mendekati/Kedaluwarsa
             </a>

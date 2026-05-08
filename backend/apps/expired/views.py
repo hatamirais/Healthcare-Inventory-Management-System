@@ -13,8 +13,10 @@ from apps.stock.models import Stock, Transaction
 from apps.items.models import Location
 from apps.users.models import ModuleAccess
 
-from .forms import ExpiredForm, ExpiredItemFormSet
+from .exports import export_expired_audit_csv, export_expired_audit_pdf
+from .forms import ExpiredAuditReportForm, ExpiredForm, ExpiredItemFormSet
 from .models import Expired, ExpiredItem
+from .services import generate_expired_audit_report
 
 
 @login_required
@@ -330,6 +332,38 @@ def expired_detail(request, pk):
         {
             "expired_doc": expired_doc,
             "items": items,
+        },
+    )
+
+
+@login_required
+@perm_required("expired.view_expired")
+def expired_audit_report(request):
+    form_data = ExpiredAuditReportForm.get_default_initial()
+    form_data.update(request.GET.dict())
+    form = ExpiredAuditReportForm(form_data)
+    report = {
+        "rows": [],
+        "summary_by_outcome": [],
+        "summary_by_item": [],
+        "reconciliation_rows": [],
+        "total_rows": 0,
+    }
+
+    if form.is_valid():
+        report = generate_expired_audit_report(form.cleaned_data)
+        export_format = request.GET.get("format")
+        if export_format == "csv":
+            return export_expired_audit_csv(report, form.cleaned_data)
+        if export_format == "pdf":
+            return export_expired_audit_pdf(report, form.cleaned_data)
+
+    return render(
+        request,
+        "expired/expired_audit_report.html",
+        {
+            "form": form,
+            **report,
         },
     )
 

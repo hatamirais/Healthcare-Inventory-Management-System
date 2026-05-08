@@ -7,6 +7,10 @@ The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.
 
 ## [Unreleased]
 
+### Added
+
+- Expired module: new `Generate Expired Audit Report` action with filterable audit output that combines distributed `OUT` rows and destroyed/disposed expired rows, plus CSV/PDF downloads and reconciliation summaries per item.
+
 ## [1.23.2] - 2026-05-07
 
 ### Added

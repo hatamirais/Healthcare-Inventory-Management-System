@@ -24,6 +24,7 @@ psycopg2-binary==2.9.11
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 redis==7.2.0
+reportlab==4.5.0
 six==1.17.0
 sqlparse==0.5.5
 tablib==3.9.0

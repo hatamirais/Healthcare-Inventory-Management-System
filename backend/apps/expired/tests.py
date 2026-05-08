@@ -1,12 +1,15 @@
 from decimal import Decimal
+from datetime import datetime
 
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.distribution.models import Distribution
 from apps.expired.forms import ExpiredItemForm
+from apps.expired.services import generate_expired_audit_report
 from apps.expired.models import Expired, ExpiredItem
-from apps.items.models import Category, FundingSource, Item, Location, Unit
+from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
 from apps.stock.models import Stock, Transaction
 from apps.users.access import ensure_default_module_access
 from apps.users.models import User
@@ -34,6 +37,12 @@ class ExpiredWorkflowTest(TestCase):
         self.location = Location.objects.create(code="LOC-02", name="Gudang Farmasi")
         self.funding_source = FundingSource.objects.create(
             code="APBD", name="Anggaran APBD"
+        )
+        self.other_funding_source = FundingSource.objects.create(
+            code="BOK", name="Dana BOK"
+        )
+        self.facility = Facility.objects.create(
+            code="PKM-01", name="Puskesmas Audit"
         )
 
         self.stock = Stock.objects.create(
@@ -70,6 +79,66 @@ class ExpiredWorkflowTest(TestCase):
                 notes="Melewati tanggal ED",
             )
         return expired_doc
+
+    def _create_distributed_outcome(
+        self,
+        *,
+        quantity=Decimal("4"),
+        distributed_date="2026-03-12",
+        funding_source=None,
+        item=None,
+    ):
+        funding_source = funding_source or self.funding_source
+        item = item or self.item
+        stock = Stock.objects.create(
+            item=item,
+            location=self.location,
+            batch_lot=f"BATCH-OUT-{Stock.objects.count()}",
+            expiry_date="2026-01-15",
+            quantity=Decimal("20"),
+            reserved=Decimal("0"),
+            unit_price=Decimal("3000"),
+            sumber_dana=funding_source,
+        )
+        distribution = Distribution.objects.create(
+            distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
+            request_date=distributed_date,
+            facility=self.facility,
+            status=Distribution.Status.DISTRIBUTED,
+            created_by=self.user,
+            approved_by=self.user,
+            approved_at=timezone.make_aware(datetime(2026, 3, 12, 9, 0, 0)),
+            distributed_date=distributed_date,
+            notes="Distribusi batch ED",
+        )
+        distribution_item = distribution.items.create(
+            item=item,
+            quantity_requested=quantity,
+            quantity_approved=quantity,
+            stock=stock,
+            issued_batch_lot=stock.batch_lot,
+            issued_expiry_date=stock.expiry_date,
+            issued_unit_price=stock.unit_price,
+            issued_sumber_dana=funding_source,
+            notes="Dikeluarkan untuk kebutuhan khusus",
+        )
+        transaction = Transaction.objects.create(
+            transaction_type=Transaction.TransactionType.OUT,
+            item=item,
+            location=self.location,
+            batch_lot=stock.batch_lot,
+            quantity=quantity,
+            unit_price=stock.unit_price,
+            sumber_dana=funding_source,
+            reference_type=Transaction.ReferenceType.DISTRIBUTION,
+            reference_id=distribution.id,
+            user=self.user,
+            notes="Distribusi audit",
+        )
+        transaction_timestamp = timezone.make_aware(datetime(2026, 3, 12, 9, 30, 0))
+        Transaction.objects.filter(pk=transaction.pk).update(created_at=transaction_timestamp)
+        transaction.refresh_from_db()
+        return distribution, distribution_item, transaction
 
     # --- Auto-generated document number ---
 
@@ -447,3 +516,100 @@ class ExpiredWorkflowTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(list(response.context["items"].object_list), [])
+
+    def test_expired_list_shows_audit_report_action(self):
+        response = self.client.get(reverse("expired:expired_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Generate Expired Audit Report")
+
+    def test_generate_expired_audit_report_combines_distribution_and_destroy_rows(self):
+        distribution, _, transaction = self._create_distributed_outcome()
+        expired_doc = self._create_expired(status=Expired.Status.DISPOSED)
+        expired_doc.verified_by = self.user
+        expired_doc.verified_at = timezone.make_aware(datetime(2026, 3, 10, 8, 0, 0))
+        expired_doc.disposed_by = self.user
+        expired_doc.disposed_at = timezone.make_aware(datetime(2026, 3, 15, 10, 30, 0))
+        expired_doc.save(
+            update_fields=[
+                "verified_by",
+                "verified_at",
+                "disposed_by",
+                "disposed_at",
+                "updated_at",
+            ]
+        )
+
+        report = generate_expired_audit_report(
+            {
+                "start_date": datetime(2026, 3, 1).date(),
+                "end_date": datetime(2026, 3, 31).date(),
+                "location": None,
+                "facility": None,
+                "item": None,
+                "outcome_type": "BOTH",
+                "funding_source": None,
+            }
+        )
+
+        self.assertEqual(len(report["rows"]), 2)
+        self.assertEqual(report["rows"][0]["document_number"], distribution.document_number)
+        self.assertEqual(report["rows"][0]["reference_identifier"], transaction.id)
+        self.assertEqual(report["rows"][1]["document_number"], expired_doc.document_number)
+        self.assertEqual(report["summary_by_outcome"][0]["quantity"], Decimal("4"))
+        self.assertEqual(report["summary_by_outcome"][1]["quantity"], Decimal("5"))
+
+    def test_expired_audit_report_filters_by_outcome_and_funding_source(self):
+        self._create_distributed_outcome(funding_source=self.other_funding_source)
+        self._create_distributed_outcome(funding_source=self.funding_source)
+
+        response = self.client.get(
+            reverse("expired:expired_audit_report"),
+            {
+                "start_date": "2026-03-01",
+                "end_date": "2026-03-31",
+                "outcome_type": "OUT",
+                "funding_source": self.other_funding_source.pk,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        rows = response.context["rows"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["funding_source_name"], self.other_funding_source.name)
+        self.assertEqual(rows[0]["outcome_type"], "OUT")
+
+    def test_expired_audit_report_csv_export_returns_download(self):
+        distribution, _, _ = self._create_distributed_outcome()
+
+        response = self.client.get(
+            reverse("expired:expired_audit_report"),
+            {
+                "start_date": "2026-03-01",
+                "end_date": "2026-03-31",
+                "format": "csv",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("expired_audit_report_2026-03-01_2026-03-31.csv", response["Content-Disposition"])
+        self.assertIn(distribution.document_number, response.content.decode("utf-8"))
+        self.assertIn("SUMMARY_OUTCOME", response.content.decode("utf-8"))
+
+    def test_expired_audit_report_pdf_export_returns_pdf(self):
+        self._create_distributed_outcome()
+
+        response = self.client.get(
+            reverse("expired:expired_audit_report"),
+            {
+                "start_date": "2026-03-01",
+                "end_date": "2026-03-31",
+                "format": "pdf",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn("expired_audit_report_2026-03-01_2026-03-31.pdf", response["Content-Disposition"])
+        self.assertTrue(response.content.startswith(b"%PDF"))
