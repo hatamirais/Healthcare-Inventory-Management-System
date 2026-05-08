@@ -81,6 +81,49 @@ document.addEventListener('DOMContentLoaded', function () {
         else { strengthBar.classList.add('strong'); strengthLabel.textContent = 'Kuat'; }
     }
 
+    function getSecureRandomInt(max) {
+        if (!window.crypto || !window.crypto.getRandomValues || max <= 0) {
+            throw new Error('Secure random generator unavailable');
+        }
+
+        var values = new Uint32Array(1);
+        var limit = Math.floor(4294967296 / max) * max;
+        var randomNumber = 0;
+        do {
+            window.crypto.getRandomValues(values);
+            randomNumber = values[0];
+        } while (randomNumber >= limit);
+        return randomNumber % max;
+    }
+
+    function generateSecurePassword(length) {
+        var requiredGroups = [
+            'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            'abcdefghijklmnopqrstuvwxyz',
+            '0123456789',
+            '!@#$%^&*()_+-=[]{}|;:,.<>?'
+        ];
+        var allChars = requiredGroups.join('');
+        var passwordChars = [];
+
+        requiredGroups.forEach(function (group) {
+            passwordChars.push(group.charAt(getSecureRandomInt(group.length)));
+        });
+
+        for (var i = passwordChars.length; i < length; i++) {
+            passwordChars.push(allChars.charAt(getSecureRandomInt(allChars.length)));
+        }
+
+        for (var j = passwordChars.length - 1; j > 0; j--) {
+            var swapIndex = getSecureRandomInt(j + 1);
+            var currentChar = passwordChars[j];
+            passwordChars[j] = passwordChars[swapIndex];
+            passwordChars[swapIndex] = currentChar;
+        }
+
+        return passwordChars.join('');
+    }
+
     if (pwdInput && pwdReqBox) {
         pwdInput.addEventListener('focus', function() {
             pwdReqBox.classList.remove('d-none');
@@ -115,10 +158,12 @@ document.addEventListener('DOMContentLoaded', function () {
     var genBtn = document.getElementById('generatePasswordBtn');
     if (genBtn && pwdInput) {
         genBtn.addEventListener('click', function () {
-            var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
             var pwd = '';
-            for (var i = 0; i < 16; i++) {
-                pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+            try {
+                pwd = generateSecurePassword(16);
+            } catch (error) {
+                window.alert('Browser tidak mendukung generator password aman.');
+                return;
             }
             pwdInput.value = pwd;
             pwdInput.dispatchEvent(new Event('input'));
@@ -215,18 +260,16 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // ── Segmented control click handling ───────────────────────────
-    document.querySelectorAll('.scope-segment').forEach(function (segment) {
-        segment.addEventListener('click', function () {
-            var radio = this.querySelector('input[type="radio"]');
-            if (radio) {
-                radio.checked = true;
-                var parent = this.parentElement;
-                parent.querySelectorAll('.scope-segment').forEach(function (s) {
-                    s.classList.remove('active');
-                });
-                this.classList.add('active');
-                updateDeviationDots();
-            }
+    document.querySelectorAll('.scope-segment input[type="radio"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            var segment = this.closest('.scope-segment');
+            if (!segment) return;
+            var parent = segment.parentElement;
+            parent.querySelectorAll('.scope-segment').forEach(function (s) {
+                s.classList.remove('active');
+            });
+            segment.classList.add('active');
+            updateDeviationDots();
         });
     });
 

@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -408,6 +409,8 @@ def user_reset_password(request, pk):
 
     target_user.set_password(password1)
     target_user.save(update_fields=["password"])
+    if target_user == request.user:
+        update_session_auth_hash(request, target_user)
     messages.success(
         request, f"Password untuk {target_user.username} berhasil direset."
     )

@@ -201,7 +201,7 @@
                                                             id="{{ field.id_for_label }}_{{ value }}"
                                                             value="{{ value }}"
                                                             {% if field.value|stringformat:'s' == value|stringformat:'s' %}checked{% endif %}
-                                                            class="d-none"
+                                                            class="visually-hidden"
                                                         >
                                                         <span class="scope-label-text">{{ label }}</span>
                                                     </label>

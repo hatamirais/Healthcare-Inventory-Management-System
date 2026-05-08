@@ -1,5 +1,6 @@
 from unittest import mock
 
+from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.db.models import ProtectedError
 from django.test import TestCase
@@ -234,6 +235,98 @@ class UserManagementViewsTest(TestCase):
         self.assertEqual(self.target.nip, "198505052010011004")
         self.assertEqual(self.target.email, "updated@example.com")
         self.assertEqual(self.target.role, User.Role.ADMIN_UMUM)
+
+    def test_user_reset_password_success(self):
+        response = self.client.post(
+            reverse("users:user_reset_password", args=[self.target.pk]),
+            {
+                "password1": "UpdatedPass123!",
+                "password2": "UpdatedPass123!",
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.target.refresh_from_db()
+        self.assertTrue(self.target.check_password("UpdatedPass123!"))
+        self.assertIn(
+            f"Password untuk {self.target.username} berhasil direset.",
+            [message.message for message in get_messages(response.wsgi_request)],
+        )
+
+    def test_user_reset_password_preserves_session_for_self_reset(self):
+        response = self.client.post(
+            reverse("users:user_reset_password", args=[self.admin.pk]),
+            {
+                "password1": "AdminReset123!",
+                "password2": "AdminReset123!",
+            },
+        )
+        self.assertRedirects(response, reverse("users:user_update", args=[self.admin.pk]))
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.check_password("AdminReset123!"))
+        follow_up = self.client.get(reverse("users:user_list"))
+        self.assertEqual(follow_up.status_code, 200)
+
+    def test_user_reset_password_rejects_mismatch(self):
+        response = self.client.post(
+            reverse("users:user_reset_password", args=[self.target.pk]),
+            {
+                "password1": "UpdatedPass123!",
+                "password2": "DifferentPass123!",
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.target.refresh_from_db()
+        self.assertTrue(self.target.check_password("secret12345"))
+        self.assertIn(
+            "Konfirmasi password tidak sama.",
+            [message.message for message in get_messages(response.wsgi_request)],
+        )
+
+    def test_user_reset_password_rejects_invalid_password(self):
+        response = self.client.post(
+            reverse("users:user_reset_password", args=[self.target.pk]),
+            {
+                "password1": "short",
+                "password2": "short",
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.target.refresh_from_db()
+        self.assertTrue(self.target.check_password("secret12345"))
+        self.assertTrue(
+            any(
+                "setidaknya 10 karakter" in message.message
+                for message in get_messages(response.wsgi_request)
+            )
+        )
+
+    def test_user_reset_password_denied_without_manage_scope(self):
+        kepala = User.objects.create_user(
+            username="kepala_reset",
+            password="secret12345",
+            email="kepala-reset@example.com",
+            role=User.Role.KEPALA,
+        )
+        self.client.force_login(kepala)
+
+        response = self.client.post(
+            reverse("users:user_reset_password", args=[self.target.pk]),
+            {
+                "password1": "BlockedReset123!",
+                "password2": "BlockedReset123!",
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.target.refresh_from_db()
+        self.assertTrue(self.target.check_password("secret12345"))
+        self.assertIn(
+            "Anda tidak memiliki izin untuk mereset password user.",
+            [message.message for message in get_messages(response.wsgi_request)],
+        )
 
     def test_user_list_shows_nip(self):
         response = self.client.get(reverse("users:user_list"))
