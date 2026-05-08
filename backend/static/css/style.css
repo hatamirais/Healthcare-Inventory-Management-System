@@ -1460,3 +1460,59 @@ body {
     #page-content-wrapper { margin-left: 0 !important; }
     .main-content { padding: 0 !important; }
 }
+
+/* ===== Form Tabs ===== */
+.nav-tabs-form {
+    border-bottom: 2px solid #e9ecef;
+}
+
+.nav-tabs-form .nav-link {
+    border: none;
+    color: #64748b;
+    font-weight: 500;
+    padding: 0.6rem 1.25rem;
+    margin-bottom: -2px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.nav-tabs-form .nav-link:hover {
+    color: var(--primary);
+    border-color: transparent;
+}
+
+.nav-tabs-form .nav-link.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    background: transparent;
+}
+
+.tab-error-count {
+    font-size: 0.65rem;
+    padding: 2px 5px;
+    vertical-align: middle;
+}
+
+/* ===== Sticky Form Footer ===== */
+.sticky-form-footer {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    border-top: 1px solid #e9ecef;
+    z-index: 10;
+    border-radius: 0 0 var(--card-radius) var(--card-radius);
+}
+
+/* ===== User Info Sidebar (edit form) ===== */
+.user-info-sidebar .card-header {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.user-info-sidebar dl dt {
+    font-weight: 500;
+}
+
+.user-info-sidebar dl dd {
+    margin-bottom: 0.5rem;
+}

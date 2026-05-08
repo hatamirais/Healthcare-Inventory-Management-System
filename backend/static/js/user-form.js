@@ -1,12 +1,42 @@
 /**
- * User form: password visibility, strength requirements, and dynamic UAC pre-selection
+ * User form: tabs, password visibility, strength requirements,
+ * dynamic UAC pre-selection, and tab error badges.
  */
 document.addEventListener('DOMContentLoaded', function () {
-    // ── Tooltips ────────────────────────────────────────────────────
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.forEach(function (el) {
         new bootstrap.Tooltip(el);
     });
+
+    // ── Tab error badge counting ──────────────────────────────────
+    function updateTabErrors() {
+        var profilPane = document.getElementById('profilPane');
+        var aksesPane = document.getElementById('aksesPane');
+        var profilCount = document.getElementById('profilErrorCount');
+        var aksesCount = document.getElementById('aksesErrorCount');
+
+        if (profilPane && profilCount) {
+            var profilErrors = profilPane.querySelectorAll('.invalid-feedback.d-block').length;
+            if (profilErrors > 0) {
+                profilCount.textContent = profilErrors;
+                profilCount.classList.remove('d-none');
+            } else {
+                profilCount.classList.add('d-none');
+            }
+        }
+
+        if (aksesPane && aksesCount) {
+            var aksesErrors = aksesPane.querySelectorAll('.invalid-feedback.d-block').length;
+            if (aksesErrors > 0) {
+                aksesCount.textContent = aksesErrors;
+                aksesCount.classList.remove('d-none');
+            } else {
+                aksesCount.classList.add('d-none');
+            }
+        }
+    }
+
+    updateTabErrors();
 
     // ── Password Visibility Toggle ──────────────────────────────────
     document.querySelectorAll('.toggle-password').forEach(function (btn) {
@@ -32,7 +62,7 @@ document.addEventListener('DOMContentLoaded', function () {
         pwdInput.addEventListener('focus', function() {
             pwdReqBox.classList.remove('d-none');
         });
-        
+
         var reqs = {
             length: { el: document.getElementById('req-length'), regex: /.{10,}/ },
             upper: { el: document.getElementById('req-upper'), regex: /[A-Z]/ },
@@ -87,7 +117,6 @@ document.addEventListener('DOMContentLoaded', function () {
         for (var moduleName in defaults) {
             var scopeValue = defaults[moduleName];
             var radioName = 'module_scope__' + moduleName;
-            // Find the radio button with matching name and value
             var radio = document.querySelector(
                 'input[type="radio"][name="' + radioName + '"][value="' + scopeValue + '"]'
             );
