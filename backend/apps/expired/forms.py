@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import timedelta
 from decimal import Decimal
 
 from django import forms
@@ -238,7 +239,8 @@ class ExpiredAuditReportForm(forms.Form):
     def get_default_initial(cls):
         today = timezone.now().date()
         return {
-            "start_date": today.replace(day=1),
+            # Default to month-to-date so operators land on a useful reporting range.
+            "start_date": today - timedelta(days=today.day - 1),
             "end_date": today,
             "outcome_type": cls.OutcomeType.BOTH,
         }

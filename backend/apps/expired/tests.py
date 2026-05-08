@@ -1,5 +1,5 @@
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
 
 from django.test import TestCase
 from django.urls import reverse
@@ -7,9 +7,16 @@ from django.utils import timezone
 
 from apps.distribution.models import Distribution
 from apps.expired.forms import ExpiredItemForm
-from apps.expired.services import generate_expired_audit_report
 from apps.expired.models import Expired, ExpiredItem
-from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
+from apps.expired.services import generate_expired_audit_report
+from apps.items.models import (
+    Category,
+    Facility,
+    FundingSource,
+    Item,
+    Location,
+    Unit,
+)
 from apps.stock.models import Stock, Transaction
 from apps.users.access import ensure_default_module_access
 from apps.users.models import User

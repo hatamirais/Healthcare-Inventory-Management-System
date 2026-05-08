@@ -1,5 +1,6 @@
 from collections import defaultdict
 from decimal import Decimal
+from operator import itemgetter
 
 from django.urls import reverse
 
@@ -92,11 +93,17 @@ def _build_distribution_rows(filters):
     if funding_source:
         queryset = queryset.filter(issued_sumber_dana=funding_source)
 
-    queryset = queryset.filter(issued_expiry_date__isnull=False, issued_expiry_date__lte=end_date)
-
-    distribution_ids = list(
-        queryset.values_list("distribution_id", flat=True).distinct()
+    # This report is scoped to expired batches that left stock via an OUT path.
+    # OUT rows are filtered by distribution event date, while destroy rows are
+    # filtered by disposal timestamp; the extra expiry-date condition ensures the
+    # OUT side only contributes batches that were already expired in the selected
+    # reporting window before they left inventory.
+    queryset = queryset.filter(
+        issued_expiry_date__isnull=False,
+        issued_expiry_date__lte=end_date,
     )
+
+    distribution_ids = queryset.values_list("distribution_id", flat=True).distinct()
     transaction_map = _build_distribution_transaction_map(distribution_ids)
 
     rows = []
@@ -119,9 +126,9 @@ def _build_distribution_rows(filters):
         distribution = distribution_item.distribution
         stock = distribution_item.stock
         funding = distribution_item.issued_sumber_dana
-        location_obj = stock.location if stock else (transaction.location if transaction else None)
-        responsible_user = transaction.user if transaction else distribution.approved_by
-        event_timestamp = transaction.created_at if transaction else distribution.approved_at
+        location_obj = _resolve_location(stock, transaction)
+        responsible_user = _resolve_responsible_user(transaction, distribution)
+        event_timestamp = _resolve_event_timestamp(transaction, distribution)
 
         rows.append(
             {
@@ -169,7 +176,6 @@ def _build_destroy_rows(filters):
     location = filters.get("location")
     item = filters.get("item")
     funding_source = filters.get("funding_source")
-    facility = filters.get("facility")
 
     queryset = (
         ExpiredItem.objects.filter(
@@ -202,9 +208,6 @@ def _build_destroy_rows(filters):
 
     if funding_source:
         queryset = queryset.filter(stock__sumber_dana=funding_source)
-
-    if facility:
-        queryset = queryset.none()
 
     rows = []
     for expired_item in queryset:
@@ -267,14 +270,14 @@ def _build_distribution_transaction_map(distribution_ids):
             transaction.reference_id,
             transaction.item_id,
             transaction.batch_lot,
-            str(transaction.quantity),
+            _normalize_quantity(transaction.quantity),
         )
         transaction_map[key].append(transaction)
     return transaction_map
 
 
 def _pop_distribution_transaction(transaction_map, distribution_id, item_id, batch_lot, quantity):
-    key = (distribution_id, item_id, batch_lot, str(quantity))
+    key = (distribution_id, item_id, batch_lot, _normalize_quantity(quantity))
     if transaction_map.get(key):
         return transaction_map[key].pop(0)
     return None
@@ -321,7 +324,7 @@ def _build_summary(rows):
         },
     ]
 
-    summary_by_item = sorted(item_totals.values(), key=lambda row: (row["item_name"], row["item_code"]))
+    summary_by_item = sorted(item_totals.values(), key=itemgetter("item_name", "item_code"))
 
     reconciliation_rows = []
     for row in summary_by_item:
@@ -353,3 +356,27 @@ def _display_user(user):
     if not user:
         return "-"
     return user.get_full_name() or user.username
+
+
+def _normalize_quantity(quantity):
+    return Decimal(quantity).quantize(Decimal("0.01"))
+
+
+def _resolve_location(stock, transaction):
+    if stock:
+        return stock.location
+    if transaction:
+        return transaction.location
+    return None
+
+
+def _resolve_responsible_user(transaction, distribution):
+    if transaction:
+        return transaction.user
+    return distribution.approved_by
+
+
+def _resolve_event_timestamp(transaction, distribution):
+    if transaction:
+        return transaction.created_at
+    return distribution.approved_at

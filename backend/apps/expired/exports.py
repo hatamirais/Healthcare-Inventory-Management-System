@@ -1,6 +1,6 @@
 import csv
+from html import escape
 from io import BytesIO
-from xml.sax.saxutils import escape
 
 from django.http import HttpResponse
 
@@ -183,7 +183,7 @@ def export_expired_audit_pdf(report, filters):
             if row["difference"] == 0:
                 continue
             mismatch_lines.append(
-                f'- {escape(row["item_code"] or "-")} / {escape(row["item_name"])}: '
+                f'- {escape(row["item_code"] or "-")} / {escape(row["item_name"] or "-")}: '
                 f'OUT {row["out_quantity"]} vs Destroy {row["destroy_quantity"]} '
                 f'(selisih {row["difference"]})'
             )
