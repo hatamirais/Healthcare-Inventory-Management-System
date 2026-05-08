@@ -1,5 +1,8 @@
 from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import ProtectedError
 from django.http import JsonResponse
@@ -372,3 +375,43 @@ def user_bulk_action(request):
         messages.error(request, "Aksi tidak dikenali.")
 
     return redirect("users:user_list")
+
+
+@login_required
+def user_reset_password(request, pk):
+    if not _can_manage_users(request.user):
+        return _forbidden_manage_user(
+            request,
+            "Anda tidak memiliki izin untuk mereset password user.",
+        )
+
+    target_user = get_object_or_404(User, pk=pk)
+    if request.method != "POST":
+        return redirect("users:user_list")
+
+    password1 = request.POST.get("password1", "")
+    password2 = request.POST.get("password2", "")
+
+    if not password1:
+        messages.error(request, "Password baru harus diisi.")
+        return redirect("users:user_update", pk=pk)
+
+    if password1 != password2:
+        messages.error(request, "Konfirmasi password tidak sama.")
+        return redirect("users:user_update", pk=pk)
+
+    try:
+        validate_password(password1, target_user)
+    except ValidationError as e:
+        for err in e.messages:
+            messages.error(request, err)
+        return redirect("users:user_update", pk=pk)
+
+    target_user.set_password(password1)
+    target_user.save(update_fields=["password"])
+    if target_user == request.user:
+        update_session_auth_hash(request, target_user)
+    messages.success(
+        request, f"Password untuk {target_user.username} berhasil direset."
+    )
+    return redirect("users:user_update", pk=pk)

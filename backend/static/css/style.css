@@ -1460,3 +1460,129 @@ body {
     #page-content-wrapper { margin-left: 0 !important; }
     .main-content { padding: 0 !important; }
 }
+
+/* ===== Form Tabs ===== */
+.nav-tabs-form {
+    border-bottom: 2px solid #e9ecef;
+}
+
+.nav-tabs-form .nav-link {
+    border: none;
+    color: #64748b;
+    font-weight: 500;
+    padding: 0.6rem 1.25rem;
+    margin-bottom: -2px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.nav-tabs-form .nav-link:hover {
+    color: var(--primary);
+    border-color: transparent;
+}
+
+.nav-tabs-form .nav-link.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    background: transparent;
+}
+
+.tab-error-count {
+    font-size: 0.65rem;
+    padding: 2px 5px;
+    vertical-align: middle;
+}
+
+/* ===== Sticky Form Footer ===== */
+.sticky-form-footer {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    border-top: 1px solid #e9ecef;
+    z-index: 10;
+    border-radius: 0 0 var(--card-radius) var(--card-radius);
+}
+
+/* ===== User Info Sidebar (edit form) ===== */
+.user-info-sidebar .card-header {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.user-info-sidebar dl dt {
+    font-weight: 500;
+}
+
+.user-info-sidebar dl dd {
+    margin-bottom: 0.5rem;
+}
+
+/* ===== UAC Scope Segmented Control ===== */
+.scope-segmented-control {
+    display: inline-flex;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    gap: 0;
+}
+
+.scope-segment {
+    cursor: pointer;
+    padding: 5px 10px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: #64748b;
+    background: #f8f9fa;
+    border-right: 1px solid #dee2e6;
+    user-select: none;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+    margin: 0;
+}
+
+.scope-segment:hover {
+    background: #e9ecef;
+    color: #334155;
+}
+
+.scope-segment:last-child {
+    border-right: none;
+}
+
+.scope-segment.active {
+    font-weight: 600;
+}
+
+/* Scope level colors */
+.scope-segment.scope-0.active { background: #e9ecef; color: #6c757d; }
+.scope-segment.scope-1.active { background: rgba(6, 182, 212, 0.15); color: #0891b2; }
+.scope-segment.scope-2.active { background: rgba(79, 140, 255, 0.15); color: #3b82f6; }
+.scope-segment.scope-3.active { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+.scope-segment.scope-4.active { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
+
+/* Scope deviation indicator */
+.scope-deviation-dot {
+    color: #f59e0b;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: help;
+}
+
+/* ===== Password Strength Meter ===== */
+.password-strength-meter {
+    height: 4px;
+    background: #e9ecef;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.strength-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+.strength-bar.weak { width: 25%; background: #ef4444; }
+.strength-bar.fair { width: 50%; background: #f59e0b; }
+.strength-bar.good { width: 75%; background: #3b82f6; }
+.strength-bar.strong { width: 100%; background: #22c55e; }
