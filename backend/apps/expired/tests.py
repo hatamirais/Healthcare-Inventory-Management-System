@@ -21,6 +21,14 @@ class ExpiredWorkflowTest(TestCase):
             username="gudang_expired",
             password="secret12345",
         )
+        self.kepala_user = User.objects.create_user(
+            username="kepala_instalasi",
+            password="secret12345",
+            role=User.Role.KEPALA,
+            full_name="Kepala Instalasi",
+            nip="1212121212",
+            is_active=True,
+        )
 
         self.unit = Unit.objects.create(code="BOT", name="Botol")
         self.category = Category.objects.create(
@@ -420,7 +428,7 @@ class ExpiredWorkflowTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "js/item-picker-table.js?v=")
 
-    def test_build_expired_audit_report_includes_out_and_destroy_rows(self):
+    def test_build_expired_audit_report_includes_destroy_rows_only(self):
         out_transaction = Transaction.objects.create(
             transaction_type=Transaction.TransactionType.OUT,
             item=self.item,
@@ -457,13 +465,17 @@ class ExpiredWorkflowTest(TestCase):
             }
         )
 
-        self.assertEqual(len(report["rows"]), 2)
-        self.assertEqual(report["totals_by_outcome"]["OUT"], Decimal("7"))
+        self.assertEqual(len(report["rows"]), 1)
         self.assertEqual(report["totals_by_outcome"]["DESTROY"], Decimal("5"))
+        self.assertEqual(report["totals_value_by_outcome"]["DESTROY"], Decimal("12500"))
         self.assertEqual(len(report["summary_rows"]), 1)
-        self.assertTrue(report["reconciliation_notes"])
+        self.assertFalse(report["reconciliation_notes"])
+        self.assertEqual(report["rows"][0]["document_type"], "Expired/Disposal")
+        self.assertEqual(report["rows"][0]["unit_price"], Decimal("2500"))
+        self.assertEqual(report["rows"][0]["total_price"], Decimal("12500"))
+        self.assertEqual(report["summary_rows"][0]["destroy_total_value"], Decimal("12500"))
 
-    def test_expired_audit_report_csv_endpoint_returns_combined_rows(self):
+    def test_expired_audit_report_csv_endpoint_returns_destroy_rows_only(self):
         out_transaction = Transaction.objects.create(
             transaction_type=Transaction.TransactionType.OUT,
             item=self.item,
@@ -503,9 +515,11 @@ class ExpiredWorkflowTest(TestCase):
         self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
         csv_output = b"".join(response.streaming_content).decode("utf-8")
         self.assertIn("Outcome Type", csv_output)
-        self.assertIn("OUT", csv_output)
         self.assertIn("DESTROY", csv_output)
         self.assertIn(self.item.nama_barang, csv_output)
+        self.assertIn("Unit Price", csv_output)
+        self.assertIn("Total Price", csv_output)
+        self.assertNotIn("Distribusi uji", csv_output)
 
     def test_expired_audit_report_print_endpoint_returns_printable_html(self):
         response = self.client.get(
@@ -522,6 +536,36 @@ class ExpiredWorkflowTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Expired Audit Report")
         self.assertContains(response, 'data-action="print"')
+        self.assertContains(response, "Harga Satuan")
+        self.assertContains(response, "<th>Satuan</th>", html=True)
+        self.assertContains(response, "Total Nilai Barang di Musnahkan")
+        self.assertContains(response, self.user.username)
+        self.assertContains(response, "Kepala Instalasi")
+        self.assertContains(response, self.kepala_user.nip)
+        self.assertNotContains(response, "<th>User</th>", html=True)
+        self.assertNotContains(response, "<th>Ref Item</th>", html=True)
+        self.assertNotContains(
+            response,
+            "generated_by.get_full_name|default:generated_by.username|default:generated_by",
+        )
+
+    def test_expired_audit_report_print_empty_state_uses_current_column_count(self):
+        response = self.client.get(
+            reverse("expired:expired_audit_report"),
+            {
+                "start_date": "2027-03-01",
+                "end_date": "2027-03-31",
+                "date_field": "disposed_at",
+                "format": "print",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            '<td colspan="12">Tidak ada data untuk filter yang dipilih.</td>',
+            html=True,
+        )
 
     def test_expired_document_print_endpoint_returns_printable_html(self):
         expired_doc = self._create_expired(status=Expired.Status.DRAFT)
