@@ -196,20 +196,19 @@ class StockCardTest(TestCase):
         self.assertEqual(response.status_code, 200)
         cards = response.context['funding_source_cards']
         self.assertGreater(len(cards), 0)
-        
+
         # Find the card with self.funding sumber_dana
         card = None
         for c in cards:
             if c['sumber_dana'] == self.funding:
                 card = c
                 break
-        
+
         self.assertIsNotNone(card)
         transactions = card['transactions']
         self.assertGreater(len(transactions), 0)
 
-        # The transfer_out should be in the transactions (created last, so last in list)
-        # Find it by reference_type
+        # The transfer_out should be present in the transactions; identify it by reference_type.
         transfer_tx = None
         receiving_tx = None
         for tx in transactions:
@@ -217,7 +216,7 @@ class StockCardTest(TestCase):
                 transfer_tx = tx
             elif tx.reference_type == Transaction.ReferenceType.RECEIVING:
                 receiving_tx = tx
-        
+
         self.assertIsNotNone(transfer_tx, "Transfer transaction not found in card")
         self.assertIsNotNone(receiving_tx, "Receiving transaction not found in card")
 
