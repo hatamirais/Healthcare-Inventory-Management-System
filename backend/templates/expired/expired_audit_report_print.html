@@ -1,4 +1,4 @@
-{% load number_format %}
+{% load number_format static %}
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -8,10 +8,14 @@
         body { font-family: "Segoe UI", Arial, sans-serif; color: #111; font-size: 11px; }
         .toolbar { margin-bottom: 12px; }
         .toolbar button { padding: 8px 14px; border: 1px solid #222; background: #222; color: #fff; cursor: pointer; }
-        .header { border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 14px; }
-        .header h1, .header h2, .header p { margin: 0; }
-        .header h1 { font-size: 15px; }
-        .header h2 { font-size: 17px; margin-top: 2px; }
+        .header { display: flex; align-items: center; gap: 14px; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 14px; }
+        .header-logo { width: 78px; flex: 0 0 78px; text-align: center; }
+        .header-logo img { max-width: 72px; max-height: 72px; object-fit: contain; }
+        .header-text { flex: 1; text-align: center; }
+        .header-text h1, .header-text h2, .header-text p { margin: 0; }
+        .header-text h1 { font-size: 15px; }
+        .header-text h2 { font-size: 17px; margin-top: 2px; }
+        .header-spacer { width: 78px; flex: 0 0 78px; }
         .meta { margin-bottom: 14px; font-size: 10px; }
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #999; padding: 5px 6px; vertical-align: top; }
@@ -19,6 +23,11 @@
         .text-right { text-align: right; }
         .summary { margin-top: 18px; }
         .muted { color: #666; }
+        .signatures { display: flex; justify-content: space-between; gap: 24px; margin-top: 28px; page-break-inside: avoid; }
+        .signature-box { width: 42%; text-align: center; }
+        .signature-role { min-height: 34px; }
+        .signature-name { margin-top: 64px; font-weight: 700; text-decoration: underline; }
+        .signature-meta { margin-top: 4px; }
         @media print {
             .toolbar { display: none; }
         }
@@ -29,9 +38,24 @@
         <button type="button" data-action="print">Cetak / Save PDF</button>
     </div>
     <div class="header">
-        <h1>{{ system_settings.header_title|default:"Pemerintah Daerah" }}</h1>
-        <h2>{{ system_settings.facility_name|default:"Healthcare IMS" }}</h2>
-        <p>{{ system_settings.facility_address|default:"" }}</p>
+        <div class="header-logo">
+            {% if system_settings and system_settings.logo %}
+                {% with logo_url=system_settings.logo.url|safe_media_url %}
+                    {% if logo_url %}
+                    <img src="{{ logo_url }}" alt="Logo">
+                    {% endif %}
+                {% endwith %}
+            {% endif %}
+        </div>
+        <div class="header-text">
+            <h1>{{ system_settings.header_title|default:"[NAMA PEMERINTAH DAERAH / KOTA]" }}</h1>
+            <h2>{{ system_settings.facility_name|default:"[NAMA FASILITAS KESEHATAN / INSTALASI FARMASI]" }}</h2>
+            <p>
+                {{ system_settings.facility_address|default:"[Alamat Instansi]" }}
+                {% if system_settings.facility_phone %} Telp. {{ system_settings.facility_phone }}{% endif %}
+            </p>
+        </div>
+        <div class="header-spacer"></div>
     </div>
 
     <div class="meta">
@@ -45,36 +69,35 @@
     <table>
         <thead>
             <tr>
-                <th>Outcome</th>
-                <th>Document</th>
-                <th>Barang</th>
+                <th>Nomor Dokumen</th>
+                <th>Nama Barang</th>
                 <th>Batch</th>
                 <th>Expiry</th>
                 <th>Qty</th>
-                <th>Unit</th>
-                <th>Location</th>
-                <th>Funding</th>
-                <th>User</th>
+                <th>Harga Satuan</th>
+                <th>Total Nilai</th>
+                <th>Kategori</th>
+                <th>Lokasi</th>
+                <th>Sumber Dana</th>
                 <th>Timestamp</th>
-                <th>Reference</th>
-                <th>Notes</th>
+                <th>Catatan</th>
             </tr>
         </thead>
         <tbody>
             {% for row in report_data.rows %}
             <tr>
-                <td>{{ row.outcome_type }}</td>
-                <td>{{ row.document_type }}<br><span class="muted">{{ row.document_reference }}</span></td>
-                <td>{{ row.kode_barang }}<br>{{ row.nama_barang }}</td>
+   
+                <td>{{ row.document_reference }}</td>
+                <td>{{ row.nama_barang }}</td>
                 <td>{{ row.batch_lot }}</td>
                 <td>{% if row.expiry_date %}{{ row.expiry_date|date:"d/m/Y" }}{% else %}-{% endif %}</td>
                 <td class="text-right">{{ row.quantity|id_decimal:2 }}</td>
+                <td class="text-right">{{ row.unit_price|idr }}</td>
+                <td class="text-right">{{ row.total_price|idr }}</td>
                 <td>{{ row.unit }}</td>
                 <td>{{ row.location }}</td>
                 <td>{{ row.funding_source|default:"-" }}</td>
-                <td>{{ row.responsible_user }}</td>
                 <td>{{ row.timestamp|date:"d/m/Y H:i" }}</td>
-                <td>{{ row.reference_code }}</td>
                 <td>{{ row.notes|default:"-" }}</td>
             </tr>
             {% empty %}
@@ -87,38 +110,61 @@
 
     <div class="summary">
         <h3>Ringkasan</h3>
-        <p>Total OUT: {{ report_data.totals_by_outcome.OUT|id_decimal:2 }}</p>
-        <p>Total DESTROY: {{ report_data.totals_by_outcome.DESTROY|id_decimal:2 }}</p>
+        <p>Barang di Musnahkan: {{ report_data.totals_by_outcome.DESTROY|id_decimal:2 }}</p>
+        <p>Total Nilai Barang di Musnahkan: {{ report_data.totals_value_by_outcome.DESTROY|idr }}</p>
 
         {% if report_data.summary_rows %}
         <table>
             <thead>
                 <tr>
                     <th>Barang</th>
-                    <th>OUT</th>
-                    <th>DESTROY</th>
+                    <th>Barang di Musnahkan</th>
+                    <th>Total Nilai</th>
                 </tr>
             </thead>
             <tbody>
                 {% for summary in report_data.summary_rows %}
                 <tr>
                     <td>{{ summary.item_name }}</td>
-                    <td class="text-right">{{ summary.out_total|id_decimal:2 }}</td>
                     <td class="text-right">{{ summary.destroy_total|id_decimal:2 }}</td>
+                    <td class="text-right">{{ summary.destroy_total_value|idr }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% endif %}
-
-        {% if report_data.reconciliation_notes %}
-        <h3>Reconciliation Notes</h3>
-        <ul>
-            {% for note in report_data.reconciliation_notes %}
-            <li>Scope {{ note.scope_key }}: OUT {{ note.out_total|id_decimal:2 }}, DESTROY {{ note.destroy_total|id_decimal:2 }}, selisih {{ note.difference|id_decimal:2 }}</li>
-            {% endfor %}
-        </ul>
-        {% endif %}
     </div>
+
+    <div class="signatures">
+        <div class="signature-box">
+            <div class="signature-role">Mengetahui,<br>Kepala {{ system_settings.facility_name|default:"Instalasi Farmasi" }}</div>
+            <div class="signature-name">
+                {% if kepala_instalasi %}
+                    {{ kepala_instalasi.full_name|default:kepala_instalasi.username }}
+                {% else %}
+                    [Nama Kepala Instalasi]
+                {% endif %}
+            </div>
+            <div class="signature-meta">
+                {% if kepala_instalasi and kepala_instalasi.nip %}
+                    NIP. {{ kepala_instalasi.nip }}
+                {% else %}
+                    NIP. ........................................
+                {% endif %}
+            </div>
+        </div>
+        <div class="signature-box">
+            <div class="signature-role">Dibuat oleh,<br></div>
+            <div class="signature-name">
+                {% if generated_by %}
+                    {{ generated_by.full_name|default:generated_by.username }}
+                {% else %}
+                    [Nama Pembuat Laporan]
+                {% endif %}
+            </div>
+            <!--{{ generated_by.get_full_name|default:generated_by.username|default:generated_by }}-->
+        </div>
+    </div>
+    <script src="{% static 'js/confirm-actions.js' %}"></script>
 </body>
 </html>

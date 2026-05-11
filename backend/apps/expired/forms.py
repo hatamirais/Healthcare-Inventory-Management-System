@@ -158,11 +158,6 @@ class ExpiredAuditReportFilterForm(forms.Form):
         ("verified_at", "Tanggal Verifikasi"),
         ("created_at", "Tanggal Dibuat"),
     ]
-    OUTCOME_CHOICES = [
-        ("BOTH", "Both"),
-        ("OUT", "OUT (distributed)"),
-        ("DESTROY", "Destroy (kadaluwarsa)"),
-    ]
 
     date_field = forms.ChoiceField(
         label="Basis Tanggal",
@@ -193,11 +188,10 @@ class ExpiredAuditReportFilterForm(forms.Form):
         empty_label="Semua Barang",
         widget=forms.Select(attrs={"class": "form-select js-typeahead-select"}),
     )
-    outcome_type = forms.ChoiceField(
-        label="Jenis Outcome",
-        choices=OUTCOME_CHOICES,
-        initial="BOTH",
-        widget=forms.Select(attrs={"class": "form-select"}),
+    outcome_type = forms.CharField(
+        required=False,
+        initial="DESTROY",
+        widget=forms.HiddenInput(),
     )
     funding_source = forms.ModelChoiceField(
         label="Sumber Dana",
@@ -218,6 +212,7 @@ class ExpiredAuditReportFilterForm(forms.Form):
         cleaned_data = super().clean()
         start_date = cleaned_data.get("start_date")
         end_date = cleaned_data.get("end_date")
+        cleaned_data["outcome_type"] = "DESTROY"
         if start_date and end_date and start_date > end_date:
             raise forms.ValidationError("Tanggal mulai tidak boleh lebih dari tanggal selesai.")
         return cleaned_data
@@ -229,5 +224,5 @@ class ExpiredAuditReportFilterForm(forms.Form):
             "start_date": today.replace(day=1),
             "end_date": today,
             "date_field": "disposed_at",
-            "outcome_type": "BOTH",
+            "outcome_type": "DESTROY",
         }

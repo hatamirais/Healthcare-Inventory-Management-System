@@ -10,9 +10,7 @@ from apps.expired.models import Expired
 from apps.stock.models import Transaction
 
 
-OUTCOME_OUT = "OUT"
 OUTCOME_DESTROY = "DESTROY"
-OUTCOME_BOTH = "BOTH"
 
 
 def _safe_decimal(value):
@@ -61,65 +59,6 @@ def _get_document_reference(reference_type, reference_id):
         "document_reference": str(reference_id),
         "document_url": "",
     }
-
-
-def _build_out_transaction_rows(filters):
-    queryset = (
-        Transaction.objects.filter(transaction_type=Transaction.TransactionType.OUT)
-        .exclude(reference_type=Transaction.ReferenceType.EXPIRED)
-        .select_related("item", "item__satuan", "location", "sumber_dana", "user")
-        .order_by("-created_at", "-id")
-    )
-
-    start_date = filters.get("start_date")
-    end_date = filters.get("end_date")
-    if start_date:
-        queryset = queryset.filter(created_at__date__gte=start_date)
-    if end_date:
-        queryset = queryset.filter(created_at__date__lte=end_date)
-
-    location = filters.get("location")
-    if location:
-        queryset = queryset.filter(location=location)
-
-    item = filters.get("item")
-    if item:
-        queryset = queryset.filter(item=item)
-
-    funding_source = filters.get("funding_source")
-    if funding_source:
-        queryset = queryset.filter(sumber_dana=funding_source)
-
-    rows = []
-    for txn in queryset:
-        document_ref = _get_document_reference(txn.reference_type, txn.reference_id)
-        user_name = getattr(txn.user, "full_name", "") or txn.user.username
-        rows.append(
-            {
-                "outcome_type": OUTCOME_OUT,
-                "document_type": document_ref["document_type"],
-                "document_reference": document_ref["document_reference"],
-                "document_url": document_ref["document_url"],
-                "kode_barang": txn.item.kode_barang,
-                "nama_barang": txn.item.nama_barang,
-                "item_id": txn.item_id,
-                "unit": txn.item.satuan.name if txn.item.satuan_id else "",
-                "batch_lot": txn.batch_lot,
-                "expiry_date": None,
-                "quantity": txn.quantity,
-                "location": txn.location.name,
-                "location_id": txn.location_id,
-                "facility": "",
-                "funding_source": txn.sumber_dana.name if txn.sumber_dana_id else "",
-                "funding_source_id": txn.sumber_dana_id,
-                "responsible_user": user_name,
-                "timestamp": txn.created_at,
-                "notes": txn.notes or "",
-                "reference_code": f"TXN-{txn.id}",
-                "reference_id": txn.id,
-            }
-        )
-    return rows
 
 
 def _build_destroy_rows(filters):
@@ -172,6 +111,8 @@ def _build_destroy_rows(filters):
                 continue
             if funding_source and expired_item.stock.sumber_dana_id != funding_source.id:
                 continue
+            unit_price = _safe_decimal(expired_item.stock.unit_price)
+            total_price = _safe_decimal(expired_item.quantity) * unit_price
             rows.append(
                 {
                     "outcome_type": OUTCOME_DESTROY,
@@ -185,6 +126,8 @@ def _build_destroy_rows(filters):
                     "batch_lot": expired_item.stock.batch_lot,
                     "expiry_date": expired_item.stock.expiry_date,
                     "quantity": expired_item.quantity,
+                    "unit_price": unit_price,
+                    "total_price": total_price,
                     "location": expired_item.stock.location.name,
                     "location_id": expired_item.stock.location_id,
                     "facility": "",
@@ -201,13 +144,7 @@ def _build_destroy_rows(filters):
 
 
 def build_expired_audit_report(filters):
-    outcome_type = filters.get("outcome_type") or OUTCOME_BOTH
-
-    rows = []
-    if outcome_type in {OUTCOME_OUT, OUTCOME_BOTH}:
-        rows.extend(_build_out_transaction_rows(filters))
-    if outcome_type in {OUTCOME_DESTROY, OUTCOME_BOTH}:
-        rows.extend(_build_destroy_rows(filters))
+    rows = _build_destroy_rows(filters)
 
     rows.sort(
         key=lambda row: (
@@ -220,53 +157,38 @@ def build_expired_audit_report(filters):
     )
 
     totals_by_outcome = {
-        OUTCOME_OUT: Decimal("0"),
         OUTCOME_DESTROY: Decimal("0"),
     }
-    totals_by_item = defaultdict(lambda: {OUTCOME_OUT: Decimal("0"), OUTCOME_DESTROY: Decimal("0")})
-    compare_scope = defaultdict(lambda: {OUTCOME_OUT: Decimal("0"), OUTCOME_DESTROY: Decimal("0")})
+    totals_value_by_outcome = {
+        OUTCOME_DESTROY: Decimal("0"),
+    }
+    totals_by_item = defaultdict(lambda: {OUTCOME_DESTROY: Decimal("0")})
+    total_values_by_item = defaultdict(lambda: {OUTCOME_DESTROY: Decimal("0")})
 
     for row in rows:
         quantity = _safe_decimal(row["quantity"])
+        total_price = _safe_decimal(row["total_price"])
         totals_by_outcome[row["outcome_type"]] += quantity
+        totals_value_by_outcome[row["outcome_type"]] += total_price
         totals_by_item[row["nama_barang"]][row["outcome_type"]] += quantity
-        scope_key = (
-            row["item_id"],
-            row["batch_lot"],
-            row["location_id"],
-            row["funding_source_id"],
-        )
-        compare_scope[scope_key][row["outcome_type"]] += quantity
-
-    reconciliation_notes = []
-    for scope_key, scope_totals in compare_scope.items():
-        out_total = scope_totals[OUTCOME_OUT]
-        destroy_total = scope_totals[OUTCOME_DESTROY]
-        if out_total != destroy_total:
-            reconciliation_notes.append(
-                {
-                    "scope_key": scope_key,
-                    "out_total": out_total,
-                    "destroy_total": destroy_total,
-                    "difference": out_total - destroy_total,
-                }
-            )
+        total_values_by_item[row["nama_barang"]][row["outcome_type"]] += total_price
 
     summary_rows = []
     for item_name in sorted(totals_by_item.keys()):
         summary_rows.append(
             {
                 "item_name": item_name,
-                "out_total": totals_by_item[item_name][OUTCOME_OUT],
                 "destroy_total": totals_by_item[item_name][OUTCOME_DESTROY],
+                "destroy_total_value": total_values_by_item[item_name][OUTCOME_DESTROY],
             }
         )
 
     return {
         "rows": rows,
         "totals_by_outcome": totals_by_outcome,
+        "totals_value_by_outcome": totals_value_by_outcome,
         "summary_rows": summary_rows,
-        "reconciliation_notes": reconciliation_notes,
+        "reconciliation_notes": [],
     }
 
 
@@ -289,13 +211,15 @@ def export_expired_audit_report_csv(report_data):
                 "Batch / Lot",
                 "Expiry Date",
                 "Quantity",
+                "Unit Price",
+                "Total Price",
                 "Unit",
                 "Location",
                 "Funding Source",
                 "Responsible User",
                 "Timestamp",
                 "Notes / Reason",
-                "Reference Code",
+                "Item Reference",
             ]
         )
         for row in report_data["rows"]:
@@ -309,6 +233,8 @@ def export_expired_audit_report_csv(report_data):
                     row["batch_lot"],
                     row["expiry_date"].isoformat() if row["expiry_date"] else "",
                     row["quantity"],
+                    row["unit_price"],
+                    row["total_price"],
                     row["unit"],
                     row["location"],
                     row["funding_source"],

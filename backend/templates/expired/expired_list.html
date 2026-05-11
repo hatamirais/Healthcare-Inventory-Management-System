@@ -125,10 +125,6 @@
                             {{ audit_form.date_field }}
                         </div>
                         <div class="col-md-6">
-                            {{ audit_form.outcome_type.label_tag }}
-                            {{ audit_form.outcome_type }}
-                        </div>
-                        <div class="col-md-6">
                             {{ audit_form.start_date.label_tag }}
                             {{ audit_form.start_date }}
                         </div>
@@ -148,6 +144,7 @@
                             {{ audit_form.item.label_tag }}
                             {{ audit_form.item }}
                         </div>
+                        {{ audit_form.outcome_type }}
                     </div>
                 </div>
                 <div class="modal-footer">

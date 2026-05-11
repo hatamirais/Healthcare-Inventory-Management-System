@@ -14,7 +14,7 @@ from datetime import timedelta
 from apps.core.decorators import module_scope_required, perm_required
 from apps.stock.models import Stock, Transaction
 from apps.items.models import Location
-from apps.users.models import ModuleAccess
+from apps.users.models import ModuleAccess, User
 
 from .forms import ExpiredAuditReportFilterForm, ExpiredForm, ExpiredItemFormSet
 from .models import Expired, ExpiredItem
@@ -395,6 +395,13 @@ def expired_audit_report(request):
     report_data = build_expired_audit_report(form.cleaned_data)
     if export_format == "csv":
         return export_expired_audit_report_csv(report_data)
+
+    kepala_instalasi = (
+        User.objects.filter(role=User.Role.KEPALA, is_active=True)
+        .order_by("full_name", "username")
+        .first()
+    )
+
     return render(
         request,
         "expired/expired_audit_report_print.html",
@@ -403,6 +410,7 @@ def expired_audit_report(request):
             "filters": form.cleaned_data,
             "generated_at": timezone.now(),
             "generated_by": request.user,
+            "kepala_instalasi": kepala_instalasi,
         },
     )
 
