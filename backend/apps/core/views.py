@@ -76,6 +76,15 @@ def _render_error_page(request, template_name, response_status, **context):
     return render(request, template_name, context, status=response_status)
 
 
+def _can_access_global_dashboard(user):
+    if not getattr(user, "is_authenticated", False):
+        return False
+
+    return user.is_superuser or has_module_scope(
+        user, ModuleAccess.Module.STOCK, ModuleAccess.Scope.VIEW
+    )
+
+
 def maintenance_mode(request):
     _log_error_event(app_logger, "warning", "service_unavailable", request, 503)
     context = _build_error_context(
@@ -204,6 +213,31 @@ def dashboard(request):
             },
         )
 
+    if not _can_access_global_dashboard(request.user):
+        raise PermissionDenied(
+            "Anda tidak memiliki izin untuk mengakses dashboard inventaris."
+        )
+
+    can_view_items = has_module_scope(
+        request.user, ModuleAccess.Module.ITEMS, ModuleAccess.Scope.VIEW
+    )
+    can_view_expired = has_module_scope(
+        request.user, ModuleAccess.Module.EXPIRED, ModuleAccess.Scope.VIEW
+    )
+    can_create_receiving = has_module_scope(
+        request.user, ModuleAccess.Module.RECEIVING, ModuleAccess.Scope.OPERATE
+    )
+    can_create_distribution = has_module_scope(
+        request.user, ModuleAccess.Module.DISTRIBUTION, ModuleAccess.Scope.OPERATE
+    )
+    can_create_transfer = has_module_scope(
+        request.user, ModuleAccess.Module.STOCK, ModuleAccess.Scope.OPERATE
+    )
+    can_view_transaction_user = _can_access_administration_history(request.user)
+    has_quick_actions = any(
+        [can_create_receiving, can_create_distribution, can_create_transfer]
+    )
+
     today = timezone.now().date()
     three_months_later = today + timedelta(days=90)
     thirty_days_ago = today - timedelta(days=29)
@@ -224,28 +258,33 @@ def dashboard(request):
     )
 
     # Stats
-    total_items = Item.objects.filter(is_active=True).count()
+    total_items = Item.objects.filter(is_active=True).count() if can_view_items else None
     total_stock_entries = stock_totals["total_stock_entries"]
     total_stock_quantity = stock_totals["total_stock_quantity"]
     total_stock_value = stock_totals["total_stock_value"]
 
     # Low stock: items where total stock quantity is below minimum_stock
-    low_stock_items = (
-        Item.objects.filter(is_active=True)
-        .annotate(total_qty=Sum("stock_entries__quantity"))
-        .filter(
-            Q(total_qty__lt=F("minimum_stock")) | Q(total_qty__isnull=True),
-            minimum_stock__gt=0,
+    low_stock_count = None
+    if can_view_items:
+        low_stock_items = (
+            Item.objects.filter(is_active=True)
+            .annotate(total_qty=Sum("stock_entries__quantity"))
+            .filter(
+                Q(total_qty__lt=F("minimum_stock")) | Q(total_qty__isnull=True),
+                minimum_stock__gt=0,
+            )
         )
-    )
-    low_stock_count = low_stock_items.count()
+        low_stock_count = low_stock_items.count()
 
     # Expiring soon: stock entries expiring within 3 months
-    expiring_soon_queryset = stock_queryset.filter(expiry_date__lte=three_months_later)
-    expiring_soon = expiring_soon_queryset.select_related("item").order_by(
-        "expiry_date"
-    )[:10]
-    expiring_soon_count = expiring_soon_queryset.count()
+    expiring_soon = []
+    expiring_soon_count = None
+    if can_view_expired:
+        expiring_soon_queryset = stock_queryset.filter(expiry_date__lte=three_months_later)
+        expiring_soon = expiring_soon_queryset.select_related("item").order_by(
+            "expiry_date"
+        )[:10]
+        expiring_soon_count = expiring_soon_queryset.count()
 
     today_tx_filter = Q(created_at__date=today)
     tx_last_30_days = Transaction.objects.filter(created_at__date__gte=thirty_days_ago)
@@ -278,9 +317,12 @@ def dashboard(request):
         outbound_percent_30_days = 0
 
     # Recent transactions
-    recent_transactions = Transaction.objects.select_related("item", "user").order_by(
-        "-created_at"
-    )[:10]
+    recent_transactions_queryset = Transaction.objects.select_related("item")
+    if can_view_transaction_user:
+        recent_transactions_queryset = recent_transactions_queryset.select_related(
+            "user"
+        )
+    recent_transactions = recent_transactions_queryset.order_by("-created_at")[:10]
 
     return render(
         request,
@@ -293,6 +335,12 @@ def dashboard(request):
             "low_stock_count": low_stock_count,
             "expiring_soon_count": expiring_soon_count,
             "expiring_soon": expiring_soon,
+            "show_items_metrics": can_view_items,
+            "show_expiring_metrics": can_view_expired,
+            "show_receiving_quick_action": can_create_receiving,
+            "show_distribution_quick_action": can_create_distribution,
+            "show_transfer_quick_action": can_create_transfer,
+            "has_quick_actions": has_quick_actions,
             "today_transaction_count": today_transaction_count,
             "inbound_30_days": inbound_30_days,
             "outbound_30_days": outbound_30_days,
@@ -300,6 +348,7 @@ def dashboard(request):
             "outbound_percent_30_days": outbound_percent_30_days,
             "thirty_days_ago": thirty_days_ago,
             "today": today,
+            "show_transaction_user": can_view_transaction_user,
             "recent_transactions": recent_transactions,
         },
     )
