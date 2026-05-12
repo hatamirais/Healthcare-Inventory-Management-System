@@ -11,6 +11,7 @@ from django.utils import timezone
 from apps.users.models import User
 from apps.items.models import Unit, Category, Item, Location, FundingSource
 from apps.stock.models import Stock, StockTransfer, Transaction
+from apps.core.models import SystemSettings
 
 class StockCardTest(TestCase):
     def setUp(self):
@@ -31,6 +32,9 @@ class StockCardTest(TestCase):
         )
         self.location = Location.objects.create(code='GUDANG', name='Gudang Utama')
         self.funding = FundingSource.objects.create(code='APBD', name='APBD')
+        settings = SystemSettings.get_settings()
+        settings.facility_name = "Instalasi Farmasi"
+        settings.save()
 
         # Create transactions for testing running balance
         # TX 1: IN 100
@@ -119,6 +123,11 @@ class StockCardTest(TestCase):
 
     def test_stock_card_location_filter_excludes_transfer_from_totals(self):
         destination = Location.objects.create(code='PKM', name='Puskesmas Tujuan')
+        transfer = StockTransfer.objects.create(
+            source_location=self.location,
+            destination_location=destination,
+            created_by=self.user,
+        )
 
         transfer_out = Transaction.objects.create(
             transaction_type=Transaction.TransactionType.OUT,
@@ -127,7 +136,7 @@ class StockCardTest(TestCase):
             batch_lot='B01',
             quantity=Decimal('5'),
             reference_type=Transaction.ReferenceType.TRANSFER,
-            reference_id=99,
+            reference_id=transfer.id,
             user=self.user,
         )
         Transaction.objects.create(
@@ -137,7 +146,7 @@ class StockCardTest(TestCase):
             batch_lot='B01',
             quantity=Decimal('5'),
             reference_type=Transaction.ReferenceType.TRANSFER,
-            reference_id=99,
+            reference_id=transfer.id,
             user=self.user,
         )
         transfer_out.created_at = timezone.now() - timedelta(days=1)
@@ -161,6 +170,13 @@ class StockCardTest(TestCase):
 
     def test_stock_card_transfer_transactions_display_computed_fields(self):
         """Verify transfer transactions have computed display fields for UI rendering."""
+        destination = Location.objects.create(code='PKM2', name='Puskesmas Pembantu')
+        transfer = StockTransfer.objects.create(
+            source_location=self.location,
+            destination_location=destination,
+            created_by=self.user,
+        )
+
         # Create receiving transaction
         Transaction.objects.create(
             item=self.item,
@@ -179,18 +195,32 @@ class StockCardTest(TestCase):
             item=self.item,
             transaction_type=Transaction.TransactionType.OUT,
             reference_type=Transaction.ReferenceType.TRANSFER,
-            reference_id=99,
+            reference_id=transfer.id,
             quantity=Decimal('30'),
             location=self.location,
             sumber_dana=self.funding,
             user=self.user,
             batch_lot="BATCH-001",
         )
+        transfer_in = Transaction.objects.create(
+            item=self.item,
+            transaction_type=Transaction.TransactionType.IN,
+            reference_type=Transaction.ReferenceType.TRANSFER,
+            reference_id=transfer.id,
+            quantity=Decimal('30'),
+            location=destination,
+            sumber_dana=self.funding,
+            user=self.user,
+            batch_lot="BATCH-001",
+        )
         transfer_out.created_at = timezone.now() - timedelta(days=1)
         transfer_out.save(update_fields=['created_at'])
+        transfer_in.created_at = timezone.now() - timedelta(hours=12)
+        transfer_in.save(update_fields=['created_at'])
 
         response = self.client.get(
             reverse('stock:stock_card_detail', args=[self.item.id]),
+            {'sumber_dana': self.funding.id},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -208,27 +238,71 @@ class StockCardTest(TestCase):
         transactions = card['transactions']
         self.assertGreater(len(transactions), 0)
 
-        # The transfer_out should be present in the transactions; identify it by reference_type.
-        transfer_tx = None
+        # The transfer_out should be in the transactions (created last, so last in list)
+        # Find it by reference_type
+        transfer_out_tx = None
+        transfer_in_tx = None
         receiving_tx = None
         for tx in transactions:
-            if tx.reference_type == Transaction.ReferenceType.TRANSFER:
-                transfer_tx = tx
+            if (
+                tx.reference_type == Transaction.ReferenceType.TRANSFER
+                and tx.transaction_type == Transaction.TransactionType.OUT
+            ):
+                transfer_out_tx = tx
+            elif (
+                tx.reference_type == Transaction.ReferenceType.TRANSFER
+                and tx.transaction_type == Transaction.TransactionType.IN
+            ):
+                transfer_in_tx = tx
             elif tx.reference_type == Transaction.ReferenceType.RECEIVING:
                 receiving_tx = tx
-
-        self.assertIsNotNone(transfer_tx, "Transfer transaction not found in card")
+        self.assertIsNotNone(transfer_out_tx, "Transfer out transaction not found in card")
+        self.assertIsNotNone(transfer_in_tx, "Transfer in transaction not found in card")
         self.assertIsNotNone(receiving_tx, "Receiving transaction not found in card")
 
         # Verify transfer transaction has display fields
-        self.assertTrue(hasattr(transfer_tx, 'is_transfer_transaction'))
-        self.assertTrue(transfer_tx.is_transfer_transaction)
-        self.assertEqual(transfer_tx.transfer_quantity, Decimal('30'))
+        self.assertTrue(hasattr(transfer_out_tx, 'is_transfer_transaction'))
+        self.assertTrue(transfer_out_tx.is_transfer_transaction)
+        self.assertEqual(transfer_out_tx.transfer_quantity, Decimal('30'))
+        self.assertEqual(transfer_out_tx.activity_label, 'Mutasi Keluar')
+        self.assertEqual(transfer_out_tx.dari_kepada, 'Instalasi Farmasi')
+        self.assertEqual(transfer_out_tx.location_label, self.location.name)
+
+        self.assertTrue(transfer_in_tx.is_transfer_transaction)
+        self.assertEqual(transfer_in_tx.transfer_quantity, Decimal('30'))
+        self.assertEqual(transfer_in_tx.activity_label, 'Mutasi Masuk')
+        self.assertEqual(transfer_in_tx.dari_kepada, 'Instalasi Farmasi')
+        self.assertEqual(transfer_in_tx.location_label, destination.name)
 
         # Verify non-transfer transaction does not have transfer marker
         self.assertTrue(hasattr(receiving_tx, 'is_transfer_transaction'))
         self.assertFalse(receiving_tx.is_transfer_transaction)
         self.assertIsNone(receiving_tx.transfer_quantity)
+        self.assertEqual(receiving_tx.activity_label, 'Penerimaan')
+        self.assertEqual(receiving_tx.dari_kepada, 'Instalasi Farmasi')
+        self.assertEqual(receiving_tx.location_label, self.location.name)
+
+        self.assertContains(response, 'Aktivitas')
+        self.assertContains(response, 'Mutasi Masuk')
+        self.assertContains(response, 'Mutasi Keluar')
+        self.assertContains(response, 'Lokasi Stok')
+        self.assertContains(response, 'Harga Satuan: Rp 0')
+        self.assertContains(response, 'Instalasi Farmasi')
+        self.assertContains(response, 'Gudang Utama')
+        self.assertContains(response, 'Kolom <strong>Dari / Kepada</strong> menunjukkan fasilitas atau mitra dokumen', html=False)
+
+        print_response = self.client.get(
+            reverse('stock:stock_card_print', args=[self.item.id]),
+            {'sumber_dana': self.funding.id},
+        )
+        self.assertEqual(print_response.status_code, 200)
+        self.assertContains(print_response, 'Aktivitas')
+        self.assertContains(print_response, 'Mutasi Masuk')
+        self.assertContains(print_response, 'Mutasi Keluar')
+        self.assertContains(print_response, 'Lokasi')
+        self.assertContains(print_response, 'Harga Satuan: Rp 0')
+        self.assertContains(print_response, 'Instalasi Farmasi')
+        self.assertContains(print_response, 'Kolom Dari / Kepada menunjukkan fasilitas atau mitra dokumen.')
 
 
 class StockTransferModelTests(SimpleTestCase):

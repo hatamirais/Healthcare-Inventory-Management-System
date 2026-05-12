@@ -235,7 +235,7 @@
     <!-- ── Title + Unit Price ─────────────────────────────────────── -->
     <div class="card-title-row">
         <h2>Kartu Stok</h2>
-        <div class="card-unit-price">Rp {{ card.unit_price|id_decimal:0 }}</div>
+        <div class="card-unit-price">Harga Satuan: Rp {{ card.unit_price|id_decimal:0 }}</div>
     </div>
 
     <!-- ── Metadata ──────────────────────────────────────────────── -->
@@ -270,11 +270,14 @@
             <tr>
                 <th style="width: 68px;">Tgl</th>
                 <th style="width: 110px;">Dokumen</th>
-                <th>Dari / Kepada</th>
+                <th style="width: 90px;">Aktivitas</th>
+                <th style="width: 120px;">Dari / Kepada</th>
+                <th style="width: 90px;">Lokasi</th>
                 <th style="width: 90px;">No Batch</th>
                 <th style="width: 72px;">Exp Date</th>
                 <th style="width: 68px;">Terima</th>
                 <th style="width: 68px;">Keluar</th>
+                <th style="width: 68px;">Mutasi</th>
                 <th style="width: 78px;">Sisa</th>
                 <th style="width: 60px;">Ketr</th>
             </tr>
@@ -282,7 +285,8 @@
         <tbody>
             {% if card.opening_balance %}
             <tr class="opening-row">
-                <td colspan="5" style="text-align: right;">SALDO AWAL</td>
+                <td colspan="7" style="text-align: right;">SALDO AWAL</td>
+                <td class="num-cell">-</td>
                 <td class="num-cell">-</td>
                 <td class="num-cell">-</td>
                 <td class="num-cell">{{ card.opening_balance|id_decimal:0 }}</td>
@@ -294,38 +298,43 @@
             <tr>
                 <td class="text-center">{{ tx.created_at|date:"d/m/y" }}</td>
                 <td class="doc-cell">{{ tx.reference_label }}</td>
+                <td>{{ tx.activity_label }}</td>
                 <td>{{ tx.dari_kepada }}</td>
+                <td>{{ tx.location_label }}</td>
                 <td>{{ tx.batch_lot }}</td>
                 <td class="text-center">{{ tx.expiry_display }}</td>
-                <td class="num-cell">{% if tx.tx_in > 0 %}{{ tx.tx_in|id_decimal:0 }}{% endif %}</td>
+                <td class="num-cell">{% if tx.tx_in > 0 and not tx.is_transfer_transaction %}{{ tx.tx_in|id_decimal:0 }}{% endif %}</td>
                 <td class="num-cell">
-                    {% if tx.is_transfer_transaction %}
-                        Mutasi {{ tx.transfer_quantity|id_decimal:0 }}
-                    {% elif tx.tx_out > 0 %}
+                    {% if tx.tx_out > 0 and not tx.is_transfer_transaction %}
                         {{ tx.tx_out|id_decimal:0 }}
                     {% endif %}
                 </td>
+                <td class="num-cell">{% if tx.is_transfer_transaction %}{{ tx.transfer_quantity|id_decimal:0 }}{% endif %}</td>
                 <td class="num-cell">{{ tx.running_balance|id_decimal:0 }}</td>
                 <td>{{ tx.notes|truncatewords:6 }}</td>
             </tr>
             {% empty %}
             <tr class="empty-row">
-                <td colspan="9">Tidak ada riwayat transaksi.</td>
+                <td colspan="12">Tidak ada riwayat transaksi.</td>
             </tr>
             {% endfor %}
         </tbody>
         {% if card.transactions %}
         <tfoot>
             <tr class="tfoot-row">
-                <td colspan="5" style="text-align: right;">TOTAL</td>
+                <td colspan="7" style="text-align: right;">TOTAL</td>
                 <td class="num-cell">{{ card.total_in|id_decimal:0 }}</td>
                 <td class="num-cell">{{ card.total_out|id_decimal:0 }}</td>
+                <td class="num-cell">-</td>
                 <td class="num-cell">{{ card.closing_balance|id_decimal:0 }}</td>
                 <td></td>
             </tr>
         </tfoot>
         {% endif %}
     </table>
+    <div style="margin-top: 6px; font-size: 9px; color: #555;">
+        Kolom Dari / Kepada menunjukkan fasilitas atau mitra dokumen. Kolom Lokasi menunjukkan lokasi penyimpanan batch pada transaksi tersebut. Kolom Mutasi dipakai untuk perpindahan internal antar lokasi dan memengaruhi saldo berjalan, tetapi tidak masuk total penerimaan atau pengeluaran.
+    </div>
 </div>
 {% empty %}
 <div class="stock-card-page">
@@ -366,14 +375,14 @@
     <table class="ledger-table">
         <thead>
             <tr>
-                <th>Tgl</th><th>Dokumen</th><th>Dari / Kepada</th>
+                <th>Tgl</th><th>Dokumen</th><th>Aktivitas</th><th>Dari / Kepada</th><th>Lokasi</th>
                 <th>No Batch</th><th>Exp Date</th><th>Terima</th>
-                <th>Keluar</th><th>Sisa</th><th>Ketr</th>
+                <th>Keluar</th><th>Mutasi</th><th>Sisa</th><th>Ketr</th>
             </tr>
         </thead>
         <tbody>
             <tr class="empty-row">
-                <td colspan="9">Tidak ada riwayat transaksi.</td>
+                <td colspan="12">Tidak ada riwayat transaksi.</td>
             </tr>
         </tbody>
     </table>

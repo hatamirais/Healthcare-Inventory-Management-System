@@ -191,7 +191,7 @@
                     {% endif %}
                     <span class="badge bg-secondary-subtle text-secondary ms-2">{{ card.transactions|length }} transaksi</span>
                 </h6>
-                <div class="sd-price">Rp {{ card.unit_price|id_decimal:0 }}</div>
+                <div class="sd-price">Harga Satuan: Rp {{ card.unit_price|id_decimal:0 }}</div>
             </div>
 
             <div class="collapse show" id="sdCard{{ forloop.counter }}">
@@ -201,11 +201,14 @@
                             <tr>
                                 <th style="width: 80px;">Tgl</th>
                                 <th style="width: 115px;">Dokumen</th>
-                                <th>Dari / Kepada</th>
+                                <th style="width: 120px;">Aktivitas</th>
+                                <th style="width: 150px;">Dari / Kepada</th>
+                                <th style="width: 135px;">Lokasi Stok</th>
                                 <th style="width: 100px;">No Batch</th>
                                 <th style="width: 82px;">Exp Date</th>
                                 <th class="text-end" style="width: 75px;">Terima</th>
                                 <th class="text-end" style="width: 75px;">Keluar</th>
+                                <th class="text-end" style="width: 80px;">Mutasi</th>
                                 <th class="text-end" style="width: 85px;">Sisa</th>
                                 <th style="width: 80px;">Ketr</th>
                             </tr>
@@ -213,7 +216,8 @@
                         <tbody>
                             {% if card.opening_balance %}
                             <tr class="table-info">
-                                <td colspan="5" class="text-end fw-bold">SALDO AWAL</td>
+                                <td colspan="7" class="text-end fw-bold">SALDO AWAL</td>
+                                <td class="text-end">-</td>
                                 <td class="text-end">-</td>
                                 <td class="text-end">-</td>
                                 <td class="text-end fw-bold num-cell">{{ card.opening_balance|id_decimal:0 }}</td>
@@ -227,23 +231,30 @@
                                 <td>
                                     <code class="doc-ref">{{ tx.reference_label }}</code>
                                 </td>
+                                <td>
+                                    {% if tx.is_transfer_transaction %}
+                                        <span class="badge bg-info-subtle text-info-emphasis">{{ tx.activity_label }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ tx.activity_label }}</span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ tx.dari_kepada|default:"" }}</td>
+                                <td>{{ tx.location_label|default:"" }}</td>
                                 <td>{{ tx.batch_lot }}</td>
                                 <td class="text-center">{{ tx.expiry_display }}</td>
-                                <td class="text-end text-success fw-semibold num-cell">{% if tx.tx_in > 0 %}{{ tx.tx_in|id_decimal:0 }}{% endif %}</td>
+                                <td class="text-end text-success fw-semibold num-cell">{% if tx.tx_in > 0 and not tx.is_transfer_transaction %}{{ tx.tx_in|id_decimal:0 }}{% endif %}</td>
                                 <td class="text-end fw-semibold num-cell">
-                                    {% if tx.is_transfer_transaction %}
-                                        <span class="badge bg-info text-dark">Mutasi {{ tx.transfer_quantity|id_decimal:0 }}</span>
-                                    {% elif tx.tx_out > 0 %}
+                                    {% if tx.tx_out > 0 and not tx.is_transfer_transaction %}
                                         <span class="text-danger fw-semibold">{{ tx.tx_out|id_decimal:0 }}</span>
                                     {% endif %}
                                 </td>
+                                <td class="text-end text-info fw-semibold num-cell">{% if tx.is_transfer_transaction %}{{ tx.transfer_quantity|id_decimal:0 }}{% endif %}</td>
                                 <td class="text-end fw-bold bg-light num-cell">{{ tx.running_balance|id_decimal:0 }}</td>
                                 <td class="small">{{ tx.notes|truncatewords:8 }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="9">
+                                <td colspan="12">
                                     <div class="text-center py-3 text-muted">
                                         <i class="bi bi-journal-x d-block fs-4 mb-1"></i>
                                         Tidak ada riwayat transaksi.
@@ -255,9 +266,10 @@
                         {% if card.transactions %}
                         <tfoot class="table-light fw-bold">
                             <tr>
-                                <td colspan="5" class="text-end">TOTAL</td>
+                                <td colspan="7" class="text-end">TOTAL</td>
                                 <td class="text-end text-success num-cell">{{ card.total_in|id_decimal:0 }}</td>
                                 <td class="text-end text-danger num-cell">{{ card.total_out|id_decimal:0 }}</td>
+                                <td class="text-end">-</td>
                                 <td class="text-end bg-light num-cell">{{ card.closing_balance|id_decimal:0 }}</td>
                                 <td></td>
                             </tr>
@@ -271,6 +283,9 @@
                     <span class="badge-stat"><strong>Saldo Akhir:</strong> {{ card.closing_balance|id_decimal:0 }}</span>
                     <span class="badge-stat"><strong>Total Masuk:</strong> <span class="text-success">{{ card.total_in|id_decimal:0 }}</span></span>
                     <span class="badge-stat"><strong>Total Keluar:</strong> <span class="text-danger">{{ card.total_out|id_decimal:0 }}</span></span>
+                </div>
+                <div class="px-3 py-2 border-top small text-muted bg-light">
+                    Kolom <strong>Dari / Kepada</strong> menunjukkan fasilitas atau mitra dokumen, sedangkan <strong>Lokasi Stok</strong> menunjukkan lokasi penyimpanan batch pada transaksi tersebut. Kolom <strong>Mutasi</strong> dipakai untuk perpindahan internal antar lokasi dan tetap memengaruhi <strong>Sisa</strong>, tetapi tidak dihitung ke <strong>Total Masuk</strong> atau <strong>Total Keluar</strong>.
                 </div>
             </div>
         </div>

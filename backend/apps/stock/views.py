@@ -154,6 +154,42 @@ def _parse_filter_date(value):
     return None
 
 
+def _get_stock_card_activity_label(tx):
+    if tx.reference_type == Transaction.ReferenceType.TRANSFER:
+        if tx.transaction_type == Transaction.TransactionType.IN:
+            return "Mutasi Masuk"
+        return "Mutasi Keluar"
+
+    activity_labels = {
+        Transaction.ReferenceType.RECEIVING: "Penerimaan",
+        Transaction.ReferenceType.DISTRIBUTION: "Distribusi",
+        Transaction.ReferenceType.RECALL: "Recall",
+        Transaction.ReferenceType.EXPIRED: "Kedaluwarsa",
+        Transaction.ReferenceType.ALLOCATION: "Alokasi",
+        Transaction.ReferenceType.ADJUSTMENT: "Penyesuaian",
+        Transaction.ReferenceType.INITIAL_IMPORT: "Import Awal",
+    }
+    return activity_labels.get(tx.reference_type, tx.get_reference_type_display())
+
+
+def _get_stock_card_counterparty_label(tx, *, facility_name, receiving_map, distribution_map, recall_map):
+    internal_reference_types = {
+        Transaction.ReferenceType.RECEIVING,
+        Transaction.ReferenceType.TRANSFER,
+        Transaction.ReferenceType.EXPIRED,
+        Transaction.ReferenceType.ALLOCATION,
+        Transaction.ReferenceType.ADJUSTMENT,
+        Transaction.ReferenceType.INITIAL_IMPORT,
+    }
+    if tx.reference_type in internal_reference_types:
+        return facility_name
+    if tx.reference_type == Transaction.ReferenceType.DISTRIBUTION:
+        return distribution_map.get(tx.reference_id, "")
+    if tx.reference_type == Transaction.ReferenceType.RECALL:
+        return recall_map.get(tx.reference_id, "")
+    return receiving_map.get(tx.reference_id, "")
+
+
 def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
                            date_from=None, date_to=None):
     """Build per-sumber-dana stock card data for a given item.
@@ -167,6 +203,7 @@ def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
     """
     from collections import OrderedDict
     from apps.receiving.models import ReceivingItem
+    from apps.core.models import SystemSettings
 
     queryset = (
         Transaction.objects.filter(item=item)
@@ -184,6 +221,7 @@ def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
         queryset = queryset.filter(created_at__date__lte=date_to)
 
     transactions = list(queryset)
+    facility_name = SystemSettings.get_settings().facility_name
 
     # ── Pre-fetch batch expiry dates for this item (avoids N+1) ───────
     batch_expiry_map = dict(
@@ -225,6 +263,7 @@ def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
     # ── Resolve supplier/facility names for DARI/KEPADA ──────────────
     receiving_supplier_map = {}
     distribution_facility_map = {}
+    recall_supplier_map = {}
 
     recv_ids = ref_id_sets.get(Transaction.ReferenceType.RECEIVING, set())
     if recv_ids:
@@ -247,6 +286,14 @@ def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
         ).only("id", "facility__name"):
             if d.facility:
                 distribution_facility_map[d.id] = d.facility.name
+
+    recall_ids = ref_id_sets.get(Transaction.ReferenceType.RECALL, set())
+    if recall_ids:
+        from apps.recall.models import Recall
+        for recall in Recall.objects.filter(id__in=recall_ids).select_related(
+            "supplier"
+        ).only("id", "supplier__name"):
+            recall_supplier_map[recall.id] = recall.supplier.name if recall.supplier else ""
 
     # ── Group by sumber_dana ─────────────────────────────────────────
     sd_groups = OrderedDict()
@@ -371,17 +418,14 @@ def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
                 tx.reference_id,
                 f"{tx.reference_type}-{tx.reference_id}",
             )
-            # DARI/KEPADA resolution
-            if tx.reference_type == Transaction.ReferenceType.RECEIVING:
-                tx.dari_kepada = receiving_supplier_map.get(
-                    tx.reference_id, ""
-                )
-            elif tx.reference_type == Transaction.ReferenceType.DISTRIBUTION:
-                tx.dari_kepada = distribution_facility_map.get(
-                    tx.reference_id, ""
-                )
-            else:
-                tx.dari_kepada = ""
+            tx.dari_kepada = _get_stock_card_counterparty_label(
+                tx,
+                facility_name=facility_name,
+                receiving_map=receiving_supplier_map,
+                distribution_map=distribution_facility_map,
+                recall_map=recall_supplier_map,
+            )
+            tx.location_label = tx.location.name if tx.location_id else ""
 
             # Expiry date from batch if available (pre-fetched)
             tx.expiry_display = ""
@@ -393,6 +437,7 @@ def _build_stock_card_data(item, location_id=None, sumber_dana_id=None,
             # Mark transfers for informational display
             tx.is_transfer_transaction = tx.reference_type == Transaction.ReferenceType.TRANSFER
             tx.transfer_quantity = tx.quantity if tx.is_transfer_transaction else None
+            tx.activity_label = _get_stock_card_activity_label(tx)
 
         # Determine Tahun Anggaran from earliest receiving year
         tahun_anggaran = timezone.now().year
