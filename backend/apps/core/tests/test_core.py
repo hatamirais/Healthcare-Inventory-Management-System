@@ -27,10 +27,11 @@ from apps.core.views import (
 )
 from apps.core.versioning import DEFAULT_VERSION, SemanticVersion, read_version, write_version
 from apps.distribution.models import Distribution
-from apps.items.models import Facility, FundingSource
+from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
 from apps.lplpo.models import LPLPO
 from apps.puskesmas.models import PuskesmasRequest
 from apps.receiving.models import Receiving
+from apps.stock.models import Transaction
 from apps.users.models import ModuleAccess, User
 
 
@@ -165,6 +166,13 @@ class DashboardViewTests(TestCase):
             facility=cls.facility,
         )
 
+    def _set_scope(self, user, module, scope):
+        ModuleAccess.objects.update_or_create(
+            user=user,
+            module=module,
+            defaults={"scope": scope},
+        )
+
     def test_puskesmas_dashboard_uses_facility_scoped_template(self):
         own_lplpo = LPLPO.objects.create(
             facility=self.facility,
@@ -221,6 +229,97 @@ class DashboardViewTests(TestCase):
         self.assertIsNone(response.context["facility"])
         self.assertEqual(list(response.context["recent_lplpos"]), [])
         self.assertEqual(list(response.context["recent_requests"]), [])
+
+    def test_global_dashboard_requires_stock_view_scope(self):
+        user = User.objects.create_user(
+            username="dashboard-blocked",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        self._set_scope(user, ModuleAccess.Module.STOCK, ModuleAccess.Scope.NONE)
+
+        self.client.force_login(user)
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(
+            response,
+            "Anda tidak memiliki izin untuk mengakses dashboard inventaris.",
+            status_code=403,
+        )
+
+    def test_global_dashboard_hides_transaction_user_without_users_scope(self):
+        viewer = User.objects.create_user(
+            username="dashboard-viewer",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        actor = User.objects.create_user(
+            username="dashboard-actor",
+            password="TestPassword123!",
+            role=User.Role.GUDANG,
+        )
+        self._set_scope(viewer, ModuleAccess.Module.STOCK, ModuleAccess.Scope.VIEW)
+        self._set_scope(viewer, ModuleAccess.Module.USERS, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.ADMIN_PANEL, ModuleAccess.Scope.NONE)
+
+        unit = Unit.objects.create(code="TAB", name="Tablet")
+        category = Category.objects.create(code="OBT", name="Obat")
+        funding_source = FundingSource.objects.create(code="DAK", name="Dana Alokasi Khusus")
+        location = Location.objects.create(code="GUD", name="Gudang Utama")
+        item = Item.objects.create(
+            nama_barang="Paracetamol 500mg",
+            satuan=unit,
+            kategori=category,
+        )
+        Transaction.objects.create(
+            transaction_type=Transaction.TransactionType.IN,
+            item=item,
+            location=location,
+            batch_lot="BATCH-001",
+            quantity="10",
+            unit_price="1000",
+            sumber_dana=funding_source,
+            reference_type=Transaction.ReferenceType.RECEIVING,
+            reference_id=1,
+            user=actor,
+        )
+
+        self.client.force_login(viewer)
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "dashboard.html")
+        self.assertContains(response, "Paracetamol 500mg")
+        self.assertNotContains(response, "dashboard-actor")
+        self.assertNotContains(response, "Pengguna")
+
+    def test_global_dashboard_hides_unscoped_cards_and_actions(self):
+        viewer = User.objects.create_user(
+            username="dashboard-stock-only",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        self._set_scope(viewer, ModuleAccess.Module.STOCK, ModuleAccess.Scope.VIEW)
+        self._set_scope(viewer, ModuleAccess.Module.ITEMS, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.EXPIRED, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.RECEIVING, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.DISTRIBUTION, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.USERS, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.ADMIN_PANEL, ModuleAccess.Scope.NONE)
+
+        self.client.force_login(viewer)
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Total Stok Aktif")
+        self.assertContains(response, 'href="/stock/transactions/"', html=False)
+        self.assertNotContains(response, "Total Jenis Barang")
+        self.assertNotContains(response, "Stok Rendah")
+        self.assertNotContains(response, 'href="/expired/alerts/?level=all&amp;pending=1"', html=False)
+        self.assertNotContains(response, "Buat Penerimaan")
+        self.assertNotContains(response, "Buat Permintaan Khusus")
+        self.assertNotContains(response, "Buat Mutasi Lokasi")
 
 
 class ErrorPageTemplateTests(TestCase):
