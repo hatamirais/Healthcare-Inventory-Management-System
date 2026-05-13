@@ -1,4 +1,4 @@
-{% load static %}
+{% load number_format static %}
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -8,6 +8,15 @@
         @page { size: landscape; margin: 10mm; }
         body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 9px; line-height: 1.3; color: #000; }
         h2 { text-align: center; margin-bottom: 4px; font-size: 14px; }
+        .header { display: flex; align-items: center; gap: 14px; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 10px; }
+        .header-logo { width: 78px; flex: 0 0 78px; text-align: center; }
+        .header-logo img { max-width: 72px; max-height: 72px; object-fit: contain; }
+        .header-text { flex: 1; text-align: center; }
+        .header-text h1, .header-text h3, .header-text p { margin: 0; }
+        .header-text h1 { font-size: 12px; }
+        .header-text h3 { font-size: 13px; margin-top: 2px; }
+        .header-text p { font-size: 9px; margin-top: 2px; }
+        .header-spacer { width: 78px; flex: 0 0 78px; }
         .meta { text-align: center; margin-bottom: 10px; font-size: 10px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
         th, td { border: 1px solid #333; padding: 2px 4px; }
@@ -29,12 +38,26 @@
         </button>
     </div>
 
-    <div style="text-align: center; margin-bottom: 6px; line-height: 1.4;">
-        <strong style="font-size: 12px;">{{ system_settings.header_title|default:"[NAMA PEMERINTAH DAERAH]" }}</strong><br>
-        <strong style="font-size: 13px;">{{ system_settings.facility_name|default:"[NAMA INSTALASI FARMASI]" }}</strong><br>
-        {% if system_settings.facility_address %}<span style="font-size: 9px;">{{ system_settings.facility_address }}</span><br>{% endif %}
+    <div class="header">
+        <div class="header-logo">
+            {% if system_settings and system_settings.logo %}
+                {% with logo_url=system_settings.logo.url|safe_media_url %}
+                    {% if logo_url %}
+                    <img src="{{ logo_url }}" alt="Logo">
+                    {% endif %}
+                {% endwith %}
+            {% endif %}
+        </div>
+        <div class="header-text">
+            <h1>{{ system_settings.header_title|default:"[NAMA PEMERINTAH DAERAH]" }}</h1>
+            <h3>{{ system_settings.facility_name|default:"[NAMA INSTALASI FARMASI]" }}</h3>
+            <p>
+                {{ system_settings.facility_address|default:"[Alamat Instansi]" }}
+                {% if system_settings.facility_phone %} Telp. {{ system_settings.facility_phone }}{% endif %}
+            </p>
+        </div>
+        <div class="header-spacer"></div>
     </div>
-    <hr style="border: none; border-top: 2px double #333; margin: 4px 0 10px;">
 
     <h2>LAPORAN PEMAKAIAN DAN LEMBAR PERMINTAAN OBAT (LPLPO)</h2>
     <div class="meta">
@@ -57,7 +80,7 @@
             <tr>
                 <th>Stock Awal</th>
                 <th>Penerimaan</th>
-                <th>Sumber Pengadaan</th>
+                <th>Pembelian Puskesmas</th>
                 <th>Persediaan</th>
                 <th>Pemakaian</th>
                 <th>Sisa Stok</th>
@@ -77,11 +100,7 @@
                 <td style="text-align:center">{{ li.item.satuan.code }}</td>
                 <td class="num">{{ li.stock_awal|floatformat:"-2" }}</td>
                 <td class="num">{{ li.penerimaan|floatformat:"-2" }}</td>
-                <td class="num">
-                    {% if li.procurement_source %}
-                    {{ li.get_procurement_source_display }}
-                    {% endif %}
-                </td>
+                <td class="num">{{ li.pembelian_puskesmas|floatformat:"-2" }}</td>
                 <td class="num">{{ li.persediaan|floatformat:"-2" }}</td>
                 <td class="num">{{ li.pemakaian|floatformat:"-2" }}</td>
                 <td class="num">{{ li.stock_keseluruhan|floatformat:"-2" }}</td>

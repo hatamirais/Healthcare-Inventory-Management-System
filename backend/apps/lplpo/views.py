@@ -17,6 +17,7 @@ from apps.distribution.models import Distribution, DistributionItem
 from apps.distribution.services import assign_default_distribution_staff
 from apps.items.models import Item
 from apps.stock.models import Stock
+from apps.users.access import has_module_scope
 from apps.users.models import ModuleAccess, User
 
 from .forms import LPLPOCreateForm, LPLPOItemPuskesmasForm, LPLPOItemReviewForm
@@ -331,6 +332,19 @@ def lplpo_detail(request, pk):
         "item", "item__satuan", "item__kategori"
     ).order_by("item__kategori__sort_order", "item__nama_barang")
 
+    can_review = (
+        request.user.role != User.Role.PUSKESMAS
+        and has_module_scope(
+            request.user, ModuleAccess.Module.LPLPO, ModuleAccess.Scope.OPERATE
+        )
+    )
+    can_approve = (
+        request.user.role != User.Role.PUSKESMAS
+        and has_module_scope(
+            request.user, ModuleAccess.Module.LPLPO, ModuleAccess.Scope.APPROVE
+        )
+    )
+
     # Group items by category for display
     grouped_items = {}
     for li in items:
@@ -344,6 +358,8 @@ def lplpo_detail(request, pk):
             "lplpo": lplpo,
             "grouped_items": grouped_items,
             "items": items,
+            "can_review": can_review,
+            "can_approve": can_approve,
         },
     )
 
@@ -354,13 +370,16 @@ def lplpo_detail(request, pk):
 @login_required
 @perm_required("lplpo.change_lplpo")
 def lplpo_edit(request, pk):
-    """Puskesmas fills their columns — only DRAFT status."""
+    """Puskesmas fills their columns — only DRAFT or REJECTED status."""
     _check_puskesmas_draft_action_access(request)
 
     lplpo_obj = get_object_or_404(LPLPO.objects.select_related("facility"), pk=pk)
 
-    if lplpo_obj.status != LPLPO.Status.DRAFT:
-        messages.error(request, "Hanya LPLPO berstatus Draft yang dapat diedit.")
+    if lplpo_obj.status not in (LPLPO.Status.DRAFT, LPLPO.Status.REJECTED):
+        messages.error(
+            request,
+            "Hanya LPLPO berstatus Draft atau Ditolak yang dapat diedit.",
+        )
         return redirect("lplpo:lplpo_detail", pk=pk)
 
     # Enforce facility scope
@@ -377,6 +396,7 @@ def lplpo_edit(request, pk):
         lplpo_obj.facility, lplpo_obj.bulan, lplpo_obj.tahun
     )
     has_prev = prev_lplpo is not None
+    has_form_errors = False
 
     if request.method == "POST":
         all_valid = True
@@ -406,7 +426,7 @@ def lplpo_edit(request, pk):
                     fields=[
                         "stock_awal",
                         "penerimaan",
-                        "procurement_source",
+                        "pembelian_puskesmas",
                         "pemakaian",
                         "stock_gudang_puskesmas",
                         "waktu_kosong",
@@ -422,6 +442,12 @@ def lplpo_edit(request, pk):
 
             messages.success(request, f"LPLPO {lplpo_obj.document_number} berhasil disimpan.")
             return redirect("lplpo:lplpo_detail", pk=pk)
+
+        has_form_errors = True
+        messages.error(
+            request,
+            "Data LPLPO belum tersimpan. Periksa kembali kolom yang bermasalah.",
+        )
     else:
         forms_data = [
             LPLPOItemPuskesmasForm(instance=li, prefix=f"item_{li.pk}")
@@ -442,6 +468,7 @@ def lplpo_edit(request, pk):
             "lplpo": lplpo_obj,
             "grouped": grouped,
             "has_prev": has_prev,
+            "has_form_errors": has_form_errors,
         },
     )
 
@@ -452,7 +479,7 @@ def lplpo_edit(request, pk):
 @login_required
 @perm_required("lplpo.change_lplpo")
 def lplpo_submit(request, pk):
-    """Transition DRAFT → SUBMITTED."""
+    """Transition DRAFT/REJECTED → SUBMITTED."""
     _check_puskesmas_draft_action_access(request)
 
     lplpo_obj = get_object_or_404(LPLPO, pk=pk)
@@ -462,8 +489,11 @@ def lplpo_submit(request, pk):
     if request.method != "POST":
         return redirect("lplpo:lplpo_detail", pk=pk)
 
-    if lplpo_obj.status != LPLPO.Status.DRAFT:
-        messages.error(request, "Hanya LPLPO berstatus Draft yang dapat diajukan.")
+    if lplpo_obj.status not in (LPLPO.Status.DRAFT, LPLPO.Status.REJECTED):
+        messages.error(
+            request,
+            "Hanya LPLPO berstatus Draft atau Ditolak yang dapat diajukan.",
+        )
         return redirect("lplpo:lplpo_detail", pk=pk)
 
     zero_pemakaian_count = lplpo_obj.items.filter(pemakaian=0).count()
@@ -474,10 +504,42 @@ def lplpo_submit(request, pk):
         )
 
     lplpo_obj.status = LPLPO.Status.SUBMITTED
+    lplpo_obj.rejection_reason = ""
     lplpo_obj.submitted_at = timezone.now()
-    lplpo_obj.save(update_fields=["status", "submitted_at", "updated_at"])
+    lplpo_obj.save(
+        update_fields=["status", "rejection_reason", "submitted_at", "updated_at"]
+    )
 
     messages.success(request, f"LPLPO {lplpo_obj.document_number} berhasil diajukan.")
+    return redirect("lplpo:lplpo_detail", pk=pk)
+
+
+@login_required
+@perm_required("lplpo.change_lplpo")
+@module_scope_required(ModuleAccess.Module.LPLPO, ModuleAccess.Scope.APPROVE)
+def lplpo_reject(request, pk):
+    """Transition SUBMITTED → REJECTED."""
+    denied = _check_instalasi_farmasi_access(request)
+    if denied:
+        return denied
+
+    lplpo_obj = get_object_or_404(LPLPO, pk=pk)
+    if request.method != "POST":
+        return redirect("lplpo:lplpo_detail", pk=pk)
+
+    if lplpo_obj.status != LPLPO.Status.SUBMITTED:
+        messages.error(request, "Hanya LPLPO berstatus Diajukan yang dapat ditolak.")
+        return redirect("lplpo:lplpo_detail", pk=pk)
+
+    reason = request.POST.get("rejection_reason", "").strip()
+    if not reason:
+        messages.error(request, "Alasan penolakan wajib diisi.")
+        return redirect("lplpo:lplpo_detail", pk=pk)
+
+    lplpo_obj.status = LPLPO.Status.REJECTED
+    lplpo_obj.rejection_reason = reason
+    lplpo_obj.save(update_fields=["status", "rejection_reason", "updated_at"])
+    messages.success(request, f"LPLPO {lplpo_obj.document_number} berhasil ditolak.")
     return redirect("lplpo:lplpo_detail", pk=pk)
 
 
@@ -739,8 +801,11 @@ def lplpo_delete(request, pk):
     if denied:
         return denied
 
-    if lplpo_obj.status != LPLPO.Status.DRAFT:
-        messages.error(request, "Hanya LPLPO berstatus Draft yang dapat dihapus.")
+    if lplpo_obj.status not in (LPLPO.Status.DRAFT, LPLPO.Status.REJECTED):
+        messages.error(
+            request,
+            "Hanya LPLPO berstatus Draft atau Ditolak yang dapat dihapus.",
+        )
         return redirect("lplpo:lplpo_detail", pk=pk)
 
     doc_number = lplpo_obj.document_number

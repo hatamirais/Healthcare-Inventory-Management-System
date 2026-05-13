@@ -1,4 +1,5 @@
 import calendar
+from decimal import Decimal
 
 from django import forms
 from django.utils import timezone
@@ -52,12 +53,29 @@ class LPLPOCreateForm(forms.Form):
 class LPLPOItemPuskesmasForm(forms.ModelForm):
     """Form for Puskesmas operator to fill their columns per item."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["stock_awal"].required = False
+        self.fields["pembelian_puskesmas"].required = False
+
+    def clean_stock_awal(self):
+        value = self.cleaned_data.get("stock_awal")
+        if value in (None, ""):
+            return Decimal("0")
+        return value
+
+    def clean_pembelian_puskesmas(self):
+        value = self.cleaned_data.get("pembelian_puskesmas")
+        if value in (None, ""):
+            return Decimal("0")
+        return value
+
     class Meta:
         model = LPLPOItem
         fields = [
             "stock_awal",
             "penerimaan",
-            "procurement_source",
+            "pembelian_puskesmas",
             "pemakaian",
             "stock_gudang_puskesmas",
             "waktu_kosong",
@@ -67,7 +85,7 @@ class LPLPOItemPuskesmasForm(forms.ModelForm):
         widgets = {
             "stock_awal": forms.NumberInput(attrs={"class": "form-control form-control-sm text-end", "step": "0.01"}),
             "penerimaan": forms.NumberInput(attrs={"class": "form-control form-control-sm text-end", "step": "0.01"}),
-            "procurement_source": forms.Select(attrs={"class": "form-select form-select-sm"}),
+            "pembelian_puskesmas": forms.NumberInput(attrs={"class": "form-control form-control-sm text-end", "step": "0.01"}),
             "pemakaian": forms.NumberInput(attrs={"class": "form-control form-control-sm text-end", "step": "0.01"}),
             "stock_gudang_puskesmas": forms.NumberInput(attrs={"class": "form-control form-control-sm text-end", "step": "0.01"}),
             "waktu_kosong": forms.NumberInput(attrs={"class": "form-control form-control-sm text-end", "step": "0.01"}),

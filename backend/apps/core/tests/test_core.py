@@ -603,7 +603,7 @@ class NavNotificationsContextProcessorTests(TestCase):
 
         self.assertEqual(context["nav_notification_count"], 0)
 
-    def test_puskesmas_user_gets_zero_notification_count(self):
+    def test_puskesmas_user_gets_zero_notification_count_without_rejected_lplpo(self):
         facility = Facility.objects.create(
             code="PKM-NAV",
             name="Puskesmas NAV",
@@ -621,6 +621,56 @@ class NavNotificationsContextProcessorTests(TestCase):
         context = nav_notifications(request)
 
         self.assertEqual(context["nav_notification_count"], 0)
+        self.assertEqual(context["nav_notification_items"], [])
+
+    def test_puskesmas_user_gets_rejected_lplpo_notification_for_own_facility(self):
+        facility = Facility.objects.create(
+            code="PKM-NAV-REJ",
+            name="Puskesmas NAV Rejected",
+            facility_type=Facility.FacilityType.PUSKESMAS,
+        )
+        other_facility = Facility.objects.create(
+            code="PKM-NAV-OTHER",
+            name="Puskesmas NAV Other",
+            facility_type=Facility.FacilityType.PUSKESMAS,
+        )
+        puskesmas_user = User.objects.create_user(
+            username="nav-puskesmas-rejected",
+            password="TestPassword123!",
+            role=User.Role.PUSKESMAS,
+            facility=facility,
+        )
+        LPLPO.objects.create(
+            facility=facility,
+            bulan=4,
+            tahun=2026,
+            status=LPLPO.Status.REJECTED,
+            created_by=puskesmas_user,
+            rejection_reason="Perlu perbaikan.",
+        )
+        LPLPO.objects.create(
+            facility=other_facility,
+            bulan=5,
+            tahun=2026,
+            status=LPLPO.Status.REJECTED,
+            created_by=puskesmas_user,
+            rejection_reason="Fasilitas lain.",
+        )
+
+        request = self.factory.get("/")
+        request.user = puskesmas_user
+
+        context = nav_notifications(request)
+
+        self.assertEqual(context["nav_notification_count"], 1)
+        self.assertTrue(
+            any(
+                item["label"] == "LPLPO Ditolak"
+                and item["count"] == 1
+                and item["url"].endswith("/lplpo/my/?status=REJECTED")
+                for item in context["nav_notification_items"]
+            )
+        )
 
     def test_admin_user_counts_pending_receiving_documents(self):
         admin_user = User.objects.create_superuser(
@@ -897,6 +947,39 @@ class NavNotificationsContextProcessorTests(TestCase):
         self.assertTrue(
             any(
                 item["label"] == "Distribusi dari LPLPO" and item["count"] == 1
+                for item in context["nav_notification_items"]
+            )
+        )
+
+    def test_kepala_gets_lplpo_notifications_for_submitted_documents(self):
+        kepala_user = User.objects.create_user(
+            username="nav-kepala-lplpo",
+            password="TestPassword123!",
+            role=User.Role.KEPALA,
+        )
+        self._set_scope(
+            kepala_user, ModuleAccess.Module.LPLPO, ModuleAccess.Scope.APPROVE
+        )
+        facility = Facility.objects.create(
+            code="PKM-NAV-LPLPO",
+            name="Puskesmas LPLPO",
+            facility_type=Facility.FacilityType.PUSKESMAS,
+        )
+        LPLPO.objects.create(
+            facility=facility,
+            bulan=4,
+            tahun=2026,
+            status=LPLPO.Status.SUBMITTED,
+            created_by=kepala_user,
+        )
+
+        request = self.factory.get("/")
+        request.user = kepala_user
+        context = nav_notifications(request)
+
+        self.assertTrue(
+            any(
+                item["label"] == "LPLPO" and item["count"] == 1
                 for item in context["nav_notification_items"]
             )
         )

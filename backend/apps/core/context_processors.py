@@ -27,9 +27,6 @@ def nav_notifications(request):
     from apps.users.access import get_user_module_scope
     from apps.users.models import ModuleAccess, User
 
-    if user.role == User.Role.PUSKESMAS:
-        return {"nav_notification_count": 0, "nav_notification_items": []}
-
     notification_items = []
 
     def safe_count(queryset_or_factory):
@@ -53,6 +50,29 @@ def nav_notifications(request):
                     "icon": icon,
                 }
             )
+
+    if user.role == User.Role.PUSKESMAS:
+        from apps.lplpo.models import LPLPO
+
+        rejected_count = 0
+        if user.facility_id:
+            rejected_count = safe_count(
+                lambda: LPLPO.objects.filter(
+                    facility=user.facility,
+                    status=LPLPO.Status.REJECTED,
+                )
+            )
+        add_notification_item(
+            "LPLPO Ditolak",
+            rejected_count,
+            f"{reverse('lplpo:lplpo_my_list')}?status=REJECTED",
+            "bi-file-earmark-x",
+        )
+        total = sum(item["count"] for item in notification_items)
+        return {
+            "nav_notification_count": total,
+            "nav_notification_items": notification_items,
+        }
 
     receiving_scope = get_user_module_scope(user, ModuleAccess.Module.RECEIVING)
     distribution_scope = get_user_module_scope(user, ModuleAccess.Module.DISTRIBUTION)
@@ -208,7 +228,7 @@ def nav_notifications(request):
         from apps.lplpo.models import LPLPO
 
         lplpo_statuses = []
-        if lplpo_scope in (ModuleAccess.Scope.OPERATE, ModuleAccess.Scope.MANAGE):
+        if lplpo_scope >= ModuleAccess.Scope.OPERATE:
             lplpo_statuses.append(LPLPO.Status.SUBMITTED)
         if lplpo_scope >= ModuleAccess.Scope.APPROVE:
             lplpo_statuses.append(LPLPO.Status.REVIEWED)
