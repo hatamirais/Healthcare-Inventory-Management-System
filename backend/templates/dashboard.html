@@ -86,13 +86,13 @@
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge bg-primary-subtle text-primary">Semua Lokasi</span>
                         <button type="button" class="btn btn-link p-0 kpi-help" data-bs-toggle="tooltip" data-bs-placement="top"
-                            data-bs-title="Total penjumlahan kuantitas pada stok aktif." aria-label="Informasi Total Kuantitas Tersedia">
+                            data-bs-title="Total penjumlahan kuantitas tersedia pada stok aktif (quantity - reserved)." aria-label="Informasi Total Kuantitas Tersedia">
                             <i class="bi bi-info-circle"></i>
                         </button>
                     </div>
                 </div>
                 <div class="stat-value mb-1">{{ total_stock_quantity|id_decimal:2 }}</div>
-                <div class="text-muted small">Akumulasi seluruh kuantitas stok aktif</div>
+                <div class="text-muted small">Akumulasi kuantitas stok aktif setelah dikurangi stok dicadangkan</div>
             </div>
         </div>
     </div>

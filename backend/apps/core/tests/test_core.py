@@ -31,7 +31,7 @@ from apps.items.models import Category, Facility, FundingSource, Item, Location,
 from apps.lplpo.models import LPLPO
 from apps.puskesmas.models import PuskesmasRequest
 from apps.receiving.models import Receiving
-from apps.stock.models import Transaction
+from apps.stock.models import Stock, Transaction
 from apps.users.models import ModuleAccess, User
 
 
@@ -293,6 +293,44 @@ class DashboardViewTests(TestCase):
         self.assertContains(response, "Paracetamol 500mg")
         self.assertNotContains(response, "dashboard-actor")
         self.assertNotContains(response, "Pengguna")
+
+    def test_global_dashboard_total_stock_quantity_uses_available_stock(self):
+        viewer = User.objects.create_user(
+            username="dashboard-available-stock",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        self._set_scope(viewer, ModuleAccess.Module.STOCK, ModuleAccess.Scope.VIEW)
+        self._set_scope(viewer, ModuleAccess.Module.ITEMS, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.EXPIRED, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.USERS, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.ADMIN_PANEL, ModuleAccess.Scope.NONE)
+
+        unit = Unit.objects.create(code="KPS", name="Kapsul")
+        category = Category.objects.create(code="OBT2", name="Obat Uji")
+        funding_source = FundingSource.objects.create(code="DAU", name="Dana Alokasi Umum")
+        location = Location.objects.create(code="GD2", name="Gudang Cadangan")
+        item = Item.objects.create(
+            nama_barang="Amoxicillin 500mg",
+            satuan=unit,
+            kategori=category,
+        )
+        Stock.objects.create(
+            item=item,
+            location=location,
+            batch_lot="BATCH-AVAILABLE-001",
+            expiry_date="2026-12-31",
+            quantity=Decimal("100"),
+            reserved=Decimal("60"),
+            unit_price=Decimal("1000"),
+            sumber_dana=funding_source,
+        )
+
+        self.client.force_login(viewer)
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_stock_quantity"], Decimal("40"))
 
     def test_global_dashboard_hides_unscoped_cards_and_actions(self):
         viewer = User.objects.create_user(
