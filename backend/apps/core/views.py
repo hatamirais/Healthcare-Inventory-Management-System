@@ -242,10 +242,14 @@ def dashboard(request):
     three_months_later = today + timedelta(days=90)
     thirty_days_ago = today - timedelta(days=29)
     zero_decimal = Value(Decimal("0"), output_field=DecimalField(max_digits=18, decimal_places=2))
+    available_stock_expression = ExpressionWrapper(
+        F("quantity") - F("reserved"),
+        output_field=DecimalField(max_digits=18, decimal_places=2),
+    )
     stock_queryset = Stock.objects.filter(quantity__gt=0)
     stock_totals = stock_queryset.aggregate(
         total_stock_entries=Count("pk"),
-        total_stock_quantity=Coalesce(Sum("quantity"), zero_decimal),
+        total_stock_quantity=Coalesce(Sum(available_stock_expression), zero_decimal),
         total_stock_value=Coalesce(
             Sum(
                 ExpressionWrapper(
