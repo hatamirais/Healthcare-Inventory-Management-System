@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("lplpo", "0003_replace_procurement_source_with_pembelian_puskesmas"),
+        ("lplpo", "0002_add_pembelian_puskesmas"),
     ]
 
     operations = [

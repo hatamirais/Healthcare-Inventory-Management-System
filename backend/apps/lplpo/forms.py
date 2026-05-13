@@ -111,3 +111,14 @@ class LPLPOItemReviewForm(forms.ModelForm):
                 attrs={"class": "form-control form-control-sm", "rows": 1}
             ),
         }
+
+
+class RejectLPLPOForm(forms.Form):
+    """Form for Instalasi Farmasi to provide a rejection reason."""
+
+    rejection_reason = forms.CharField(
+        max_length=1000,
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+        label="Alasan Penolakan",
+        error_messages={"required": "Alasan penolakan wajib diisi."},
+    )

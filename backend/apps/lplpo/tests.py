@@ -734,3 +734,120 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		grouped = response.context["grouped"]
 		first_group = next(iter(grouped.values()))
 		self.assertEqual(first_group[0]["stock_gudang"], Decimal("7.00"))
+
+	def test_computed_fields_persediaan_equals_pemakaian_yields_zero_stock(self):
+		"""Edge case: persediaan == pemakaian → stock_keseluruhan = 0 → optimum/kebutuhan = 0."""
+		lplpo = self.create_lplpo()
+		line = LPLPOItem.objects.create(
+			lplpo=lplpo,
+			item=self.item_a,
+			stock_awal=Decimal("4.00"),
+			penerimaan=Decimal("2.00"),
+			pembelian_puskesmas=Decimal("2.00"),
+			pemakaian=Decimal("8.00"),  # persediaan == pemakaian == 8
+			waktu_kosong=Decimal("0.00"),
+		)
+
+		self.assertEqual(line.persediaan, Decimal("8.00"))
+		self.assertEqual(line.stock_keseluruhan, Decimal("0.00"))
+		self.assertEqual(line.stock_optimum, Decimal("0.00"))
+		self.assertEqual(line.jumlah_kebutuhan, Decimal("0.00"))
+
+	def test_edit_blank_pembelian_puskesmas_is_treated_as_zero(self):
+		lplpo = self.create_lplpo()
+		line = LPLPOItem.objects.create(
+			lplpo=lplpo,
+			item=self.item_a,
+			stock_awal=Decimal("2.00"),
+			penerimaan=Decimal("3.00"),
+			pemakaian=Decimal("1.00"),
+		)
+
+		self.client.force_login(self.puskesmas_user)
+		response = self.client.post(
+			reverse("lplpo:lplpo_edit", args=[lplpo.pk]),
+			{
+				f"item_{line.pk}-stock_awal": "2.00",
+				f"item_{line.pk}-penerimaan": "3.00",
+				f"item_{line.pk}-pembelian_puskesmas": "",
+				f"item_{line.pk}-pemakaian": "1.00",
+				f"item_{line.pk}-stock_gudang_puskesmas": "0.00",
+				f"item_{line.pk}-waktu_kosong": "0.00",
+				f"item_{line.pk}-permintaan_jumlah": "0.00",
+				f"item_{line.pk}-permintaan_alasan": "",
+			},
+		)
+
+		self.assertEqual(response.status_code, 302)
+		line.refresh_from_db()
+		self.assertEqual(line.pembelian_puskesmas, Decimal("0.00"))
+		self.assertEqual(line.persediaan, Decimal("5.00"))
+
+	def test_edit_preserves_existing_pemberian_jumlah(self):
+		"""lplpo_edit must not overwrite pemberian_jumlah when it was already set by a reviewer."""
+		lplpo = self.create_lplpo(status=LPLPO.Status.REJECTED)
+		line = LPLPOItem.objects.create(
+			lplpo=lplpo,
+			item=self.item_a,
+			stock_awal=Decimal("1.00"),
+			penerimaan=Decimal("2.00"),
+			pemakaian=Decimal("1.00"),
+			pemberian_jumlah=Decimal("5.00"),  # set by a prior review pass
+		)
+
+		self.client.force_login(self.puskesmas_user)
+		response = self.client.post(
+			reverse("lplpo:lplpo_edit", args=[lplpo.pk]),
+			{
+				f"item_{line.pk}-stock_awal": "1.00",
+				f"item_{line.pk}-penerimaan": "2.00",
+				f"item_{line.pk}-pembelian_puskesmas": "0.00",
+				f"item_{line.pk}-pemakaian": "1.00",
+				f"item_{line.pk}-stock_gudang_puskesmas": "0.00",
+				f"item_{line.pk}-waktu_kosong": "0.00",
+				f"item_{line.pk}-permintaan_jumlah": "2.00",
+				f"item_{line.pk}-permintaan_alasan": "",
+			},
+		)
+
+		self.assertEqual(response.status_code, 302)
+		line.refresh_from_db()
+		self.assertEqual(line.pemberian_jumlah, Decimal("5.00"))
+
+	def test_reject_non_submitted_lplpo_returns_error(self):
+		"""Rejecting a DRAFT LPLPO must not change status."""
+		lplpo = self.create_lplpo(status=LPLPO.Status.DRAFT)
+
+		self.client.force_login(self.staff_user)
+		response = self.client.post(
+			reverse("lplpo:lplpo_reject", args=[lplpo.pk]),
+			{"rejection_reason": "Data tidak valid."},
+		)
+
+		self.assertEqual(response.status_code, 302)
+		lplpo.refresh_from_db()
+		self.assertEqual(lplpo.status, LPLPO.Status.DRAFT)
+
+	def test_submit_wrong_status_returns_error(self):
+		"""Submitting an already-SUBMITTED LPLPO must not change submission timestamp."""
+		lplpo = self.create_lplpo(status=LPLPO.Status.SUBMITTED)
+		original_submitted_at = lplpo.submitted_at
+
+		self.client.force_login(self.puskesmas_user)
+		response = self.client.post(reverse("lplpo:lplpo_submit", args=[lplpo.pk]))
+
+		self.assertEqual(response.status_code, 302)
+		lplpo.refresh_from_db()
+		self.assertEqual(lplpo.status, LPLPO.Status.SUBMITTED)
+		self.assertEqual(lplpo.submitted_at, original_submitted_at)
+
+	def test_delete_rejected_lplpo_allowed(self):
+		"""A REJECTED LPLPO can be deleted by its Puskesmas operator."""
+		lplpo = self.create_lplpo(status=LPLPO.Status.REJECTED)
+		pk = lplpo.pk
+
+		self.client.force_login(self.puskesmas_user)
+		response = self.client.post(reverse("lplpo:lplpo_delete", args=[pk]))
+
+		self.assertEqual(response.status_code, 302)
+		self.assertFalse(LPLPO.objects.filter(pk=pk).exists())
