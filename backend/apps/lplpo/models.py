@@ -182,13 +182,13 @@ class LPLPOItem(models.Model):
         max_digits=12,
         decimal_places=2,
         default=0,
-        help_text="stock_keseluruhan * 1.2",
+        help_text="pemakaian * 1.2",
     )
     jumlah_kebutuhan = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         default=0,
-        help_text="(stock_keseluruhan * 0.2) + waktu_kosong",
+        help_text="max(stock_optimum - stock_keseluruhan, 0) + waktu_kosong",
     )
 
     # === Filled by Instalasi Farmasi ===
@@ -231,7 +231,7 @@ class LPLPOItem(models.Model):
         # Stok optimum follows the consumption method: monthly usage plus a
         # 20 percent buffer, independent from the ending stock position.
         replenishment_basis = Decimal(safe_int(self.pemakaian))
-        self.stock_optimum = replenishment_basis * Decimal("1.2")
+        self.stock_optimum = replenishment_basis * Decimal("1.20")
         required_replenishment = self.stock_optimum - Decimal(self.stock_keseluruhan)
         if required_replenishment < Decimal("0"):
             required_replenishment = Decimal("0")

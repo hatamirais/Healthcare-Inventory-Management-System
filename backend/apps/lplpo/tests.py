@@ -881,7 +881,7 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertEqual(first_group[0]["stock_gudang"], Decimal("7.00"))
 
 	def test_computed_fields_persediaan_equals_pemakaian_yields_zero_stock(self):
-		"""Edge case: persediaan == pemakaian → stock_keseluruhan = 0 → optimum/kebutuhan = 0."""
+		"""Edge case: persediaan == pemakaian → stock_keseluruhan = 0 (consumption-based optimum still applies)."""
 		lplpo = self.create_lplpo()
 		line = LPLPOItem.objects.create(
 			lplpo=lplpo,
@@ -895,8 +895,8 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 
 		self.assertEqual(line.persediaan, Decimal("8.00"))
 		self.assertEqual(line.stock_keseluruhan, Decimal("0.00"))
-		self.assertEqual(line.stock_optimum, Decimal("0.00"))
-		self.assertEqual(line.jumlah_kebutuhan, Decimal("0.00"))
+		self.assertEqual(line.stock_optimum, Decimal("9.60"))
+		self.assertEqual(line.jumlah_kebutuhan, Decimal("9.60"))
 
 	def test_edit_blank_pembelian_puskesmas_is_treated_as_zero(self):
 		lplpo = self.create_lplpo()
