@@ -17,9 +17,10 @@ from apps.distribution.models import Distribution, DistributionItem
 from apps.distribution.services import assign_default_distribution_staff
 from apps.items.models import Item
 from apps.stock.models import Stock
+from apps.users.access import has_module_scope
 from apps.users.models import ModuleAccess, User
 
-from .forms import LPLPOCreateForm, LPLPOItemPuskesmasForm, LPLPOItemReviewForm
+from .forms import LPLPOCreateForm, LPLPOItemPuskesmasForm, LPLPOItemReviewForm, RejectLPLPOForm
 from .models import LPLPO, LPLPOItem, get_penerimaan_for_facility_period, get_previous_lplpo
 
 
@@ -29,7 +30,7 @@ def _check_facility_access(request, lplpo_obj):
     to access an LPLPO that belongs to a different facility.
     Returns None if access is allowed.
     """
-    if request.user.role != "PUSKESMAS":
+    if request.user.role != User.Role.PUSKESMAS:
         return None  # Non-puskesmas roles can see all
     if not request.user.facility:
         messages.error(request, "Akun Anda belum terhubung ke fasilitas.")
@@ -42,7 +43,7 @@ def _check_facility_access(request, lplpo_obj):
 
 def _check_instalasi_farmasi_access(request):
     """Reject PUSKESMAS users from review/finalize workflow steps."""
-    if request.user.role == "PUSKESMAS":
+    if request.user.role == User.Role.PUSKESMAS:
         messages.error(
             request,
             "Aksi ini hanya tersedia untuk petugas Instalasi Farmasi.",
@@ -53,7 +54,7 @@ def _check_instalasi_farmasi_access(request):
 
 def _check_puskesmas_creator_access(request):
     """Restrict create flow to PUSKESMAS operators only."""
-    if request.user.role != "PUSKESMAS":
+    if request.user.role != User.Role.PUSKESMAS:
         raise PermissionDenied("Hanya operator Puskesmas yang dapat membuat LPLPO.")
 
 
@@ -111,7 +112,7 @@ def _get_submitted_lplpo_queryset(request):
 @perm_required("lplpo.view_lplpo")
 def lplpo_list(request):
     """Submitted LPLPO queue for Instalasi Farmasi staff."""
-    if getattr(request.user, "role", "") == "PUSKESMAS":
+    if getattr(request.user, "role", "") == User.Role.PUSKESMAS:
         return redirect("lplpo:lplpo_my_list")
 
     queryset, filter_context = _get_submitted_lplpo_queryset(request)
@@ -270,7 +271,11 @@ def api_prefill_penerimaan(request):
         return JsonResponse({"detail": "Method not allowed."}, status=405)
 
     facility = request.user.facility
-    if request.user.role != "PUSKESMAS":
+    if request.user.role != User.Role.PUSKESMAS:
+        if not has_module_scope(
+            request.user, ModuleAccess.Module.LPLPO, ModuleAccess.Scope.OPERATE
+        ):
+            return JsonResponse({"detail": "Insufficient permissions."}, status=403)
         facility_id = request.GET.get("facility")
         if facility_id:
             from apps.items.models import Facility
@@ -331,6 +336,19 @@ def lplpo_detail(request, pk):
         "item", "item__satuan", "item__kategori"
     ).order_by("item__kategori__sort_order", "item__nama_barang")
 
+    can_review = (
+        request.user.role != User.Role.PUSKESMAS
+        and has_module_scope(
+            request.user, ModuleAccess.Module.LPLPO, ModuleAccess.Scope.OPERATE
+        )
+    )
+    can_approve = (
+        request.user.role != User.Role.PUSKESMAS
+        and has_module_scope(
+            request.user, ModuleAccess.Module.LPLPO, ModuleAccess.Scope.APPROVE
+        )
+    )
+
     # Group items by category for display
     grouped_items = {}
     for li in items:
@@ -344,6 +362,8 @@ def lplpo_detail(request, pk):
             "lplpo": lplpo,
             "grouped_items": grouped_items,
             "items": items,
+            "can_review": can_review,
+            "can_approve": can_approve,
         },
     )
 
@@ -353,14 +373,18 @@ def lplpo_detail(request, pk):
 
 @login_required
 @perm_required("lplpo.change_lplpo")
+@module_scope_required(ModuleAccess.Module.LPLPO, ModuleAccess.Scope.OPERATE)
 def lplpo_edit(request, pk):
-    """Puskesmas fills their columns — only DRAFT status."""
+    """Puskesmas fills their columns — only DRAFT or REJECTED status."""
     _check_puskesmas_draft_action_access(request)
 
     lplpo_obj = get_object_or_404(LPLPO.objects.select_related("facility"), pk=pk)
 
-    if lplpo_obj.status != LPLPO.Status.DRAFT:
-        messages.error(request, "Hanya LPLPO berstatus Draft yang dapat diedit.")
+    if lplpo_obj.status not in (LPLPO.Status.DRAFT, LPLPO.Status.REJECTED):
+        messages.error(
+            request,
+            "Hanya LPLPO berstatus Draft atau Ditolak yang dapat diedit.",
+        )
         return redirect("lplpo:lplpo_detail", pk=pk)
 
     # Enforce facility scope
@@ -377,6 +401,7 @@ def lplpo_edit(request, pk):
         lplpo_obj.facility, lplpo_obj.bulan, lplpo_obj.tahun
     )
     has_prev = prev_lplpo is not None
+    has_form_errors = False
 
     if request.method == "POST":
         all_valid = True
@@ -396,8 +421,9 @@ def lplpo_edit(request, pk):
             for f in forms_data:
                 obj = f.save(commit=False)
                 obj.compute_fields()
-                # Pre-set pemberian suggestion
-                obj.pemberian_jumlah = obj.jumlah_kebutuhan
+                # Pre-set pemberian suggestion only when not yet reviewed
+                if obj.pemberian_jumlah is None:
+                    obj.pemberian_jumlah = obj.jumlah_kebutuhan
                 updated_objs.append(obj)
 
             if updated_objs:
@@ -406,7 +432,7 @@ def lplpo_edit(request, pk):
                     fields=[
                         "stock_awal",
                         "penerimaan",
-                        "procurement_source",
+                        "pembelian_puskesmas",
                         "pemakaian",
                         "stock_gudang_puskesmas",
                         "waktu_kosong",
@@ -422,6 +448,12 @@ def lplpo_edit(request, pk):
 
             messages.success(request, f"LPLPO {lplpo_obj.document_number} berhasil disimpan.")
             return redirect("lplpo:lplpo_detail", pk=pk)
+
+        has_form_errors = True
+        messages.error(
+            request,
+            "Data LPLPO belum tersimpan. Periksa kembali kolom yang bermasalah.",
+        )
     else:
         forms_data = [
             LPLPOItemPuskesmasForm(instance=li, prefix=f"item_{li.pk}")
@@ -442,6 +474,7 @@ def lplpo_edit(request, pk):
             "lplpo": lplpo_obj,
             "grouped": grouped,
             "has_prev": has_prev,
+            "has_form_errors": has_form_errors,
         },
     )
 
@@ -451,8 +484,9 @@ def lplpo_edit(request, pk):
 
 @login_required
 @perm_required("lplpo.change_lplpo")
+@module_scope_required(ModuleAccess.Module.LPLPO, ModuleAccess.Scope.OPERATE)
 def lplpo_submit(request, pk):
-    """Transition DRAFT → SUBMITTED."""
+    """Transition DRAFT/REJECTED → SUBMITTED."""
     _check_puskesmas_draft_action_access(request)
 
     lplpo_obj = get_object_or_404(LPLPO, pk=pk)
@@ -462,8 +496,11 @@ def lplpo_submit(request, pk):
     if request.method != "POST":
         return redirect("lplpo:lplpo_detail", pk=pk)
 
-    if lplpo_obj.status != LPLPO.Status.DRAFT:
-        messages.error(request, "Hanya LPLPO berstatus Draft yang dapat diajukan.")
+    if lplpo_obj.status not in (LPLPO.Status.DRAFT, LPLPO.Status.REJECTED):
+        messages.error(
+            request,
+            "Hanya LPLPO berstatus Draft atau Ditolak yang dapat diajukan.",
+        )
         return redirect("lplpo:lplpo_detail", pk=pk)
 
     zero_pemakaian_count = lplpo_obj.items.filter(pemakaian=0).count()
@@ -474,10 +511,42 @@ def lplpo_submit(request, pk):
         )
 
     lplpo_obj.status = LPLPO.Status.SUBMITTED
+    lplpo_obj.rejection_reason = ""
     lplpo_obj.submitted_at = timezone.now()
-    lplpo_obj.save(update_fields=["status", "submitted_at", "updated_at"])
+    lplpo_obj.save(
+        update_fields=["status", "rejection_reason", "submitted_at", "updated_at"]
+    )
 
     messages.success(request, f"LPLPO {lplpo_obj.document_number} berhasil diajukan.")
+    return redirect("lplpo:lplpo_detail", pk=pk)
+
+
+@login_required
+@perm_required("lplpo.change_lplpo")
+@module_scope_required(ModuleAccess.Module.LPLPO, ModuleAccess.Scope.APPROVE)
+def lplpo_reject(request, pk):
+    """Transition SUBMITTED → REJECTED."""
+    denied = _check_instalasi_farmasi_access(request)
+    if denied:
+        return denied
+
+    lplpo_obj = get_object_or_404(LPLPO, pk=pk)
+    if request.method != "POST":
+        return redirect("lplpo:lplpo_detail", pk=pk)
+
+    if lplpo_obj.status != LPLPO.Status.SUBMITTED:
+        messages.error(request, "Hanya LPLPO berstatus Diajukan yang dapat ditolak.")
+        return redirect("lplpo:lplpo_detail", pk=pk)
+
+    form = RejectLPLPOForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Alasan penolakan wajib diisi.")
+        return redirect("lplpo:lplpo_detail", pk=pk)
+
+    lplpo_obj.status = LPLPO.Status.REJECTED
+    lplpo_obj.rejection_reason = form.cleaned_data["rejection_reason"]
+    lplpo_obj.save(update_fields=["status", "rejection_reason", "updated_at"])
+    messages.success(request, f"LPLPO {lplpo_obj.document_number} berhasil ditolak.")
     return redirect("lplpo:lplpo_detail", pk=pk)
 
 
@@ -725,6 +794,7 @@ def lplpo_print_report(request):
 
 @login_required
 @perm_required("lplpo.delete_lplpo")
+@module_scope_required(ModuleAccess.Module.LPLPO, ModuleAccess.Scope.OPERATE)
 def lplpo_delete(request, pk):
     """Delete a DRAFT LPLPO document."""
     _check_puskesmas_draft_action_access(request)
@@ -739,14 +809,17 @@ def lplpo_delete(request, pk):
     if denied:
         return denied
 
-    if lplpo_obj.status != LPLPO.Status.DRAFT:
-        messages.error(request, "Hanya LPLPO berstatus Draft yang dapat dihapus.")
+    if lplpo_obj.status not in (LPLPO.Status.DRAFT, LPLPO.Status.REJECTED):
+        messages.error(
+            request,
+            "Hanya LPLPO berstatus Draft atau Ditolak yang dapat dihapus.",
+        )
         return redirect("lplpo:lplpo_detail", pk=pk)
 
     doc_number = lplpo_obj.document_number
     lplpo_obj.delete()
     messages.success(request, f"LPLPO {doc_number} berhasil dihapus.")
 
-    if request.user.role == "PUSKESMAS":
+    if request.user.role == User.Role.PUSKESMAS:
         return redirect("lplpo:lplpo_my_list")
     return redirect("lplpo:lplpo_list")

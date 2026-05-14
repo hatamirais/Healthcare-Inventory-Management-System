@@ -13,6 +13,7 @@ class LPLPO(TimeStampedModel):
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
         SUBMITTED = "SUBMITTED", "Diajukan"
+        REJECTED = "REJECTED", "Ditolak"
         REVIEWED = "REVIEWED", "Ditinjau"
         DISTRIBUTED = "DISTRIBUTED", "Didistribusikan"
         CLOSED = "CLOSED", "Ditutup"
@@ -53,6 +54,7 @@ class LPLPO(TimeStampedModel):
         blank=True,
         related_name="reviewed_lplpos",
     )
+    rejection_reason = models.TextField(blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     distribution = models.OneToOneField(
         "distribution.Distribution",
@@ -137,20 +139,11 @@ class LPLPOItem(models.Model):
         default=0,
         help_text="Auto-filled from Distribution records, confirmable by Puskesmas",
     )
-
-    class ProcurementSource(models.TextChoices):
-        BLUD = "BLUD", "BLUD"
-        APBD = "APBD", "APBD"
-        BHP = "BHP", "BHP"
-        HIBAH = "HIBAH", "Hibah"
-        LAINNYA = "LAINNYA", "Lainnya"
-
-    procurement_source = models.CharField(
-        max_length=20,
-        choices=ProcurementSource.choices,
-        blank=True,
-        default="",
-        help_text="Sumber pengadaan untuk item ini",
+    pembelian_puskesmas = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="Jumlah pembelian mandiri Puskesmas pada periode ini",
     )
     pemakaian = models.DecimalField(
         max_digits=12,
@@ -186,7 +179,7 @@ class LPLPOItem(models.Model):
         max_digits=12,
         decimal_places=2,
         default=0,
-        help_text="stock_awal + penerimaan",
+        help_text="stock_awal + penerimaan + pembelian_puskesmas",
     )
     stock_keseluruhan = models.DecimalField(
         max_digits=12,
@@ -240,7 +233,11 @@ class LPLPOItem(models.Model):
         def safe(val):
             return val if val is not None else Decimal("0")
 
-        self.persediaan = safe(self.stock_awal) + safe(self.penerimaan)
+        self.persediaan = (
+            safe(self.stock_awal)
+            + safe(self.penerimaan)
+            + safe(self.pembelian_puskesmas)
+        )
         self.stock_keseluruhan = self.persediaan - safe(self.pemakaian)
         self.stock_optimum = self.stock_keseluruhan * Decimal("1.2")
         self.jumlah_kebutuhan = (

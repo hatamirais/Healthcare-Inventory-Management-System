@@ -32,16 +32,18 @@ LPLPO is a monthly document submitted by each Puskesmas to Instalasi Farmasi. It
    Waktu Kosong, Permintaan Jumlah, Permintaan Alasan
 5. All computed fields are calculated automatically (see formulas)
 6. Puskesmas submits LPLPO → status: SUBMITTED
+7. Kepala Instalasi / approver can reject submitted LPLPO with a required rejection reason → status: REJECTED
+8. Puskesmas revises rejected LPLPO and re-submits it when ready
 
 [Instalasi Farmasi Operator]
-7. Reviews submitted LPLPO
-8. System suggests Pemberian Jumlah = Jumlah Kebutuhan per item
-9. Operator adjusts Pemberian Jumlah based on actual warehouse stock
-10. Operator fills Pemberian Alasan where adjusted
-11. Operator finalizes → status: REVIEWED
-12. System auto-generates a Distribution document (type: LPLPO)
-   → status: DISTRIBUTED (after normal Distribution workflow)
-13. LPLPO status → CLOSED after Distribution is DISTRIBUTED
+9. Reviews submitted LPLPO
+10. System suggests Pemberian Jumlah = Jumlah Kebutuhan per item
+11. Operator adjusts Pemberian Jumlah based on actual warehouse stock
+12. Operator fills Pemberian Alasan where adjusted
+13. Operator finalizes → status: REVIEWED
+14. System auto-generates a Distribution document (type: LPLPO)
+    → status: DISTRIBUTED (after normal Distribution workflow)
+15. LPLPO status → CLOSED after Distribution is DISTRIBUTED
 
 [Next Month Auto-fill]
 14. When Puskesmas opens next month's LPLPO:
@@ -152,6 +154,7 @@ class LPLPO(TimeStampedModel):
         null=True, blank=True,
         related_name='reviewed_lplpos',
     )
+    rejection_reason = models.TextField(blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     distribution = models.OneToOneField(
         'distribution.Distribution',
@@ -332,10 +335,10 @@ Add `LPLPO = 'lplpo', 'LPLPO'` to `ModuleAccess.Module` choices.
 ### 4.4 Access Rules
 
 - **PUSKESMAS role**: can only see and edit their own facility's LPLPO. Enforce this in every view with `lplpo.facility == request.user.facility`.
-- **PUSKESMAS role**: can only edit LPLPO in DRAFT status.
+- **PUSKESMAS role**: can only edit LPLPO in `DRAFT` or `REJECTED` status.
 - **PUSKESMAS role**: cannot see Distribution, Stock, Receiving, or any other module.
 - **GUDANG / ADMIN / KEPALA**: can see all LPLPO from all facilities, can fill Pemberian fields (REVIEWED step).
-- **KEPALA**: can approve/finalize REVIEWED status.
+- **KEPALA / approve-scope users**: can reject `SUBMITTED` LPLPO and can finalize `REVIEWED` LPLPO.
 
 ---
 
@@ -347,8 +350,9 @@ Add `LPLPO = 'lplpo', 'LPLPO'` to `ModuleAccess.Module` choices.
 /lplpo/create/                             → lplpo_create
 /lplpo/print-report/                       → lplpo_print_report (printable filtered submitted queue)
 /lplpo/<int:pk>/                           → lplpo_detail
-/lplpo/<int:pk>/edit/                      → lplpo_edit (Puskesmas, DRAFT only)
+/lplpo/<int:pk>/edit/                      → lplpo_edit (Puskesmas, DRAFT/REJECTED)
 /lplpo/<int:pk>/submit/                    → lplpo_submit (Puskesmas)
+/lplpo/<int:pk>/reject/                    → lplpo_reject (approve-scope Instalasi Farmasi)
 /lplpo/<int:pk>/review/                    → lplpo_review (Instalasi Farmasi, fills Pemberian)
 /lplpo/<int:pk>/finalize/                  → lplpo_finalize (creates Distribution)
 /lplpo/<int:pk>/print/                     → lplpo_print (print-friendly HTML)

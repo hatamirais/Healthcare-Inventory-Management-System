@@ -59,7 +59,7 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 - Expired: `DRAFT -> SUBMITTED -> VERIFIED -> DISPOSED`
 - Stock transfer: `DRAFT -> COMPLETED`
 - Stock opname: `DRAFT -> IN_PROGRESS -> COMPLETED`
-- LPLPO: `DRAFT -> SUBMITTED -> REVIEWED -> DISTRIBUTED -> CLOSED`
+- LPLPO: `DRAFT -> SUBMITTED -> REVIEWED -> DISTRIBUTED -> CLOSED`, dapat berakhir `REJECTED` dari status `SUBMITTED`; reject mewajibkan alasan penolakan, dan dokumen `REJECTED` dapat diperbaiki dan diajukan ulang oleh operator Puskesmas.
 - Puskesmas Request: `DRAFT -> SUBMITTED -> APPROVED -> REJECTED`
 
 ## Model Data Singkat

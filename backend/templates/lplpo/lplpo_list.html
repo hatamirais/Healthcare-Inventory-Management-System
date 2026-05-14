@@ -124,6 +124,8 @@
                                 <span class="badge text-bg-secondary">Draft</span>
                                 {% elif lp.status == 'SUBMITTED' %}
                                 <span class="badge text-bg-warning">{% if request.user.role == 'PUSKESMAS' %}Menunggu Tinjauan{% else %}Diajukan{% endif %}</span>
+                                {% elif lp.status == 'REJECTED' %}
+                                <span class="badge text-bg-danger">Ditolak</span>
                                 {% elif lp.status == 'REVIEWED' %}
                                 <span class="badge text-bg-info">{% if request.user.role == 'PUSKESMAS' %}Disetujui / Menunggu Proses Distribusi{% else %}Ditinjau{% endif %}</span>
                                 {% elif lp.status == 'DISTRIBUTED' %}
