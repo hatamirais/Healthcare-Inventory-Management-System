@@ -79,7 +79,7 @@
                                 <td class="text-center text-muted small">{{ li.item.satuan.code }}</td>
                                 <td>
                                     {% if has_prev %}
-                                    <input type="number" value="{{ li.stock_awal|floatformat:'-2' }}"
+                                    <input type="number" value="{{ li.stock_awal|floatformat:'0' }}"
                                         class="form-control form-control-sm text-end" readonly
                                         title="Auto-filled dari bulan sebelumnya">
                                     <input type="hidden" name="item_{{ li.pk }}-stock_awal" value="{{ li.stock_awal|floatformat:'0' }}">

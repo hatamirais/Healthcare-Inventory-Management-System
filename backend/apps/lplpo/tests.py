@@ -273,6 +273,33 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 			Decimal("5.00"),
 		)
 
+	def test_edit_renders_previous_stock_awal_without_decimal_places(self):
+		previous = self.create_lplpo(bulan=1, tahun=2026, status=LPLPO.Status.CLOSED)
+		LPLPOItem.objects.create(
+			lplpo=previous,
+			item=self.item_a,
+			stock_awal=Decimal("5.00"),
+			penerimaan=Decimal("5.00"),
+			pemakaian=Decimal("0.00"),
+		)
+
+		current = self.create_lplpo(bulan=2, tahun=2026)
+		LPLPOItem.objects.create(
+			lplpo=current,
+			item=self.item_a,
+			stock_awal=Decimal("10.00"),
+			penerimaan=Decimal("0.00"),
+			pemakaian=Decimal("0.00"),
+		)
+
+		self.client.force_login(self.puskesmas_user)
+		response = self.client.get(reverse("lplpo:lplpo_edit", args=[current.pk]), follow=True)
+
+		self.assertEqual(response.status_code, 200)
+		html = response.content.decode()
+		self.assertIn('type="number" value="10"', html)
+		self.assertNotIn('type="number" value="10.00"', html)
+
 	def test_computed_fields_correct(self):
 		lplpo = self.create_lplpo()
 		line = LPLPOItem.objects.create(
