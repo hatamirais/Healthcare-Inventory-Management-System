@@ -153,9 +153,7 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 			[self.item_a.id, self.item_b.id],
 		)
 		self.assertTrue(all(item.item.is_active for item in items))
-		self.assertTrue(
-			all(item.pemberian_jumlah == item.jumlah_kebutuhan for item in items)
-		)
+		self.assertTrue(all(item.pemberian_jumlah is None for item in items))
 
 	def test_instalasi_farmasi_cannot_create_lplpo(self):
 		self.client.force_login(self.staff_user)
@@ -289,8 +287,78 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 
 		self.assertEqual(line.persediaan, Decimal("17.00"))
 		self.assertEqual(line.stock_keseluruhan, Decimal("9.00"))
-		self.assertEqual(line.stock_optimum, Decimal("10.80"))
-		self.assertEqual(line.jumlah_kebutuhan, Decimal("3.80"))
+		self.assertEqual(line.stock_optimum, Decimal("9.60"))
+		self.assertEqual(line.jumlah_kebutuhan, Decimal("2.60"))
+
+	def test_computed_fields_use_consumption_for_stock_optimum(self):
+		lplpo = self.create_lplpo()
+		line = LPLPOItem.objects.create(
+			lplpo=lplpo,
+			item=self.item_a,
+			stock_awal=Decimal("10.00"),
+			penerimaan=Decimal("0.00"),
+			pembelian_puskesmas=Decimal("0.00"),
+			pemakaian=Decimal("10.00"),
+			waktu_kosong=Decimal("0.00"),
+		)
+
+		self.assertEqual(line.persediaan, Decimal("10.00"))
+		self.assertEqual(line.stock_keseluruhan, Decimal("0.00"))
+		self.assertEqual(line.stock_optimum, Decimal("12.00"))
+		self.assertEqual(line.jumlah_kebutuhan, Decimal("12.00"))
+
+	def test_review_form_prefills_pemberian_suggestion_when_stock_is_fully_used(self):
+		lplpo = self.create_lplpo()
+		line = LPLPOItem.objects.create(
+			lplpo=lplpo,
+			item=self.item_a,
+			stock_awal=Decimal("1.00"),
+			penerimaan=Decimal("0.00"),
+			pemakaian=Decimal("0.00"),
+		)
+
+		line.stock_awal = Decimal("10.00")
+		line.pemakaian = Decimal("10.00")
+		line.compute_fields()
+		line.save()
+		lplpo.status = LPLPO.Status.SUBMITTED
+		lplpo.submitted_at = timezone.now()
+		lplpo.save(update_fields=["status", "submitted_at", "updated_at"])
+
+		self.client.force_login(self.staff_user)
+		response = self.client.get(reverse("lplpo:lplpo_review", args=[lplpo.pk]))
+
+		self.assertEqual(response.status_code, 200)
+		line.refresh_from_db()
+		self.assertEqual(line.stock_keseluruhan, Decimal("0.00"))
+		self.assertEqual(line.stock_optimum, Decimal("12.00"))
+		self.assertEqual(line.jumlah_kebutuhan, Decimal("12.00"))
+		self.assertIsNone(line.pemberian_jumlah)
+		review_form = response.context["grouped"][self.category.name][0]["form"]
+		self.assertEqual(review_form["pemberian_jumlah"].value(), 12)
+
+	def test_review_rejects_decimal_pemberian_input(self):
+		lplpo = self.create_lplpo(status=LPLPO.Status.SUBMITTED, created_by=self.puskesmas_user)
+		line = LPLPOItem.objects.create(
+			lplpo=lplpo,
+			item=self.item_a,
+			permintaan_jumlah=Decimal("12.00"),
+		)
+
+		self.client.force_login(self.staff_user)
+		response = self.client.post(
+			reverse("lplpo:lplpo_review", args=[lplpo.pk]),
+			{
+				f"review_{line.pk}-pemberian_jumlah": "10.5",
+				f"review_{line.pk}-pemberian_alasan": "Uji validasi",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		review_form = response.context["grouped"][self.category.name][0]["form"]
+		self.assertIn("pemberian_jumlah", review_form.errors)
+		line.refresh_from_db()
+		self.assertIsNone(line.pemberian_jumlah)
 
 	def test_edit_persists_form_and_computed_fields_with_bulk_update(self):
 		lplpo = self.create_lplpo()
@@ -306,13 +374,13 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		response = self.client.post(
 			reverse("lplpo:lplpo_edit", args=[lplpo.pk]),
 			{
-				f"item_{line.pk}-stock_awal": "10.00",
-				f"item_{line.pk}-penerimaan": "5.00",
-				f"item_{line.pk}-pembelian_puskesmas": "2.00",
-				f"item_{line.pk}-pemakaian": "8.00",
-				f"item_{line.pk}-stock_gudang_puskesmas": "4.00",
-				f"item_{line.pk}-waktu_kosong": "2.00",
-				f"item_{line.pk}-permintaan_jumlah": "6.00",
+				f"item_{line.pk}-stock_awal": "10",
+				f"item_{line.pk}-penerimaan": "5",
+				f"item_{line.pk}-pembelian_puskesmas": "2",
+				f"item_{line.pk}-pemakaian": "8",
+				f"item_{line.pk}-stock_gudang_puskesmas": "4",
+				f"item_{line.pk}-waktu_kosong": "2",
+				f"item_{line.pk}-permintaan_jumlah": "6",
 				f"item_{line.pk}-permintaan_alasan": "Buffer stok menipis",
 			},
 		)
@@ -329,9 +397,9 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertEqual(line.permintaan_alasan, "Buffer stok menipis")
 		self.assertEqual(line.persediaan, Decimal("17.00"))
 		self.assertEqual(line.stock_keseluruhan, Decimal("9.00"))
-		self.assertEqual(line.stock_optimum, Decimal("10.80"))
-		self.assertEqual(line.jumlah_kebutuhan, Decimal("3.80"))
-		self.assertEqual(line.pemberian_jumlah, Decimal("3.80"))
+		self.assertEqual(line.stock_optimum, Decimal("9.60"))
+		self.assertEqual(line.jumlah_kebutuhan, Decimal("2.60"))
+		self.assertIsNone(line.pemberian_jumlah)
 
 	def test_edit_blank_stock_awal_is_treated_as_zero(self):
 		lplpo = self.create_lplpo()
@@ -348,12 +416,12 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 			reverse("lplpo:lplpo_edit", args=[lplpo.pk]),
 			{
 				f"item_{line.pk}-stock_awal": "",
-				f"item_{line.pk}-penerimaan": "5.00",
-				f"item_{line.pk}-pembelian_puskesmas": "2.00",
-				f"item_{line.pk}-pemakaian": "8.00",
-				f"item_{line.pk}-stock_gudang_puskesmas": "4.00",
-				f"item_{line.pk}-waktu_kosong": "2.00",
-				f"item_{line.pk}-permintaan_jumlah": "6.00",
+				f"item_{line.pk}-penerimaan": "5",
+				f"item_{line.pk}-pembelian_puskesmas": "2",
+				f"item_{line.pk}-pemakaian": "8",
+				f"item_{line.pk}-stock_gudang_puskesmas": "4",
+				f"item_{line.pk}-waktu_kosong": "2",
+				f"item_{line.pk}-permintaan_jumlah": "6",
 				f"item_{line.pk}-permintaan_alasan": "Buffer stok menipis",
 			},
 		)
@@ -378,13 +446,13 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		response = self.client.post(
 			reverse("lplpo:lplpo_edit", args=[lplpo.pk]),
 			{
-				f"item_{line.pk}-stock_awal": "2.00",
-				f"item_{line.pk}-penerimaan": "5.00",
-				f"item_{line.pk}-pembelian_puskesmas": "2.00",
+				f"item_{line.pk}-stock_awal": "2",
+				f"item_{line.pk}-penerimaan": "5",
+				f"item_{line.pk}-pembelian_puskesmas": "2",
 				f"item_{line.pk}-pemakaian": "",
-				f"item_{line.pk}-stock_gudang_puskesmas": "4.00",
-				f"item_{line.pk}-waktu_kosong": "2.00",
-				f"item_{line.pk}-permintaan_jumlah": "6.00",
+				f"item_{line.pk}-stock_gudang_puskesmas": "4",
+				f"item_{line.pk}-waktu_kosong": "2",
+				f"item_{line.pk}-permintaan_jumlah": "6",
 				f"item_{line.pk}-permintaan_alasan": "Buffer stok menipis",
 			},
 		)
@@ -564,13 +632,13 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		response = self.client.post(
 			reverse("lplpo:lplpo_edit", args=[lplpo.pk]),
 			{
-				f"item_{line.pk}-stock_awal": "2.00",
-				f"item_{line.pk}-penerimaan": "3.00",
-				f"item_{line.pk}-pembelian_puskesmas": "1.00",
-				f"item_{line.pk}-pemakaian": "1.00",
-				f"item_{line.pk}-stock_gudang_puskesmas": "1.00",
-				f"item_{line.pk}-waktu_kosong": "0.00",
-				f"item_{line.pk}-permintaan_jumlah": "2.00",
+				f"item_{line.pk}-stock_awal": "2",
+				f"item_{line.pk}-penerimaan": "3",
+				f"item_{line.pk}-pembelian_puskesmas": "1",
+				f"item_{line.pk}-pemakaian": "1",
+				f"item_{line.pk}-stock_gudang_puskesmas": "1",
+				f"item_{line.pk}-waktu_kosong": "0",
+				f"item_{line.pk}-permintaan_jumlah": "2",
 				f"item_{line.pk}-permintaan_alasan": "Perbaikan setelah ditolak",
 			},
 		)
@@ -604,16 +672,40 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 			created_by=self.staff_user,
 		)
 		lplpo = self.create_lplpo(
-			status=LPLPO.Status.DISTRIBUTED,
+			status=LPLPO.Status.REVIEWED,
 			distribution=distribution,
 		)
 
 		self.client.force_login(self.puskesmas_user)
 		response = self.client.get(reverse("lplpo:lplpo_detail", args=[lplpo.pk]))
 
+		self.assertContains(response, "Dokumen Distribusi Dibuat / Menunggu Distribusi")
 		self.assertContains(response, distribution.document_number)
 		self.assertNotContains(response, 'id="view-dist-btn"')
 		self.assertNotContains(
+			response,
+			reverse("distribution:distribution_detail", args=[distribution.pk]),
+		)
+
+	def test_reviewed_detail_with_distribution_shows_distribution_navigation(self):
+		distribution = Distribution.objects.create(
+			distribution_type=Distribution.DistributionType.LPLPO,
+			facility=self.facility,
+			request_date=date(2026, 2, 1),
+			status=Distribution.Status.DRAFT,
+			created_by=self.staff_user,
+		)
+		lplpo = self.create_lplpo(
+			status=LPLPO.Status.REVIEWED,
+			distribution=distribution,
+		)
+
+		self.client.force_login(self.staff_user)
+		response = self.client.get(reverse("lplpo:lplpo_detail", args=[lplpo.pk]))
+
+		self.assertNotContains(response, 'id="finalize-btn"')
+		self.assertContains(response, 'id="view-dist-btn"')
+		self.assertContains(
 			response,
 			reverse("distribution:distribution_detail", args=[distribution.pk]),
 		)
@@ -644,7 +736,7 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 			response,
 			reverse("distribution:distribution_detail", args=[distribution.pk]),
 		)
-		self.assertEqual(lplpo.status, LPLPO.Status.DISTRIBUTED)
+		self.assertEqual(lplpo.status, LPLPO.Status.REVIEWED)
 		self.assertEqual(distribution.distribution_type, Distribution.DistributionType.LPLPO)
 		self.assertEqual(distribution.status, Distribution.Status.DRAFT)
 		self.assertEqual(distribution.items.count(), 1)
@@ -654,6 +746,32 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertEqual(line.item, self.item_a)
 		self.assertEqual(line.quantity_requested, Decimal("12.00"))
 		self.assertEqual(line.quantity_approved, Decimal("9.00"))
+
+	def test_finalize_reuses_existing_distribution(self):
+		distribution = Distribution.objects.create(
+			distribution_type=Distribution.DistributionType.LPLPO,
+			facility=self.facility,
+			request_date=date(2026, 2, 1),
+			status=Distribution.Status.DRAFT,
+			created_by=self.staff_user,
+		)
+		lplpo = self.create_lplpo(
+			status=LPLPO.Status.REVIEWED,
+			distribution=distribution,
+			created_by=self.staff_user,
+		)
+
+		self.client.force_login(self.superuser)
+		response = self.client.post(reverse("lplpo:lplpo_finalize", args=[lplpo.pk]))
+
+		self.assertRedirects(
+			response,
+			reverse("distribution:distribution_detail", args=[distribution.pk]),
+		)
+		self.assertEqual(
+			Distribution.objects.filter(distribution_type=Distribution.DistributionType.LPLPO).count(),
+			1,
+		)
 
 	def test_print_report_uses_current_filters(self):
 		matching = self.create_lplpo(status=LPLPO.Status.SUBMITTED, bulan=4, tahun=2026)
@@ -710,7 +828,7 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(
 			response.json()["items"][str(self.item_a.pk)],
-			"4.00",
+			"4",
 		)
 
 	def test_review_uses_available_stock_not_total_stock(self):
