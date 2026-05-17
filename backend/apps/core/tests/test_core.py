@@ -1,6 +1,7 @@
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -14,6 +15,7 @@ from django.test import RequestFactory
 from django.test import override_settings
 from django.template import Context, Template
 from django.urls import resolve, reverse
+from django.utils import timezone
 
 from apps.core.context_processors import nav_notifications
 from apps.core.forms import SystemSettingsForm
@@ -331,6 +333,64 @@ class DashboardViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["total_stock_quantity"], Decimal("40"))
+
+    def test_global_dashboard_expiring_soon_excludes_already_expired_batches(self):
+        viewer = User.objects.create_user(
+            username="dashboard-expiring-soon",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        self._set_scope(viewer, ModuleAccess.Module.STOCK, ModuleAccess.Scope.VIEW)
+        self._set_scope(viewer, ModuleAccess.Module.EXPIRED, ModuleAccess.Scope.VIEW)
+        self._set_scope(viewer, ModuleAccess.Module.ITEMS, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.USERS, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.ADMIN_PANEL, ModuleAccess.Scope.NONE)
+
+        unit = Unit.objects.create(code="BOT", name="Botol")
+        category = Category.objects.create(code="EXP", name="Expiring Test")
+        funding_source = FundingSource.objects.create(code="BOK", name="Bantuan Operasional")
+        location = Location.objects.create(code="GDEXP", name="Gudang Expired Test")
+        expired_item = Item.objects.create(
+            nama_barang="Stok Sudah Expired",
+            satuan=unit,
+            kategori=category,
+        )
+        near_expiry_item = Item.objects.create(
+            nama_barang="Stok Mendekati Expired",
+            satuan=unit,
+            kategori=category,
+        )
+
+        today = timezone.now().date()
+        Stock.objects.create(
+            item=expired_item,
+            location=location,
+            batch_lot="EXP-OLD-001",
+            expiry_date=today - timedelta(days=5),
+            quantity=Decimal("10"),
+            reserved=Decimal("0"),
+            unit_price=Decimal("1000"),
+            sumber_dana=funding_source,
+        )
+        near_expiry_stock = Stock.objects.create(
+            item=near_expiry_item,
+            location=location,
+            batch_lot="EXP-SOON-001",
+            expiry_date=today + timedelta(days=20),
+            quantity=Decimal("12"),
+            reserved=Decimal("0"),
+            unit_price=Decimal("1000"),
+            sumber_dana=funding_source,
+        )
+
+        self.client.force_login(viewer)
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["expiring_soon_count"], 1)
+        self.assertEqual(list(response.context["expiring_soon"]), [near_expiry_stock])
+        self.assertContains(response, "Stok Mendekati Expired")
+        self.assertNotContains(response, "Stok Sudah Expired")
 
     def test_global_dashboard_hides_unscoped_cards_and_actions(self):
         viewer = User.objects.create_user(
