@@ -284,7 +284,10 @@ def dashboard(request):
     expiring_soon = []
     expiring_soon_count = None
     if can_view_expired:
-        expiring_soon_queryset = stock_queryset.filter(expiry_date__lte=three_months_later)
+        expiring_soon_queryset = stock_queryset.filter(
+            expiry_date__gte=today,
+            expiry_date__lte=three_months_later,
+        )
         expiring_soon = expiring_soon_queryset.select_related("item").order_by(
             "expiry_date"
         )[:10]
