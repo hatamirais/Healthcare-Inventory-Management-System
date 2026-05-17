@@ -360,7 +360,8 @@ class DashboardViewTests(TestCase):
             satuan=unit,
             kategori=category,
         )
-        Transaction.objects.create(
+        fixed_now = timezone.now().replace(hour=12, minute=0, second=0, microsecond=0)
+        today_transaction = Transaction.objects.create(
             transaction_type=Transaction.TransactionType.RETURN,
             item=item,
             location=location,
@@ -371,6 +372,22 @@ class DashboardViewTests(TestCase):
             reference_type=Transaction.ReferenceType.RECALL,
             reference_id=1,
             user=actor,
+        )
+        tomorrow_transaction = Transaction.objects.create(
+            transaction_type=Transaction.TransactionType.RETURN,
+            item=item,
+            location=location,
+            batch_lot="RETURN-002",
+            quantity=Decimal("3"),
+            unit_price=Decimal("1000"),
+            sumber_dana=funding_source,
+            reference_type=Transaction.ReferenceType.RECALL,
+            reference_id=2,
+            user=actor,
+        )
+        Transaction.objects.filter(pk=today_transaction.pk).update(created_at=fixed_now)
+        Transaction.objects.filter(pk=tomorrow_transaction.pk).update(
+            created_at=fixed_now + timedelta(days=1)
         )
 
         self.client.force_login(viewer)
