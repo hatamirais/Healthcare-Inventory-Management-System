@@ -334,6 +334,52 @@ class DashboardViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["total_stock_quantity"], Decimal("40"))
 
+    def test_global_dashboard_today_transaction_count_includes_return_transactions(self):
+        viewer = User.objects.create_user(
+            username="dashboard-transaction-count",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        actor = User.objects.create_user(
+            username="dashboard-return-actor",
+            password="TestPassword123!",
+            role=User.Role.GUDANG,
+        )
+        self._set_scope(viewer, ModuleAccess.Module.STOCK, ModuleAccess.Scope.VIEW)
+        self._set_scope(viewer, ModuleAccess.Module.EXPIRED, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.ITEMS, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.USERS, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.ADMIN_PANEL, ModuleAccess.Scope.NONE)
+
+        unit = Unit.objects.create(code="RET", name="Retur")
+        category = Category.objects.create(code="RET", name="Retur Test")
+        funding_source = FundingSource.objects.create(code="RET", name="Retur Funding")
+        location = Location.objects.create(code="GDRET", name="Gudang Retur")
+        item = Item.objects.create(
+            nama_barang="Item Retur Dashboard",
+            satuan=unit,
+            kategori=category,
+        )
+        Transaction.objects.create(
+            transaction_type=Transaction.TransactionType.RETURN,
+            item=item,
+            location=location,
+            batch_lot="RETURN-001",
+            quantity=Decimal("5"),
+            unit_price=Decimal("1000"),
+            sumber_dana=funding_source,
+            reference_type=Transaction.ReferenceType.RECALL,
+            reference_id=1,
+            user=actor,
+        )
+
+        self.client.force_login(viewer)
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["today_transaction_count"], 1)
+        self.assertContains(response, "Semua jenis transaksi")
+
     def test_global_dashboard_expiring_soon_excludes_already_expired_batches(self):
         viewer = User.objects.create_user(
             username="dashboard-expiring-soon",
