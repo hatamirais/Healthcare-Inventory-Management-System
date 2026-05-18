@@ -1,7 +1,8 @@
-from django.db import models
+from django.db import IntegrityError, models, transaction
 from django.conf import settings
 from django.utils import timezone
 from apps.core.models import TimeStampedModel
+from apps.core.numbering import generate_document_number
 
 
 class StockOpname(TimeStampedModel):
@@ -61,22 +62,65 @@ class StockOpname(TimeStampedModel):
     def __str__(self):
         return f"{self.document_number} ({self.get_period_type_display()})"
 
+    @staticmethod
+    def generate_document_number():
+        year_month = timezone.now().strftime('%Y%m')
+        return generate_document_number(
+            StockOpname,
+            fallback_prefix=f"SO-{year_month}",
+        )
+
+    @classmethod
+    def _document_number_constraint_name(cls):
+        return f"{cls._meta.db_table}_document_number_key"
+
+    @classmethod
+    def _is_document_number_conflict(cls, exc):
+        error_message = " ".join(str(arg) for arg in exc.args)
+        constraint_name = (
+            getattr(getattr(exc.__cause__, "diag", None), "constraint_name", "")
+            or ""
+        )
+        return (
+            constraint_name == cls._document_number_constraint_name()
+            or f"UNIQUE constraint failed: {cls._meta.db_table}.document_number"
+            in error_message
+        )
+
     def save(self, *args, **kwargs):
-        if not self.document_number:
-            prefix = f"SO-{timezone.now().strftime('%Y%m')}-"
-            last = (
-                StockOpname.objects
-                .filter(document_number__startswith=prefix)
-                .order_by('-document_number')
-                .first()
-            )
-            if last:
-                last_num = int(last.document_number.split('-')[-1])
-                new_num = last_num + 1
-            else:
-                new_num = 1
-            self.document_number = f"{prefix}{str(new_num).zfill(5)}"
-        super().save(*args, **kwargs)
+        auto_generated_document_number = not self.document_number
+        if auto_generated_document_number:
+            self.document_number = self.generate_document_number()
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            if auto_generated_document_number:
+                existing = self.__class__.objects.filter(
+                    document_number=self.document_number
+                )
+                if self.pk:
+                    existing = existing.exclude(pk=self.pk)
+                if existing.exists():
+                    if attempt >= max_retries - 1:
+                        raise IntegrityError(
+                            "Auto-generated stock opname document number conflict."
+                        )
+                    self.document_number = self.generate_document_number()
+                    continue
+
+            try:
+                with transaction.atomic():
+                    super().save(*args, **kwargs)
+                return
+            except IntegrityError as exc:
+                if (
+                    auto_generated_document_number
+                    and attempt < max_retries - 1
+                    and self._is_document_number_conflict(exc)
+                ):
+                    self.document_number = self.generate_document_number()
+                else:
+                    raise
 
     @property
     def total_items(self):
@@ -133,6 +177,13 @@ class StockOpnameItem(models.Model):
         db_table = 'stock_opname_items'
         unique_together = ['stock_opname', 'stock']
         ordering = ['stock__item__nama_barang', 'stock__location__code']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(actual_quantity__gte=0)
+                | models.Q(actual_quantity__isnull=True),
+                name="chk_stock_opname_actual_quantity_gte_0",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.stock.item} | Sistem: {self.system_quantity} | Aktual: {self.actual_quantity}"
