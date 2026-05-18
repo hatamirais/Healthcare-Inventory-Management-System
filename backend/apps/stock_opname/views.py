@@ -233,6 +233,12 @@ def opname_start(request, pk):
 
             opname.status = StockOpname.Status.IN_PROGRESS
             opname.save(update_fields=["status", "updated_at"])
+
+        messages.success(
+            request,
+            f"Stock Opname dimulai. {len(opname_items)} item stok berhasil di-snapshot.",
+        )
+        return redirect("stock_opname:opname_detail", pk=opname.pk)
     except DatabaseError:
         logger.exception(
             "Failed to start stock opname snapshot",
@@ -243,12 +249,6 @@ def opname_start(request, pk):
             "Stock Opname gagal dimulai. Silakan coba lagi.",
         )
         return redirect("stock_opname:opname_detail", pk=pk)
-
-    messages.success(
-        request,
-        f"Stock Opname dimulai. {len(opname_items)} item stok berhasil di-snapshot.",
-    )
-    return redirect("stock_opname:opname_detail", pk=opname.pk)
 
 
 @login_required
@@ -317,10 +317,18 @@ def opname_input(request, pk):
             item.actual_quantity = actual
             item.notes = notes_val
             try:
-                item.full_clean()
+                item.full_clean(exclude=["stock_opname", "stock", "system_quantity"])
             except ValidationError as exc:
                 quantity_errors = exc.message_dict.get("actual_quantity", [])
-                item.quantity_error = " ".join(quantity_errors) or "Data tidak valid."
+                other_errors = [
+                    error
+                    for field, errors in exc.message_dict.items()
+                    if field != "actual_quantity"
+                    for error in errors
+                ]
+                item.quantity_error = (
+                    " ".join(quantity_errors + other_errors) or "Data tidak valid."
+                )
                 has_errors = True
                 continue
 

@@ -2,9 +2,11 @@ from datetime import date
 from decimal import Decimal
 from unittest import mock
 
+from django.db import IntegrityError
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.core.models import TimeStampedModel
 from apps.items.models import Category, FundingSource, Item, Location, Unit
 from apps.stock.models import Stock
 from apps.stock_opname.models import StockOpname, StockOpnameItem
@@ -236,3 +238,26 @@ class StockOpnameModelTests(StockOpnameTestMixin, TestCase):
             opname.save()
 
         self.assertEqual(opname.document_number, "SO-202605-00002")
+
+    def test_document_number_retry_does_not_swallow_unrelated_integrity_error(self):
+        with mock.patch.object(
+            StockOpname,
+            "generate_document_number",
+            return_value="SO-202605-99999",
+        ) as generate_mock, mock.patch.object(
+            TimeStampedModel,
+            "save",
+            side_effect=IntegrityError(
+                'duplicate key value violates unique constraint "stock_opnames_period_type_key"'
+            ),
+        ):
+            opname = StockOpname(
+                period_type=StockOpname.PeriodType.MONTHLY,
+                period_start=date(2026, 4, 1),
+                period_end=date(2026, 4, 30),
+                created_by=self.admin,
+            )
+            with self.assertRaises(IntegrityError):
+                opname.save()
+
+        self.assertEqual(generate_mock.call_count, 1)

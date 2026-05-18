@@ -70,6 +70,23 @@ class StockOpname(TimeStampedModel):
             fallback_prefix=f"SO-{year_month}",
         )
 
+    @classmethod
+    def _document_number_constraint_name(cls):
+        return f"{cls._meta.db_table}_document_number_key"
+
+    @classmethod
+    def _is_document_number_conflict(cls, exc):
+        error_message = " ".join(str(arg) for arg in exc.args)
+        constraint_name = (
+            getattr(getattr(exc.__cause__, "diag", None), "constraint_name", "")
+            or ""
+        )
+        return (
+            constraint_name == cls._document_number_constraint_name()
+            or f"UNIQUE constraint failed: {cls._meta.db_table}.document_number"
+            in error_message
+        )
+
     def save(self, *args, **kwargs):
         auto_generated_document_number = not self.document_number
         if auto_generated_document_number:
@@ -77,23 +94,29 @@ class StockOpname(TimeStampedModel):
 
         max_retries = 3
         for attempt in range(max_retries):
+            if auto_generated_document_number:
+                existing = self.__class__.objects.filter(
+                    document_number=self.document_number
+                )
+                if self.pk:
+                    existing = existing.exclude(pk=self.pk)
+                if existing.exists():
+                    if attempt >= max_retries - 1:
+                        raise IntegrityError(
+                            "Auto-generated stock opname document number conflict."
+                        )
+                    self.document_number = self.generate_document_number()
+                    continue
+
             try:
                 with transaction.atomic():
                     super().save(*args, **kwargs)
                 return
             except IntegrityError as exc:
-                error_message = " ".join(str(arg) for arg in exc.args)
-                constraint_name = (
-                    getattr(getattr(exc.__cause__, "diag", None), "constraint_name", "")
-                    or ""
-                )
                 if (
                     auto_generated_document_number
                     and attempt < max_retries - 1
-                    and (
-                        "document_number" in error_message
-                        or "document_number" in constraint_name
-                    )
+                    and self._is_document_number_conflict(exc)
                 ):
                     self.document_number = self.generate_document_number()
                 else:
