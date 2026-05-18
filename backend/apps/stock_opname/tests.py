@@ -216,11 +216,23 @@ class StockOpnameInputValidationTests(StockOpnameTestMixin, TestCase):
 
     def test_location_filter_is_preserved_after_post(self):
         self.client.force_login(self.gudang)
+        input_url = reverse("stock_opname:opname_input", args=[self.opname.pk])
+
+        get_response = self.client.get(
+            f"{input_url}?location={self.location.pk}",
+            secure=True,
+        )
+
+        self.assertEqual(get_response.status_code, 200)
+        self.assertContains(
+            get_response,
+            f'<input type="hidden" name="location" value="{self.location.pk}">',
+            html=True,
+        )
 
         response = self.client.post(
-            reverse("stock_opname:opname_input", args=[self.opname.pk]),
+            f"{input_url}?location={self.location.pk}",
             {
-                "location": str(self.location.pk),
                 f"qty_{self.opname_item.pk}": "90",
                 f"notes_{self.opname_item.pk}": "Rak depan",
             },
@@ -230,7 +242,7 @@ class StockOpnameInputValidationTests(StockOpnameTestMixin, TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
             response.headers["Location"],
-            f"{reverse('stock_opname:opname_input', args=[self.opname.pk])}?location={self.location.pk}",
+            f"{input_url}?location={self.location.pk}",
         )
 
 
