@@ -32,7 +32,11 @@
                                 {% for cat in opname.categories.all %}
                                 <span class="badge bg-primary me-1">{{ cat.name }}</span>
                                 {% empty %}
+                                {% if opname.status == "DRAFT" %}
                                 <span class="text-muted">Semua kategori</span>
+                                {% else %}
+                                <span class="text-muted">Tidak ada kategori</span>
+                                {% endif %}
                                 {% endfor %}
                             </dd>
                         </dl>

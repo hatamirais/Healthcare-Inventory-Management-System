@@ -72,6 +72,32 @@ class StockOpnameTestMixin:
 
 
 class StockOpnameAccessAndWorkflowTests(StockOpnameTestMixin, TestCase):
+    def test_detail_shows_missing_categories_for_legacy_rows(self):
+        draft = self.create_opname()
+        draft.categories.clear()
+
+        self.client.force_login(self.admin)
+        response = self.client.get(
+            reverse("stock_opname:opname_detail", args=[draft.pk]),
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Semua kategori")
+        self.assertNotContains(response, "Tidak ada kategori")
+
+        started = self.create_opname(status=StockOpname.Status.IN_PROGRESS)
+        started.categories.clear()
+
+        response = self.client.get(
+            reverse("stock_opname:opname_detail", args=[started.pk]),
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tidak ada kategori")
+        self.assertNotContains(response, "Semua kategori")
+
     def test_read_endpoints_require_view_permission(self):
         opname = self.create_opname(status=StockOpname.Status.IN_PROGRESS)
         StockOpnameItem.objects.create(
