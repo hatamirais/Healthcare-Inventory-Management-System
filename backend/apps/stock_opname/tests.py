@@ -179,6 +179,24 @@ class StockOpnameInputValidationTests(StockOpnameTestMixin, TestCase):
             status_code=400,
         )
 
+    def test_nan_actual_quantity_returns_400_and_does_not_save(self):
+        self.client.force_login(self.gudang)
+
+        response = self.client.post(
+            reverse("stock_opname:opname_input", args=[self.opname.pk]),
+            {f"qty_{self.opname_item.pk}": "NaN", f"notes_{self.opname_item.pk}": "bad"},
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.opname_item.refresh_from_db()
+        self.assertIsNone(self.opname_item.actual_quantity)
+        self.assertContains(
+            response,
+            "Jumlah aktual harus berupa angka yang valid.",
+            status_code=400,
+        )
+
     def test_valid_actual_quantity_updates_item(self):
         self.client.force_login(self.gudang)
 

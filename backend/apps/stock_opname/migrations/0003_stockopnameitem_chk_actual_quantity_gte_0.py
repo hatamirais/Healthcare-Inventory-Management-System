@@ -3,6 +3,11 @@
 from django.db import migrations, models
 
 
+def backfill_negative_actual_quantity(apps, schema_editor):
+    StockOpnameItem = apps.get_model("stock_opname", "StockOpnameItem")
+    StockOpnameItem.objects.filter(actual_quantity__lt=0).update(actual_quantity=None)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,6 +15,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(
+            backfill_negative_actual_quantity,
+            migrations.RunPython.noop,
+        ),
         migrations.AddConstraint(
             model_name="stockopnameitem",
             constraint=models.CheckConstraint(

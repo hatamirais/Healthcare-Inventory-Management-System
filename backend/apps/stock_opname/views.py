@@ -309,6 +309,11 @@ def opname_input(request, pk):
                 has_errors = True
                 continue
 
+            if not actual.is_finite():
+                item.quantity_error = "Jumlah aktual harus berupa angka yang valid."
+                has_errors = True
+                continue
+
             if actual < 0:
                 item.quantity_error = "Jumlah aktual tidak boleh kurang dari 0."
                 has_errors = True
