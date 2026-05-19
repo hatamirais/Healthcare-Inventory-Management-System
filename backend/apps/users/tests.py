@@ -10,6 +10,7 @@ from django.urls import reverse
 from apps.items.models import Facility
 from apps.users.access import (
     ROLE_DEFAULT_SCOPES,
+    default_scope_for_role,
     ensure_default_module_access,
     get_user_module_scope,
     has_module_permission,
@@ -52,7 +53,12 @@ class UserManagementViewsTest(TestCase):
         )
         self.client.force_login(admin_umum)
         response = self.client.get(reverse("users:user_list"))
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(
+            response,
+            "Anda tidak memiliki izin untuk membuka manajemen user.",
+            status_code=403,
+        )
 
     def test_kepala_can_access_user_management_but_cannot_edit(self):
         kepala = User.objects.create_user(
@@ -76,7 +82,12 @@ class UserManagementViewsTest(TestCase):
                 "is_active": "on",
             },
         )
-        self.assertEqual(edit_response.status_code, 302)
+        self.assertEqual(edit_response.status_code, 403)
+        self.assertContains(
+            edit_response,
+            "Anda tidak memiliki izin untuk mengubah user.",
+            status_code=403,
+        )
         self.target.refresh_from_db()
         self.assertNotEqual(self.target.full_name, "Tidak Boleh")
 
@@ -319,14 +330,14 @@ class UserManagementViewsTest(TestCase):
                 "password1": "BlockedReset123!",
                 "password2": "BlockedReset123!",
             },
-            follow=True,
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
         self.target.refresh_from_db()
         self.assertTrue(self.target.check_password("secret12345"))
-        self.assertIn(
+        self.assertContains(
+            response,
             "Anda tidak memiliki izin untuk mereset password user.",
-            [message.message for message in get_messages(response.wsgi_request)],
+            status_code=403,
         )
 
     def test_user_list_shows_nip(self):
@@ -447,7 +458,12 @@ class UserManagementViewsTest(TestCase):
 
         response = self.client.get(reverse("users:user_detail", args=[self.target.pk]))
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(
+            response,
+            "Anda tidak memiliki izin untuk membuka detail user.",
+            status_code=403,
+        )
 
     def test_bulk_action_activate_selected_users(self):
         inactive_user = User.objects.create_user(
@@ -760,6 +776,10 @@ class HybridUserAuthorizationTest(TestCase):
             content_type__app_label="users",
             codename="view_user",
         )
+        self.add_perm = Permission.objects.get(
+            content_type__app_label="users",
+            codename="add_user",
+        )
         self.change_perm = Permission.objects.get(
             content_type__app_label="users",
             codename="change_user",
@@ -785,6 +805,80 @@ class HybridUserAuthorizationTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, f"Edit User {self.target.username}")
+
+    def test_direct_django_add_permission_cannot_assign_custom_module_scopes(self):
+        self.viewer.user_permissions.add(self.add_perm)
+        self.client.force_login(self.viewer)
+
+        payload = {
+            "username": "limited_creator",
+            "full_name": "Limited Creator",
+            "nip": "197812312010011009",
+            "email": "limited_creator@example.com",
+            "role": User.Role.AUDITOR,
+            "is_active": "on",
+            "password1": "VeryStrongPass123!",
+            "password2": "VeryStrongPass123!",
+        }
+        payload.update(
+            {
+                f"module_scope__{module_code}": str(ModuleAccess.Scope.MANAGE)
+                for module_code, _ in ModuleAccess.Module.choices
+            }
+        )
+
+        response = self.client.post(reverse("users:user_create"), payload, secure=True)
+
+        self.assertEqual(response.status_code, 302)
+        created = User.objects.get(username="limited_creator")
+        self.assertEqual(
+            ModuleAccess.objects.get(
+                user=created,
+                module=ModuleAccess.Module.USERS,
+            ).scope,
+            default_scope_for_role(User.Role.AUDITOR, ModuleAccess.Module.USERS),
+        )
+
+    def test_direct_django_change_permission_cannot_override_existing_module_scopes(self):
+        self.editor.user_permissions.add(self.change_perm)
+        self.client.force_login(self.editor)
+        ModuleAccess.objects.update_or_create(
+            user=self.target,
+            module=ModuleAccess.Module.USERS,
+            defaults={"scope": ModuleAccess.Scope.VIEW},
+        )
+
+        payload = {
+            "username": self.target.username,
+            "full_name": "Updated Target User",
+            "nip": "",
+            "email": self.target.email,
+            "role": self.target.role,
+            "is_active": "on",
+        }
+        payload.update(
+            {
+                f"module_scope__{module_code}": str(ModuleAccess.Scope.MANAGE)
+                for module_code, _ in ModuleAccess.Module.choices
+            }
+        )
+
+        response = self.client.post(
+            reverse("users:user_update", args=[self.target.pk]),
+            payload,
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.target.refresh_from_db()
+        self.assertEqual(self.target.full_name, "Updated Target User")
+        self.assertEqual(
+            ModuleAccess.objects.get(
+                user=self.target,
+                module=ModuleAccess.Module.USERS,
+            ).scope,
+            ModuleAccess.Scope.VIEW,
+        )
 
     def test_missing_view_access_raises_403_instead_of_redirect(self):
         self.client.force_login(self.viewer)

@@ -44,6 +44,10 @@ def _can_delete_users(user):
     return _has_user_access(user, "users.delete_user")
 
 
+def _can_manage_user_scopes(user):
+    return user.is_superuser or has_module_permission(user, "users.change_user")
+
+
 def _protected_user_account_q():
     return Q(is_superuser=True) | Q(role=User.Role.ADMIN)
 
@@ -188,15 +192,19 @@ def user_create(request):
         "users.add_user",
         "Anda tidak memiliki izin untuk menambah user.",
     )
+    can_manage_user_scopes = _can_manage_user_scopes(request.user)
 
     if request.method == "POST":
-        form = UserCreateForm(request.POST)
+        form = UserCreateForm(
+            request.POST,
+            can_manage_module_scopes=can_manage_user_scopes,
+        )
         if form.is_valid():
             user = form.save()
             messages.success(request, f"User {user.username} berhasil ditambahkan.")
             return redirect("users:user_list")
     else:
-        form = UserCreateForm()
+        form = UserCreateForm(can_manage_module_scopes=can_manage_user_scopes)
 
     return render(
         request,
@@ -205,6 +213,7 @@ def user_create(request):
             "form": form,
             "title": "Tambah User",
             "role_defaults_json": _role_defaults_json(),
+            "can_manage_user_scopes": can_manage_user_scopes,
         },
     )
 
@@ -216,6 +225,7 @@ def user_update(request, pk):
         "users.change_user",
         "Anda tidak memiliki izin untuk mengubah user.",
     )
+    can_manage_user_scopes = _can_manage_user_scopes(request.user)
 
     target_user = get_object_or_404(User, pk=pk)
     protected_response = _ensure_can_mutate_target_user(request, target_user)
@@ -223,13 +233,20 @@ def user_update(request, pk):
         return protected_response
 
     if request.method == "POST":
-        form = UserUpdateForm(request.POST, instance=target_user)
+        form = UserUpdateForm(
+            request.POST,
+            instance=target_user,
+            can_manage_module_scopes=can_manage_user_scopes,
+        )
         if form.is_valid():
             user = form.save()
             messages.success(request, f"User {user.username} berhasil diperbarui.")
             return redirect("users:user_list")
     else:
-        form = UserUpdateForm(instance=target_user)
+        form = UserUpdateForm(
+            instance=target_user,
+            can_manage_module_scopes=can_manage_user_scopes,
+        )
 
     return render(
         request,
@@ -240,6 +257,7 @@ def user_update(request, pk):
             "target_user": target_user,
             "effective_scopes": _effective_scope_rows(target_user),
             "role_defaults_json": _role_defaults_json(),
+            "can_manage_user_scopes": can_manage_user_scopes,
         },
     )
 
