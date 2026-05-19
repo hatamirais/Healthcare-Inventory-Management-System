@@ -844,3 +844,61 @@ class ProtectedUserManagementGuardsTest(TestCase):
                 for message in messages
             )
         )
+
+    def test_bulk_activate_skips_admin_accounts_for_non_superuser_manager(self):
+        self.super_admin.is_active = False
+        self.super_admin.save(update_fields=["is_active"])
+        self.standard_user.is_active = False
+        self.standard_user.save(update_fields=["is_active"])
+
+        response = self.client.post(
+            reverse("users:user_bulk_action"),
+            {
+                "action": "activate",
+                "selected_users": [self.super_admin.pk, self.standard_user.pk],
+            },
+            secure=True,
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.super_admin.refresh_from_db()
+        self.standard_user.refresh_from_db()
+        self.assertFalse(self.super_admin.is_active)
+        self.assertTrue(self.standard_user.is_active)
+        messages = [message.message for message in get_messages(response.wsgi_request)]
+        self.assertTrue(
+            any(
+                "1 akun admin dilewati karena hanya dapat dikelola oleh superuser."
+                in message
+                for message in messages
+            )
+        )
+
+    def test_bulk_delete_skips_admin_accounts_for_non_superuser_manager(self):
+        self.super_admin.is_active = False
+        self.super_admin.save(update_fields=["is_active"])
+        self.standard_user.is_active = False
+        self.standard_user.save(update_fields=["is_active"])
+
+        response = self.client.post(
+            reverse("users:user_bulk_action"),
+            {
+                "action": "delete",
+                "selected_users": [self.super_admin.pk, self.standard_user.pk],
+            },
+            secure=True,
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(User.objects.filter(pk=self.super_admin.pk).exists())
+        self.assertFalse(User.objects.filter(pk=self.standard_user.pk).exists())
+        messages = [message.message for message in get_messages(response.wsgi_request)]
+        self.assertTrue(
+            any(
+                "1 akun admin dilewati karena hanya dapat dikelola oleh superuser."
+                in message
+                for message in messages
+            )
+        )

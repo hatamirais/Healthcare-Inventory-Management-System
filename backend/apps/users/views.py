@@ -32,8 +32,12 @@ def _can_manage_users(user):
     return has_module_scope(user, ModuleAccess.Module.USERS, ModuleAccess.Scope.MANAGE)
 
 
+def _protected_user_account_q():
+    return Q(is_superuser=True) | Q(role=User.Role.ADMIN)
+
+
 def _is_protected_user_account(user_obj):
-    return user_obj.is_superuser or user_obj.role == User.Role.ADMIN
+    return User.objects.filter(pk=user_obj.pk).filter(_protected_user_account_q()).exists()
 
 
 def _forbidden_manage_user(request, message):
@@ -361,9 +365,7 @@ def user_bulk_action(request):
         return redirect("users:user_list")
 
     queryset = User.objects.filter(pk__in=pks)
-    protected_accounts = queryset.filter(
-        Q(is_superuser=True) | Q(role=User.Role.ADMIN)
-    )
+    protected_accounts = queryset.filter(_protected_user_account_q())
     protected_count = 0
     if not request.user.is_superuser:
         protected_count = protected_accounts.count()
