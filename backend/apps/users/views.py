@@ -7,6 +7,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import ProtectedError
+from django.db.models import Q
 from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -31,9 +32,29 @@ def _can_manage_users(user):
     return has_module_scope(user, ModuleAccess.Module.USERS, ModuleAccess.Scope.MANAGE)
 
 
+def _is_protected_user_account(user_obj):
+    return user_obj.is_superuser or user_obj.role == User.Role.ADMIN
+
+
 def _forbidden_manage_user(request, message):
     messages.error(request, message)
     return redirect("dashboard")
+
+
+def _forbidden_protected_user_mutation(request, is_ajax=False):
+    message = "Akun admin hanya dapat dikelola oleh superuser."
+    if is_ajax:
+        return JsonResponse({"success": False, "error": message}, status=403)
+    messages.error(request, message)
+    return redirect("users:user_list")
+
+
+def _ensure_can_mutate_target_user(request, target_user, is_ajax=False):
+    if request.user.is_superuser:
+        return None
+    if _is_protected_user_account(target_user):
+        return _forbidden_protected_user_mutation(request, is_ajax=is_ajax)
+    return None
 
 
 def _effective_scope_rows(user_obj):
@@ -182,6 +203,9 @@ def user_update(request, pk):
         )
 
     target_user = get_object_or_404(User, pk=pk)
+    protected_response = _ensure_can_mutate_target_user(request, target_user)
+    if protected_response:
+        return protected_response
 
     if request.method == "POST":
         form = UserUpdateForm(request.POST, instance=target_user)
@@ -218,6 +242,11 @@ def user_toggle_active(request, pk):
         )
 
     target_user = get_object_or_404(User, pk=pk)
+    protected_response = _ensure_can_mutate_target_user(
+        request, target_user, is_ajax=is_ajax
+    )
+    if protected_response:
+        return protected_response
     if request.method != "POST":
         if is_ajax:
             return JsonResponse({"success": False, "error": "Metode tidak diizinkan."}, status=405)
@@ -258,6 +287,9 @@ def user_delete(request, pk):
         )
 
     target_user = get_object_or_404(User, pk=pk)
+    protected_response = _ensure_can_mutate_target_user(request, target_user)
+    if protected_response:
+        return protected_response
     if request.method != "POST":
         return redirect("users:user_list")
 
@@ -329,41 +361,73 @@ def user_bulk_action(request):
         return redirect("users:user_list")
 
     queryset = User.objects.filter(pk__in=pks)
+    protected_accounts = queryset.filter(
+        Q(is_superuser=True) | Q(role=User.Role.ADMIN)
+    )
+    protected_count = 0
+    if not request.user.is_superuser:
+        protected_count = protected_accounts.count()
+        queryset = queryset.exclude(pk__in=protected_accounts.values("pk"))
     count = queryset.count()
 
     if action == "activate":
         queryset.update(is_active=True)
-        messages.success(request, f"{count} pengguna berhasil diaktifkan.")
+        message = f"{count} pengguna berhasil diaktifkan."
+        if protected_count:
+            message = (
+                f"{message} {protected_count} akun admin dilewati karena hanya "
+                "dapat dikelola oleh superuser."
+            )
+            messages.warning(request, message)
+        else:
+            messages.success(request, message)
     elif action == "deactivate":
         updated = queryset.exclude(pk=request.user.pk).update(is_active=False)
         if updated < count:
-            messages.warning(
-                request,
+            message = (
                 f"{updated} dari {count} pengguna dinonaktifkan. "
-                f"Akun Anda sendiri tidak dapat dinonaktifkan.",
+                f"Akun Anda sendiri tidak dapat dinonaktifkan."
             )
+            if protected_count:
+                message = (
+                    f"{message} {protected_count} akun admin dilewati karena "
+                    "hanya dapat dikelola oleh superuser."
+                )
+            messages.warning(request, message)
         else:
-            messages.success(request, f"{updated} pengguna berhasil dinonaktifkan.")
+            message = f"{updated} pengguna berhasil dinonaktifkan."
+            if protected_count:
+                message = (
+                    f"{message} {protected_count} akun admin dilewati karena "
+                    "hanya dapat dikelola oleh superuser."
+                )
+                messages.warning(request, message)
+            else:
+                messages.success(request, message)
     elif action == "delete":
         inactive = queryset.filter(is_active=False)
         active_count = queryset.filter(is_active=True).count()
         deleted_count = 0
-        protected_count = 0
+        related_protected_count = 0
         for user_obj in inactive:
             try:
                 user_obj.delete()
                 deleted_count += 1
             except ProtectedError:
-                protected_count += 1
-        if active_count or protected_count:
+                related_protected_count += 1
+        if active_count or related_protected_count or protected_count:
             message_parts = [f"{deleted_count} pengguna dihapus."]
             if active_count:
                 message_parts.append(
                     f"{active_count} pengguna aktif tidak dapat dihapus."
                 )
+            if related_protected_count:
+                message_parts.append(
+                    f"{related_protected_count} pengguna memiliki data terkait dan tidak dapat dihapus."
+                )
             if protected_count:
                 message_parts.append(
-                    f"{protected_count} pengguna memiliki data terkait dan tidak dapat dihapus."
+                    f"{protected_count} akun admin dilewati karena hanya dapat dikelola oleh superuser."
                 )
             messages.warning(
                 request,
@@ -388,6 +452,9 @@ def user_reset_password(request, pk):
         )
 
     target_user = get_object_or_404(User, pk=pk)
+    protected_response = _ensure_can_mutate_target_user(request, target_user)
+    if protected_response:
+        return protected_response
     if request.method != "POST":
         return redirect("users:user_list")
 

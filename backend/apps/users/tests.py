@@ -722,3 +722,125 @@ class UACRoleMatrixTest(TestCase):
             ModuleAccess.Scope.APPROVE,
         )
         self.assertTrue(has_module_permission(user, "puskesmas.view_puskesmasrequest"))
+
+
+class ProtectedUserManagementGuardsTest(TestCase):
+    def setUp(self):
+        self.super_admin = User.objects.create_superuser(
+            username="super_admin",
+            email="super_admin@example.com",
+            password="VeryStrongPass123!",
+        )
+        self.manager_user = User.objects.create_user(
+            username="user_manager",
+            email="user_manager@example.com",
+            password="VeryStrongPass123!",
+            role=User.Role.GUDANG,
+        )
+        ModuleAccess.objects.update_or_create(
+            user=self.manager_user,
+            module=ModuleAccess.Module.USERS,
+            defaults={"scope": ModuleAccess.Scope.MANAGE},
+        )
+        self.standard_user = User.objects.create_user(
+            username="standard_user",
+            email="standard_user@example.com",
+            password="VeryStrongPass123!",
+            role=User.Role.AUDITOR,
+        )
+        self.client.force_login(self.manager_user)
+
+    def test_non_superuser_cannot_open_admin_edit_form(self):
+        response = self.client.get(
+            reverse("users:user_update", args=[self.super_admin.pk]),
+            secure=True,
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertRedirects(
+            response,
+            "https://testserver" + reverse("users:user_list"),
+            status_code=302,
+            target_status_code=200,
+        )
+        self.assertIn(
+            "Akun admin hanya dapat dikelola oleh superuser.",
+            [message.message for message in get_messages(response.wsgi_request)],
+        )
+
+    def test_non_superuser_cannot_reset_admin_password(self):
+        response = self.client.post(
+            reverse("users:user_reset_password", args=[self.super_admin.pk]),
+            {
+                "password1": "ResetBlocked123!",
+                "password2": "ResetBlocked123!",
+            },
+            secure=True,
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.super_admin.refresh_from_db()
+        self.assertTrue(self.super_admin.check_password("VeryStrongPass123!"))
+        self.assertIn(
+            "Akun admin hanya dapat dikelola oleh superuser.",
+            [message.message for message in get_messages(response.wsgi_request)],
+        )
+
+    def test_non_superuser_cannot_toggle_admin_active_status_via_ajax(self):
+        response = self.client.post(
+            reverse("users:user_toggle_active", args=[self.super_admin.pk]),
+            secure=True,
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.super_admin.refresh_from_db()
+        self.assertTrue(self.super_admin.is_active)
+        self.assertEqual(
+            response.json(),
+            {
+                "success": False,
+                "error": "Akun admin hanya dapat dikelola oleh superuser.",
+            },
+        )
+
+    def test_non_superuser_cannot_delete_admin_account(self):
+        response = self.client.post(
+            reverse("users:user_delete", args=[self.super_admin.pk]),
+            secure=True,
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(User.objects.filter(pk=self.super_admin.pk).exists())
+        self.assertIn(
+            "Akun admin hanya dapat dikelola oleh superuser.",
+            [message.message for message in get_messages(response.wsgi_request)],
+        )
+
+    def test_bulk_action_skips_admin_accounts_for_non_superuser_manager(self):
+        response = self.client.post(
+            reverse("users:user_bulk_action"),
+            {
+                "action": "deactivate",
+                "selected_users": [self.super_admin.pk, self.standard_user.pk],
+            },
+            secure=True,
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.super_admin.refresh_from_db()
+        self.standard_user.refresh_from_db()
+        self.assertTrue(self.super_admin.is_active)
+        self.assertFalse(self.standard_user.is_active)
+        messages = [message.message for message in get_messages(response.wsgi_request)]
+        self.assertTrue(
+            any(
+                "1 akun admin dilewati karena hanya dapat dikelola oleh superuser."
+                in message
+                for message in messages
+            )
+        )
