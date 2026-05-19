@@ -1,5 +1,6 @@
 from unittest import mock
 
+from django.contrib.auth.models import Permission
 from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.db.models import ProtectedError
@@ -724,6 +725,115 @@ class UACRoleMatrixTest(TestCase):
         self.assertTrue(has_module_permission(user, "puskesmas.view_puskesmasrequest"))
 
 
+class HybridUserAuthorizationTest(TestCase):
+    def setUp(self):
+        self.viewer = User.objects.create_user(
+            username="viewer_only",
+            email="viewer_only@example.com",
+            password="VeryStrongPass123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        ModuleAccess.objects.update_or_create(
+            user=self.viewer,
+            module=ModuleAccess.Module.USERS,
+            defaults={"scope": ModuleAccess.Scope.NONE},
+        )
+        self.editor = User.objects.create_user(
+            username="editor_only",
+            email="editor_only@example.com",
+            password="VeryStrongPass123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        ModuleAccess.objects.update_or_create(
+            user=self.editor,
+            module=ModuleAccess.Module.USERS,
+            defaults={"scope": ModuleAccess.Scope.NONE},
+        )
+        self.target = User.objects.create_user(
+            username="target_user",
+            email="target_user@example.com",
+            password="VeryStrongPass123!",
+            role=User.Role.GUDANG,
+        )
+
+        self.view_perm = Permission.objects.get(
+            content_type__app_label="users",
+            codename="view_user",
+        )
+        self.change_perm = Permission.objects.get(
+            content_type__app_label="users",
+            codename="change_user",
+        )
+
+    def test_direct_django_view_permission_allows_user_list(self):
+        self.viewer.user_permissions.add(self.view_perm)
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse("users:user_list"), secure=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Manajemen Pengguna")
+
+    def test_direct_django_change_permission_allows_user_edit(self):
+        self.editor.user_permissions.add(self.change_perm)
+        self.client.force_login(self.editor)
+
+        response = self.client.get(
+            reverse("users:user_update", args=[self.target.pk]),
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"Edit User {self.target.username}")
+
+    def test_missing_view_access_raises_403_instead_of_redirect(self):
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse("users:user_list"), secure=True)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(
+            response,
+            "Anda tidak memiliki izin untuk membuka manajemen user.",
+            status_code=403,
+        )
+
+    def test_missing_add_access_raises_403_instead_of_redirect(self):
+        self.viewer.user_permissions.add(self.view_perm)
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse("users:user_create"), secure=True)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(
+            response,
+            "Anda tidak memiliki izin untuk menambah user.",
+            status_code=403,
+        )
+
+    def test_missing_change_access_raises_403_for_password_reset(self):
+        self.viewer.user_permissions.add(self.view_perm)
+        self.client.force_login(self.viewer)
+
+        response = self.client.post(
+            reverse("users:user_reset_password", args=[self.target.pk]),
+            {
+                "password1": "BlockedReset123!",
+                "password2": "BlockedReset123!",
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.target.refresh_from_db()
+        self.assertTrue(self.target.check_password("VeryStrongPass123!"))
+        self.assertContains(
+            response,
+            "Anda tidak memiliki izin untuk mereset password user.",
+            status_code=403,
+        )
+
+
 class ProtectedUserManagementGuardsTest(TestCase):
     def setUp(self):
         self.super_admin = User.objects.create_superuser(
@@ -754,19 +864,13 @@ class ProtectedUserManagementGuardsTest(TestCase):
         response = self.client.get(
             reverse("users:user_update", args=[self.super_admin.pk]),
             secure=True,
-            follow=True,
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertRedirects(
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(
             response,
-            "https://testserver" + reverse("users:user_list"),
-            status_code=302,
-            target_status_code=200,
-        )
-        self.assertIn(
             "Akun admin hanya dapat dikelola oleh superuser.",
-            [message.message for message in get_messages(response.wsgi_request)],
+            status_code=403,
         )
 
     def test_non_superuser_cannot_reset_admin_password(self):
@@ -777,15 +881,15 @@ class ProtectedUserManagementGuardsTest(TestCase):
                 "password2": "ResetBlocked123!",
             },
             secure=True,
-            follow=True,
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
         self.super_admin.refresh_from_db()
         self.assertTrue(self.super_admin.check_password("VeryStrongPass123!"))
-        self.assertIn(
+        self.assertContains(
+            response,
             "Akun admin hanya dapat dikelola oleh superuser.",
-            [message.message for message in get_messages(response.wsgi_request)],
+            status_code=403,
         )
 
     def test_non_superuser_cannot_toggle_admin_active_status_via_ajax(self):
@@ -810,14 +914,14 @@ class ProtectedUserManagementGuardsTest(TestCase):
         response = self.client.post(
             reverse("users:user_delete", args=[self.super_admin.pk]),
             secure=True,
-            follow=True,
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
         self.assertTrue(User.objects.filter(pk=self.super_admin.pk).exists())
-        self.assertIn(
+        self.assertContains(
+            response,
             "Akun admin hanya dapat dikelola oleh superuser.",
-            [message.message for message in get_messages(response.wsgi_request)],
+            status_code=403,
         )
 
     def test_bulk_action_skips_admin_accounts_for_non_superuser_manager(self):
