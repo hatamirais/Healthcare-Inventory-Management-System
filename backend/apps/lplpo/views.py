@@ -872,6 +872,11 @@ def lplpo_finalize(request, pk):
     try:
         with transaction.atomic():
             lplpo_obj = LPLPO.objects.select_for_update().get(pk=lplpo_obj.pk)
+            if lplpo_obj.status != LPLPO.Status.REVIEWED:
+                messages.error(
+                    request, "Hanya LPLPO berstatus Ditinjau PIC yang dapat disetujui."
+                )
+                return redirect("lplpo:lplpo_detail", pk=pk)
             if lplpo_obj.distribution_id:
                 messages.info(
                     request,

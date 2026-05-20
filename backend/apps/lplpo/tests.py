@@ -1,6 +1,7 @@
 import importlib
 from datetime import date, datetime
 from decimal import Decimal
+from unittest.mock import Mock, patch
 
 from django.apps import apps as django_apps
 from django.db import IntegrityError
@@ -964,6 +965,35 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertEqual(
 			Distribution.objects.filter(distribution_type=Distribution.DistributionType.LPLPO).count(),
 			1,
+		)
+
+	def test_finalize_rechecks_reviewed_status_after_row_lock(self):
+		lplpo = self.create_lplpo(status=LPLPO.Status.REVIEWED, created_by=self.staff_user)
+		LPLPOItem.objects.create(
+			lplpo=lplpo,
+			item=self.item_a,
+			permintaan_jumlah=Decimal("12.00"),
+			pemberian_jumlah=Decimal("9.00"),
+		)
+
+		locked_lplpo = LPLPO.objects.get(pk=lplpo.pk)
+		locked_lplpo.status = LPLPO.Status.SUBMITTED
+
+		self.client.force_login(self.superuser)
+		with patch(
+			"apps.lplpo.views.LPLPO.objects.select_for_update",
+			return_value=Mock(get=Mock(return_value=locked_lplpo)),
+		):
+			response = self.client.post(reverse("lplpo:lplpo_finalize", args=[lplpo.pk]))
+
+		self.assertEqual(response.status_code, 302)
+		self.assertRedirects(response, reverse("lplpo:lplpo_detail", args=[lplpo.pk]))
+		lplpo.refresh_from_db()
+		self.assertEqual(lplpo.status, LPLPO.Status.REVIEWED)
+		self.assertIsNone(lplpo.distribution)
+		self.assertEqual(
+			Distribution.objects.filter(distribution_type=Distribution.DistributionType.LPLPO).count(),
+			0,
 		)
 
 	def test_migration_marks_reviewed_lplpo_with_distribution_as_approved(self):
