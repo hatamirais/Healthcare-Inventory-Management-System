@@ -66,12 +66,6 @@ class LPLPOCreateForm(forms.Form):
             self.fields["facility"].widget = forms.HiddenInput()
             self.fields["facility"].required = False
 
-    def clean_tahun(self):
-        tahun = self.cleaned_data["tahun"]
-        if tahun < 1000 or tahun > 9999:
-            raise ValidationError("Tahun harus berada di antara 1000 dan 9999.")
-        return tahun
-
     def clean_notes(self):
         return _normalize_text_value(
             self.cleaned_data.get("notes"),

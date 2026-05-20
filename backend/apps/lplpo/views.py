@@ -81,11 +81,11 @@ def _get_submission_month_choices():
     return [(str(month), calendar.month_name[month]) for month in range(1, 13)]
 
 
-def _get_submitted_lplpo_queryset(request):
+def _get_filtered_lplpo_queryset(request, *, submitted_only=True):
     queryset = LPLPO.objects.select_related(
         "facility", "created_by", "reviewed_by", "distribution"
     )
-    if not _is_super_admin(request.user):
+    if submitted_only:
         queryset = queryset.filter(submitted_at__isnull=False)
     queryset = queryset.order_by("-submitted_at", "-tahun", "-bulan", "facility__name")
 
@@ -123,11 +123,14 @@ def _get_submitted_lplpo_queryset(request):
 @login_required
 @perm_required("lplpo.view_lplpo")
 def lplpo_list(request):
-    """Submitted LPLPO queue for Instalasi Farmasi staff."""
+    """LPLPO list for Instalasi Farmasi staff, with super admin access to all statuses."""
     if getattr(request.user, "role", "") == User.Role.PUSKESMAS:
         return redirect("lplpo:lplpo_my_list")
 
-    queryset, filter_context = _get_submitted_lplpo_queryset(request)
+    queryset, filter_context = _get_filtered_lplpo_queryset(
+        request,
+        submitted_only=not _is_super_admin(request.user),
+    )
 
     paginator = Paginator(queryset, 25)
     page = paginator.get_page(request.GET.get("page"))
@@ -823,7 +826,7 @@ def lplpo_print_report(request):
     if getattr(request.user, "role", "") == "PUSKESMAS":
         return redirect("lplpo:lplpo_my_list")
 
-    queryset, filter_context = _get_submitted_lplpo_queryset(request)
+    queryset, filter_context = _get_filtered_lplpo_queryset(request)
 
     return render(
         request,

@@ -934,6 +934,22 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertContains(response, matching.document_number)
 		self.assertNotContains(response, non_matching.document_number)
 
+	def test_super_admin_print_report_still_only_shows_submitted_documents(self):
+		draft_lplpo = self.create_lplpo(status=LPLPO.Status.DRAFT)
+		submitted_lplpo = self.create_lplpo(
+			status=LPLPO.Status.SUBMITTED,
+			bulan=3,
+			tahun=2026,
+		)
+		self.set_submitted_at(submitted_lplpo, 2026, 4, 5)
+
+		self.client.force_login(self.superuser)
+		response = self.client.get(reverse("lplpo:lplpo_print_report"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, submitted_lplpo.document_number)
+		self.assertNotContains(response, draft_lplpo.document_number)
+
 	def test_distribution_distributed_closes_lplpo(self):
 		distribution = Distribution.objects.create(
 			distribution_type=Distribution.DistributionType.LPLPO,
