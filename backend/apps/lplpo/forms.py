@@ -1,12 +1,28 @@
 import calendar
+import unicodedata
 from decimal import ROUND_HALF_UP
 
 from django import forms
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.users.models import User
 
 from .models import LPLPOItem
+
+
+def _normalize_text_value(value, *, field_label, max_length=None):
+    if value in (None, ""):
+        return ""
+
+    normalized = unicodedata.normalize("NFC", value).strip()
+    if "\x00" in normalized:
+        raise ValidationError(f"{field_label} tidak boleh mengandung null byte.")
+    if max_length is not None and len(normalized) > max_length:
+        raise ValidationError(
+            f"{field_label} tidak boleh lebih dari {max_length} karakter."
+        )
+    return normalized
 
 
 class LPLPOCreateForm(forms.Form):
@@ -39,6 +55,7 @@ class LPLPOCreateForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user", None)
+        self.user = user
         super().__init__(*args, **kwargs)
         from apps.items.models import Facility
 
@@ -48,6 +65,20 @@ class LPLPOCreateForm(forms.Form):
         if user and getattr(user, "role", None) == User.Role.PUSKESMAS:
             self.fields["facility"].widget = forms.HiddenInput()
             self.fields["facility"].required = False
+
+    def clean_notes(self):
+        return _normalize_text_value(
+            self.cleaned_data.get("notes"),
+            field_label="Catatan",
+            max_length=1000,
+        )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        user_role = getattr(self.user, "role", None)
+        if user_role != User.Role.PUSKESMAS and not cleaned_data.get("facility"):
+            self.add_error("facility", "Fasilitas puskesmas wajib dipilih.")
+        return cleaned_data
 
 
 class LPLPOItemPuskesmasForm(forms.ModelForm):
@@ -69,6 +100,13 @@ class LPLPOItemPuskesmasForm(forms.ModelForm):
         if value in (None, ""):
             return 0
         return value
+
+    def clean_permintaan_alasan(self):
+        return _normalize_text_value(
+            self.cleaned_data.get("permintaan_alasan"),
+            field_label="Alasan",
+            max_length=1000,
+        )
 
     class Meta:
         model = LPLPOItem
@@ -128,6 +166,13 @@ class LPLPOItemReviewForm(forms.ModelForm):
             ),
         }
 
+    def clean_pemberian_alasan(self):
+        return _normalize_text_value(
+            self.cleaned_data.get("pemberian_alasan"),
+            field_label="Alasan pemberian",
+            max_length=1000,
+        )
+
 
 class RejectLPLPOForm(forms.Form):
     """Form for Instalasi Farmasi to provide a rejection reason."""
@@ -138,3 +183,10 @@ class RejectLPLPOForm(forms.Form):
         label="Alasan Penolakan",
         error_messages={"required": "Alasan penolakan wajib diisi."},
     )
+
+    def clean_rejection_reason(self):
+        return _normalize_text_value(
+            self.cleaned_data.get("rejection_reason"),
+            field_label="Alasan penolakan",
+            max_length=1000,
+        )

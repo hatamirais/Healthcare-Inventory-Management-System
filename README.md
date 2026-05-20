@@ -25,7 +25,7 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 - Pencatatan stok per batch dengan pendekatan FEFO agar distribusi lebih terkendali dan masa kedaluwarsa lebih mudah dipantau.
 - Alur kerja end-to-end untuk penerimaan, distribusi, recall, barang kedaluwarsa, transfer stok, dan stock opname.
 - Dukungan tipe penerimaan bawaan dan tipe kustom melalui `ReceivingTypeOption`, termasuk quick-create dari form penerimaan.
-- Pelaporan LPLPO bulanan dan pengajuan permintaan barang secara ad-hoc dari Puskesmas.
+- Pelaporan LPLPO bulanan dan pengajuan permintaan barang secara ad-hoc dari Puskesmas, termasuk carry-over `sisa stok` bulan sebelumnya ke `stock_awal` bulan berikutnya selama dokumen bulan sebelumnya tidak berstatus `REJECTED`.
 - Log `Transaction` yang imutabel untuk seluruh pergerakan stok, sehingga histori tetap terjaga.
 - Pengendalian akses melalui kombinasi permission Django dan `ModuleAccess` per pengguna.
 - Dukungan import CSV dari Django Admin, termasuk endpoint khusus untuk penerimaan barang yang mengelompokkan baris per `document_number` dan langsung membentuk stok serta `Transaction(IN)`.
@@ -44,6 +44,7 @@ Solusi ini membantu proses inventaris berjalan lebih konsisten melalui alur doku
 - `stock_opname`: proses hitung fisik dan cetak laporan selisih.
 - `puskesmas`: pengajuan permintaan barang ad-hoc dari unit Puskesmas.
 - `lplpo`: pelaporan pemakaian dan permintaan rutin bulanan dari Puskesmas.
+  Super Admin dapat mengelola LPLPO lintas fasilitas, sementara operator Puskesmas tetap dibatasi ke fasilitasnya sendiri.
 - `users`: manajemen pengguna dan pengaturan cakupan akses modul.
 
 - `core`: dashboard, middleware akses panel admin, pengaturan sistem (label platform login, logo, header dokumen, nama fasilitas, serta template penomoran dokumen distribusi) secara dinamis, placeholder riwayat administrasi terpisah untuk penerimaan serta pengeluaran, dan handler error terpusat untuk `400/403/404/500` plus halaman maintenance `503`.

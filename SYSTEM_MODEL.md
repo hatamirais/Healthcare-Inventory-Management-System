@@ -55,6 +55,8 @@ Module highlights:
 - Expiry alerts: `/expired/alerts/`
 - Reports: `/reports/`, `/reports/riwayat-penomoran/`, `/reports/rekap/`, `/reports/penerimaan-hibah/`, `/reports/pengadaan/`, `/reports/kadaluarsa/`, `/reports/pengeluaran/`
 - LPLPO: `/lplpo/` (All), `/lplpo/my/` (Puskesmas scoped), `/lplpo/create/`, `/lplpo/print-report/`, `/lplpo/api/prefill-penerimaan/`, `/lplpo/<pk>/`, `/lplpo/<pk>/edit/`, `/lplpo/<pk>/submit/`, `/lplpo/<pk>/reject/`, `/lplpo/<pk>/review/`, `/lplpo/<pk>/finalize/`, `/lplpo/<pk>/delete/`, `/lplpo/<pk>/print/`
+  - Super Admin sees all statuses on `/lplpo/` and can perform create/edit/submit/delete across facilities.
+  - Non-Puskesmas non-superuser staff continue to use `/lplpo/` as the submitted queue only.
 - Puskesmas requests: `/puskesmas/permintaan/`, `/puskesmas/permintaan/buat/`, `/puskesmas/permintaan/<pk>/`, `/puskesmas/permintaan/<pk>/edit/`, `/puskesmas/permintaan/<pk>/delete/`, `/puskesmas/permintaan/<pk>/submit/`, `/puskesmas/permintaan/<pk>/approve/`, `/puskesmas/permintaan/<pk>/reject/`, `/puskesmas/permintaan/<pk>/reset-draft/`
 - Allocation: `/allocation/`, `/allocation/create/`, `/allocation/<pk>/`, `/allocation/<pk>/edit/`, `/allocation/<pk>/delete/`, `/allocation/<pk>/reset-to-draft/`, `/allocation/<pk>/submit/`, `/allocation/<pk>/approve/`, `/allocation/<pk>/step-back/`, `/allocation/<pk>/reject/`, `/allocation/<pk>/distributions/<dist_pk>/prepare/`, `/allocation/<pk>/distributions/<dist_pk>/deliver/`
 
@@ -78,6 +80,7 @@ Permission denials are expected to raise `PermissionDenied` so the centralized 4
 Special rule:
 
 - For `users.*` permissions, non-view actions require `MANAGE` scope.
+- `lplpo` facility isolation applies only to `PUSKESMAS` users; Super Admin users (`is_superuser`) can access and mutate LPLPO across all facilities.
 
 Role default scopes are seeded in `backend/apps/users/access.py` via `ROLE_DEFAULT_SCOPES`.
 
@@ -315,6 +318,7 @@ This section reflects model code in `backend/apps/*/models.py`.
   - Computed fields (auto): `persediaan`, `stock_keseluruhan`, `stock_optimum`, `jumlah_kebutuhan`
   - IF fields: `pemberian_jumlah` (nullable), `pemberian_alasan`
   - Audit: `penerimaan_auto_filled`
+  - Create flow auto-fills `stock_awal` from the previous month's LPLPO for the same facility when that prior document exists and is not `REJECTED`
 
 ## 5) Stock Mutation Checkpoints
 

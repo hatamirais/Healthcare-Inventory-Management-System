@@ -274,7 +274,7 @@ def get_penerimaan_for_facility_period(facility, bulan, tahun):
 
 
 def get_previous_lplpo(facility, bulan, tahun):
-    """Return the previous month's CLOSED LPLPO for stock_awal auto-fill."""
+    """Return the previous month's usable LPLPO for stock_awal auto-fill."""
     prev_bulan = bulan - 1
     prev_tahun = tahun
     if prev_bulan < 1:
@@ -286,7 +286,9 @@ def get_previous_lplpo(facility, bulan, tahun):
             facility=facility,
             bulan=prev_bulan,
             tahun=prev_tahun,
-            status=LPLPO.Status.CLOSED,
+        )
+        .exclude(
+            status=LPLPO.Status.REJECTED,
         )
         .first()
     )
