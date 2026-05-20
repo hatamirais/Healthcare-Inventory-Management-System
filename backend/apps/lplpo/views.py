@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 import calendar
+import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -23,6 +24,12 @@ from apps.users.models import ModuleAccess, User
 from .forms import LPLPOCreateForm, LPLPOItemPuskesmasForm, LPLPOItemReviewForm, RejectLPLPOForm
 from .models import LPLPO, LPLPOItem, get_penerimaan_for_facility_period, get_previous_lplpo
 
+logger = logging.getLogger(__name__)
+
+
+def _is_super_admin(user):
+    return bool(getattr(user, "is_superuser", False))
+
 
 def _check_facility_access(request, lplpo_obj):
     """
@@ -30,7 +37,7 @@ def _check_facility_access(request, lplpo_obj):
     to access an LPLPO that belongs to a different facility.
     Returns None if access is allowed.
     """
-    if request.user.role != User.Role.PUSKESMAS:
+    if _is_super_admin(request.user) or request.user.role != User.Role.PUSKESMAS:
         return None  # Non-puskesmas roles can see all
     if not request.user.facility:
         messages.error(request, "Akun Anda belum terhubung ke fasilitas.")
@@ -53,13 +60,17 @@ def _check_instalasi_farmasi_access(request):
 
 
 def _check_puskesmas_creator_access(request):
-    """Restrict create flow to PUSKESMAS operators only."""
+    """Restrict create flow to PUSKESMAS operators and super admin."""
+    if _is_super_admin(request.user):
+        return
     if request.user.role != User.Role.PUSKESMAS:
         raise PermissionDenied("Hanya operator Puskesmas yang dapat membuat LPLPO.")
 
 
 def _check_puskesmas_draft_action_access(request):
-    """Restrict draft LPLPO mutations to PUSKESMAS operators only."""
+    """Restrict draft LPLPO mutations to PUSKESMAS operators and super admin."""
+    if _is_super_admin(request.user):
+        return
     if request.user.role != User.Role.PUSKESMAS:
         raise PermissionDenied(
             "Hanya operator Puskesmas yang dapat mengubah LPLPO draft."
@@ -71,11 +82,12 @@ def _get_submission_month_choices():
 
 
 def _get_submitted_lplpo_queryset(request):
-    queryset = (
-        LPLPO.objects.select_related("facility", "created_by", "reviewed_by")
-        .filter(submitted_at__isnull=False)
-        .order_by("-submitted_at", "-tahun", "-bulan", "facility__name")
+    queryset = LPLPO.objects.select_related(
+        "facility", "created_by", "reviewed_by", "distribution"
     )
+    if not _is_super_admin(request.user):
+        queryset = queryset.filter(submitted_at__isnull=False)
+    queryset = queryset.order_by("-submitted_at", "-tahun", "-bulan", "facility__name")
 
     q = request.GET.get("q", "").strip()
     if q:
@@ -127,6 +139,7 @@ def lplpo_list(request):
             "lplpos": page,
             **filter_context,
             "is_all": True,
+            "can_manage_all_lplpo": _is_super_admin(request.user),
         },
     )
 
@@ -186,7 +199,7 @@ def lplpo_create(request):
 
             # Determine facility
             facility = request.user.facility
-            if not facility:
+            if _is_super_admin(request.user) or not facility:
                 facility = form.cleaned_data.get("facility")
 
             if not facility:
@@ -251,6 +264,17 @@ def lplpo_create(request):
 
                 LPLPOItem.objects.bulk_create(lplpo_items)
 
+            if _is_super_admin(request.user):
+                logger.info(
+                    "super_admin_created_lplpo",
+                    extra={
+                        "user_id": request.user.pk,
+                        "facility_id": facility.pk,
+                        "lplpo_id": lplpo.pk,
+                        "bulan": bulan,
+                        "tahun": tahun,
+                    },
+                )
             messages.success(
                 request,
                 f"LPLPO {lplpo.document_number} berhasil dibuat dengan {len(lplpo_items)} item.",
@@ -363,6 +387,8 @@ def lplpo_detail(request, pk):
             "items": items,
             "can_review": can_review,
             "can_approve": can_approve,
+            "can_manage_draft": _is_super_admin(request.user)
+            or request.user.role == User.Role.PUSKESMAS,
         },
     )
 
@@ -441,6 +467,16 @@ def lplpo_edit(request, pk):
                     ],
                 )
 
+            if _is_super_admin(request.user):
+                logger.info(
+                    "super_admin_updated_lplpo_draft",
+                    extra={
+                        "user_id": request.user.pk,
+                        "facility_id": lplpo_obj.facility_id,
+                        "lplpo_id": lplpo_obj.pk,
+                        "status": lplpo_obj.status,
+                    },
+                )
             messages.success(request, f"LPLPO {lplpo_obj.document_number} berhasil disimpan.")
             return redirect("lplpo:lplpo_detail", pk=pk)
 
@@ -512,6 +548,15 @@ def lplpo_submit(request, pk):
         update_fields=["status", "rejection_reason", "submitted_at", "updated_at"]
     )
 
+    if _is_super_admin(request.user):
+        logger.info(
+            "super_admin_submitted_lplpo",
+            extra={
+                "user_id": request.user.pk,
+                "facility_id": lplpo_obj.facility_id,
+                "lplpo_id": lplpo_obj.pk,
+            },
+        )
     messages.success(request, f"LPLPO {lplpo_obj.document_number} berhasil diajukan.")
     return redirect("lplpo:lplpo_detail", pk=pk)
 
@@ -818,7 +863,17 @@ def lplpo_delete(request, pk):
         return redirect("lplpo:lplpo_detail", pk=pk)
 
     doc_number = lplpo_obj.document_number
+    facility_id = lplpo_obj.facility_id
     lplpo_obj.delete()
+    if _is_super_admin(request.user):
+        logger.info(
+            "super_admin_deleted_lplpo",
+            extra={
+                "user_id": request.user.pk,
+                "facility_id": facility_id,
+                "document_number": doc_number,
+            },
+        )
     messages.success(request, f"LPLPO {doc_number} berhasil dihapus.")
 
     if request.user.role == User.Role.PUSKESMAS:

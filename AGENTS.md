@@ -88,6 +88,7 @@ Default scopes per role are defined in `backend/apps/users/access.py`.
 ### Specialized Roles (e.g. OPERATOR PUSKESMAS)
 
 - `OPERATOR PUSKESMAS` role uses `facility` matching. Views in `puskesmas` and `lplpo` enforce strict facility isolation so that operators from one facility cannot read/write another facility's documents.
+- Super Admin (`is_superuser` / role `ADMIN`) is exempt from facility scoping in `lplpo` and may create, edit, submit, and delete LPLPO across all Puskesmas facilities.
 
 ## Workflow and Data Mutation Rules
 
@@ -97,6 +98,7 @@ Default scopes per role are defined in `backend/apps/users/access.py`.
 - Receiving admin CSV import writes `Receiving`, `ReceivingItem`, updates/creates `Stock`, and writes `Transaction(IN)`.
 - Receiving supports built-in and custom type codes; UI labels for non-built-in types are resolved from `ReceivingTypeOption`.
 - `Distribution(distribution_type=LPLPO)` is system-generated from `lplpo_finalize`; do not expose it as a manual distribution type in the generic distribution create/edit flow.
+- LPLPO creation auto-fills `stock_awal` from the immediately previous month's LPLPO for the same facility when one exists and is not `REJECTED`; the carry-over no longer waits for the prior document to reach `CLOSED`.
 - Distribution numbering templates for `LPLPO` and `SPECIAL_REQUEST` are user-configurable through `SystemSettings`; supported placeholders are `{seq}` and `{year}` and sequence counters remain scoped per distribution type and matched against the active template.
 - `Distribution(distribution_type=ALLOCATION)` is system-generated from `allocation` approval; one per facility, starts in `VERIFIED` status, quantities are locked and cannot be edited.
 - Allocation approval atomically creates `Distribution` + `DistributionItem` records for each facility. Stepping an allocation back from `APPROVED` to `SUBMITTED` deletes those child distributions so they can be regenerated on the next approval. Stock deduction is deferred to per-distribution delivery confirmation.

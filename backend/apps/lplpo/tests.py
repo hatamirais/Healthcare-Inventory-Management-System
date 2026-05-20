@@ -156,7 +156,7 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertTrue(all(item.pemberian_jumlah is None for item in items))
 
 	def test_instalasi_farmasi_cannot_create_lplpo(self):
-		self.client.force_login(self.staff_user)
+		self.client.force_login(self.gudang_user)
 
 		response = self.client.get(reverse("lplpo:lplpo_create"))
 
@@ -167,14 +167,14 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 			status_code=403,
 		)
 
-	def test_instalasi_farmasi_list_hides_create_button(self):
-		self.client.force_login(self.staff_user)
+	def test_super_admin_list_shows_create_button(self):
+		self.client.force_login(self.superuser)
 
 		response = self.client.get(reverse("lplpo:lplpo_list"))
 
 		self.assertEqual(response.status_code, 200)
-		self.assertNotContains(response, 'id="create-lplpo-btn"')
-		self.assertContains(response, 'id="print-report-btn"')
+		self.assertContains(response, 'id="create-lplpo-btn"')
+		self.assertNotContains(response, 'id="print-report-btn"')
 
 	def test_instalasi_farmasi_list_only_shows_submitted_documents(self):
 		draft_lplpo = self.create_lplpo(status=LPLPO.Status.DRAFT)
@@ -185,12 +185,28 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		)
 		self.set_submitted_at(submitted_lplpo, 2026, 4, 5)
 
-		self.client.force_login(self.staff_user)
+		self.client.force_login(self.gudang_user)
 		response = self.client.get(reverse("lplpo:lplpo_list"))
 
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, submitted_lplpo.document_number)
 		self.assertNotContains(response, draft_lplpo.document_number)
+
+	def test_super_admin_list_shows_draft_and_submitted_documents(self):
+		draft_lplpo = self.create_lplpo(status=LPLPO.Status.DRAFT)
+		submitted_lplpo = self.create_lplpo(
+			bulan=3,
+			tahun=2026,
+			status=LPLPO.Status.SUBMITTED,
+		)
+		self.set_submitted_at(submitted_lplpo, 2026, 4, 5)
+
+		self.client.force_login(self.superuser)
+		response = self.client.get(reverse("lplpo:lplpo_list"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, draft_lplpo.document_number)
+		self.assertContains(response, submitted_lplpo.document_number)
 
 	def test_instalasi_farmasi_list_filters_by_submission_month_and_year(self):
 		march_submission = self.create_lplpo(status=LPLPO.Status.SUBMITTED, bulan=2, tahun=2026)
@@ -199,7 +215,7 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		april_submission = self.create_lplpo(status=LPLPO.Status.SUBMITTED, bulan=3, tahun=2026)
 		self.set_submitted_at(april_submission, 2026, 4, 10)
 
-		self.client.force_login(self.staff_user)
+		self.client.force_login(self.gudang_user)
 		response = self.client.get(
 			reverse("lplpo:lplpo_list"),
 			{"submitted_month": "4", "submitted_year": "2026"},
@@ -271,6 +287,25 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertEqual(
 			current.items.get(item=self.item_b).stock_awal,
 			Decimal("5.00"),
+		)
+
+	def test_stock_awal_from_previous_submitted_lplpo(self):
+		previous = self.create_lplpo(bulan=1, tahun=2026, status=LPLPO.Status.SUBMITTED)
+		LPLPOItem.objects.create(
+			lplpo=previous,
+			item=self.item_a,
+			stock_awal=Decimal("6.00"),
+			penerimaan=Decimal("4.00"),
+			pemakaian=Decimal("3.00"),
+		)
+
+		self.client.force_login(self.puskesmas_user)
+		self.client.post(reverse("lplpo:lplpo_create"), {"bulan": "2", "tahun": "2026"})
+
+		current = LPLPO.objects.get(facility=self.facility, bulan=2, tahun=2026)
+		self.assertEqual(
+			current.items.get(item=self.item_a).stock_awal,
+			Decimal("7.00"),
 		)
 
 	def test_edit_renders_previous_stock_awal_without_decimal_places(self):
@@ -530,6 +565,17 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertNotContains(response, 'id="submit-btn"')
 		self.assertNotContains(response, 'id="delete-btn"')
 
+	def test_super_admin_detail_shows_draft_mutation_actions(self):
+		lplpo = self.create_lplpo()
+
+		self.client.force_login(self.superuser)
+		response = self.client.get(reverse("lplpo:lplpo_detail", args=[lplpo.pk]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'id="edit-btn"')
+		self.assertContains(response, 'id="submit-btn"')
+		self.assertContains(response, 'id="delete-btn"')
+
 	def test_non_puskesmas_cannot_delete_draft_lplpo(self):
 		lplpo = self.create_lplpo()
 
@@ -543,6 +589,76 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 			status_code=403,
 		)
 		self.assertTrue(LPLPO.objects.filter(pk=lplpo.pk).exists())
+
+	def test_super_admin_can_create_lplpo_for_any_puskesmas(self):
+		self.client.force_login(self.superuser)
+
+		response = self.client.post(
+			reverse("lplpo:lplpo_create"),
+			{
+				"bulan": "2",
+				"tahun": "2026",
+				"facility": str(self.other_facility.pk),
+				"notes": " Dibuat admin pusat ",
+			},
+		)
+
+		self.assertEqual(response.status_code, 302)
+		lplpo = LPLPO.objects.get(facility=self.other_facility, bulan=2, tahun=2026)
+		self.assertEqual(lplpo.created_by, self.superuser)
+		self.assertEqual(lplpo.notes, "Dibuat admin pusat")
+
+	def test_super_admin_can_edit_submit_and_delete_draft_lplpo(self):
+		lplpo = self.create_lplpo(
+			facility=self.other_facility,
+			created_by=self.other_puskesmas_user,
+		)
+		line = LPLPOItem.objects.create(
+			lplpo=lplpo,
+			item=self.item_a,
+			stock_awal=Decimal("1.00"),
+			penerimaan=Decimal("2.00"),
+			pemakaian=Decimal("1.00"),
+		)
+
+		self.client.force_login(self.superuser)
+		edit_response = self.client.post(
+			reverse("lplpo:lplpo_edit", args=[lplpo.pk]),
+			{
+				f"item_{line.pk}-stock_awal": "5",
+				f"item_{line.pk}-penerimaan": "3",
+				f"item_{line.pk}-pembelian_puskesmas": "1",
+				f"item_{line.pk}-pemakaian": "2",
+				f"item_{line.pk}-stock_gudang_puskesmas": "1",
+				f"item_{line.pk}-waktu_kosong": "0",
+				f"item_{line.pk}-permintaan_jumlah": "4",
+				f"item_{line.pk}-permintaan_alasan": " Buffer ",
+			},
+		)
+		self.assertEqual(edit_response.status_code, 302)
+
+		line.refresh_from_db()
+		self.assertEqual(line.stock_awal, Decimal("5.00"))
+		self.assertEqual(line.permintaan_alasan, "Buffer")
+
+		submit_response = self.client.post(reverse("lplpo:lplpo_submit", args=[lplpo.pk]))
+		self.assertEqual(submit_response.status_code, 302)
+		lplpo.refresh_from_db()
+		self.assertEqual(lplpo.status, LPLPO.Status.SUBMITTED)
+		self.assertIsNotNone(lplpo.submitted_at)
+
+		draft_for_delete = self.create_lplpo(
+			facility=self.other_facility,
+			created_by=self.other_puskesmas_user,
+			bulan=3,
+			tahun=2026,
+		)
+		delete_pk = draft_for_delete.pk
+		delete_response = self.client.post(
+			reverse("lplpo:lplpo_delete", args=[delete_pk])
+		)
+		self.assertEqual(delete_response.status_code, 302)
+		self.assertFalse(LPLPO.objects.filter(pk=delete_pk).exists())
 
 	def test_unique_constraint_facility_period(self):
 		self.create_lplpo(bulan=2, tahun=2026)

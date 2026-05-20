@@ -9,14 +9,19 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             {% if is_all %}
+            {% if can_manage_all_lplpo %}
+            <h4 class="mb-1">Semua LPLPO</h4>
+            <p class="text-muted mb-0">Super Admin dapat melihat dan mengelola seluruh dokumen LPLPO lintas fasilitas.</p>
+            {% else %}
             <h4 class="mb-1">LPLPO Diajukan Puskesmas</h4>
             <p class="text-muted mb-0">Daftar LPLPO yang sudah diajukan operator Puskesmas untuk diproses Instalasi Farmasi</p>
+            {% endif %}
             {% else %}
             <h4 class="mb-1">LPLPO Saya</h4>
             <p class="text-muted mb-0">Laporan Pemakaian & Lembar Permintaan Obat fasilitas Anda</p>
             {% endif %}
         </div>
-        {% if request.user.role == 'PUSKESMAS' %}
+        {% if request.user.role == 'PUSKESMAS' or can_manage_all_lplpo %}
         <a href="{% url 'lplpo:lplpo_create' %}" class="btn btn-primary" id="create-lplpo-btn">
             <i class="bi bi-plus-lg me-1"></i> Buat LPLPO Baru
         </a>
