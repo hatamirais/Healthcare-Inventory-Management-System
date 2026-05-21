@@ -396,6 +396,33 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 			Decimal("7.00"),
 		)
 
+	def test_january_create_skips_stock_awal_carry_from_previous_december(self):
+		"""January creation must NOT carry stock_awal from the previous December."""
+		active_year = get_active_lplpo_year()
+		previous_year = active_year - 1
+		december = self.create_lplpo(bulan=12, tahun=previous_year, status=LPLPO.Status.CLOSED)
+		LPLPOItem.objects.create(
+			lplpo=december,
+			item=self.item_a,
+			stock_awal=Decimal("10.00"),
+			penerimaan=Decimal("5.00"),
+			pemakaian=Decimal("3.00"),
+		)
+
+		self.client.force_login(self.puskesmas_user)
+		response = self.client.post(
+			reverse("lplpo:lplpo_create"),
+			{"bulan": "1", "tahun": str(active_year)},
+		)
+
+		self.assertEqual(response.status_code, 302)
+		january = LPLPO.objects.get(facility=self.facility, bulan=1, tahun=active_year)
+		self.assertEqual(
+			january.items.get(item=self.item_a).stock_awal,
+			0,
+			"January stock_awal must be 0 (manual entry), not carried from December.",
+		)
+
 	def test_edit_renders_previous_stock_awal_without_decimal_places(self):
 		previous = self.create_lplpo(bulan=1, tahun=2026, status=LPLPO.Status.CLOSED)
 		LPLPOItem.objects.create(
@@ -424,7 +451,9 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertNotIn('type="number" value="10.00"', html)
 
 	def test_january_bootstrap_edit_keeps_stock_awal_manual_even_with_previous_december(self):
-		previous_december = self.create_lplpo(bulan=12, tahun=2025, status=LPLPO.Status.CLOSED)
+		active_year = get_active_lplpo_year()
+		previous_year = active_year - 1
+		previous_december = self.create_lplpo(bulan=12, tahun=previous_year, status=LPLPO.Status.CLOSED)
 		LPLPOItem.objects.create(
 			lplpo=previous_december,
 			item=self.item_a,
@@ -433,7 +462,7 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 			pemakaian=Decimal("2.00"),
 		)
 
-		january = self.create_lplpo(bulan=1, tahun=2026)
+		january = self.create_lplpo(bulan=1, tahun=active_year)
 		line = LPLPOItem.objects.create(
 			lplpo=january,
 			item=self.item_a,

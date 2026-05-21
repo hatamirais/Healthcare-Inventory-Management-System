@@ -49,8 +49,13 @@ def get_next_required_lplpo_period(facility, *, server_date=None):
 
 
 def is_january_bootstrap_period(bulan, tahun, *, server_date=None):
-    """Return True when the period is the active year's opening January LPLPO."""
-    return bulan == 1 and tahun == get_active_lplpo_year(server_date)
+    """Return True when the period is a year's opening January LPLPO.
+
+    The bootstrap status is stable and does not change after a server-year
+    rollover — any January document remains the opening-balance baseline for
+    its own year regardless of the current server date.
+    """
+    return bulan == 1
 
 
 class LPLPO(TimeStampedModel):

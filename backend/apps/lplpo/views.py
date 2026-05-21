@@ -294,10 +294,14 @@ def lplpo_create(request):
                     notes=form.cleaned_data.get("notes", ""),
                 )
 
-                # Auto-fill from previous LPLPO
+                # Auto-fill stock_awal from previous LPLPO — skip for January
+                # because January is the yearly bootstrap baseline and stock_awal
+                # must be entered manually from facility opening records.
                 prev_lplpo = get_previous_lplpo(facility, bulan, tahun)
                 prev_stock = {}
-                if prev_lplpo:
+                if prev_lplpo and not is_january_bootstrap_period(
+                    bulan, tahun, server_date=server_date
+                ):
                     for pi in prev_lplpo.items.only("item_id", "stock_keseluruhan").all():
                         prev_stock[pi.item_id] = pi.stock_keseluruhan
 
