@@ -24,6 +24,18 @@
     <form method="post" id="lplpo-edit-form" novalidate>
         {% csrf_token %}
 
+        {% if is_january_bootstrap %}
+        <div class="alert alert-info" role="alert">
+            <div class="fw-semibold mb-1">Dokumen Bootstrap Januari</div>
+            <div class="small mb-1">
+                LPLPO {{ lplpo.period_display }} menjadi baseline stok awal tahunan untuk {{ lplpo.facility.name }}.
+            </div>
+            <div class="small mb-0">
+                Isi <strong>Stock Awal</strong> berdasarkan stok pembuka aktual atau catatan administrasi. Mulai Februari, nilai ini akan dikunci mengikuti <strong>Sisa Stok</strong> bulan sebelumnya.
+            </div>
+        </div>
+        {% endif %}
+
         {% if has_form_errors %}
         <div class="alert alert-danger" role="alert">
             Data belum tersimpan. Periksa kembali kolom yang bermasalah pada baris yang ditandai.
@@ -78,7 +90,7 @@
                                 </td>
                                 <td class="text-center text-muted small">{{ li.item.satuan.code }}</td>
                                 <td>
-                                    {% if has_prev %}
+                                    {% if stock_awal_locked %}
                                     <input type="number" value="{{ li.stock_awal|floatformat:'0' }}"
                                         class="form-control form-control-sm text-end" readonly
                                         title="Auto-filled dari bulan sebelumnya">

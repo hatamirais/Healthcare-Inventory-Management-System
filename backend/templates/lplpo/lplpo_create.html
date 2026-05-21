@@ -16,6 +16,18 @@
                     <form method="post" id="create-form">
                         {% csrf_token %}
 
+                        {% if form.is_january_bootstrap %}
+                        <div class="alert alert-info" role="alert">
+                            <div class="fw-semibold mb-1">Bootstrap Januari Tahun Berjalan</div>
+                            <div class="small mb-1">
+                                LPLPO ini menjadi baseline stok awal tahunan untuk {{ form.selected_facility.name }} pada tahun {{ form.active_year }}.
+                            </div>
+                            <div class="small mb-0">
+                                Isi <strong>Stock Awal</strong> di dokumen Januari dari stok pembuka aktual atau catatan administrasi fasilitas. Bulan berikutnya akan membawa nilai ini otomatis dari <strong>Sisa Stok</strong> bulan sebelumnya.
+                            </div>
+                        </div>
+                        {% endif %}
+
                         {% if form.non_field_errors %}
                         <div class="alert alert-warning mb-3">
                             {{ form.non_field_errors }}

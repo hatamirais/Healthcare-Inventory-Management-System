@@ -322,7 +322,8 @@ This section reflects model code in `backend/apps/*/models.py`.
   - IF fields: `pemberian_jumlah` (nullable), `pemberian_alasan`
   - Audit: `penerimaan_auto_filled`
   - Create flow is locked to the active server-calendar year and must be contiguous from January; each facility can only create the earliest missing month for that year
-  - Create flow auto-fills `stock_awal` from the previous month's LPLPO for the same facility when that prior document exists and is not `REJECTED_PUSKESMAS` or `REJECTED_PIC`
+  - The first January document in the active server year is the annual bootstrap baseline; the create/edit UI explains that `stock_awal` is entered manually from facility opening records
+  - February onward auto-fills `stock_awal` from the previous month's LPLPO for the same facility when that prior document exists and is not `REJECTED_PUSKESMAS` or `REJECTED_PIC`
 
 ## 5) Stock Mutation Checkpoints
 

@@ -403,6 +403,7 @@ App namespace: `lplpo`
 
 - Only DRAFT status allowed
 - Puskesmas can edit: `stock_awal` (only if no previous LPLPO), `pemakaian`, `stock_gudang_puskesmas`, `waktu_kosong`, `permintaan_jumlah`, `permintaan_alasan`
+  - In the live system, the active year's January LPLPO is treated as a bootstrap/onboarding step: create/edit pages explain that `stock_awal` must be entered manually from opening stock records and becomes the year's baseline
 - Puskesmas can confirm/override `penerimaan` (even if auto-filled)
 - Computed fields recalculate on save
 - `pemberian_jumlah` suggestion is shown only in review form initial data and is not persisted before review
@@ -519,7 +520,7 @@ Current implementation note:
 
 Fields: `stock_awal`, `penerimaan`, `pemakaian`, `stock_gudang_puskesmas`, `waktu_kosong`, `permintaan_jumlah`, `permintaan_alasan`
 
-Lock `stock_awal` if previous LPLPO exists (readonly widget).
+Lock `stock_awal` if previous LPLPO exists (readonly widget), except for the active-year January bootstrap document which remains manually editable.
 Lock `penerimaan` display but allow override with confirmation flag.
 
 ### 7.3 LPLPOItemReviewForm (for Instalasi Farmasi review)
