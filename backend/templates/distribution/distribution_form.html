@@ -254,13 +254,13 @@
 
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <span class="text-muted small">
-                            {% if allow_item_row_mutation %}
+                            {% if allow_item_row_mutation|default:True %}
                             Minimal satu baris item harus tersedia.
                             {% else %}
                             Baris item berasal dari LPLPO sumber dan tidak dapat ditambah atau dihapus pada tahap ini.
                             {% endif %}
                         </span>
-                        {% if allow_item_row_mutation %}
+                        {% if allow_item_row_mutation|default:True %}
                         <div class="d-flex gap-2">
                             <button type="button" class="btn btn-outline-danger btn-sm formset-clear" data-formset-target="distribution-items">
                                 <i class="bi bi-trash me-1"></i>Hapus Semua
@@ -300,7 +300,7 @@
                                     <td class="item-picker-dependent-cell js-item-picker-dependent" data-field-name="stock">{{ item_form.stock }}</td>
                                     <td class="item-picker-dependent-cell js-item-picker-dependent" data-field-name="notes">{{ item_form.notes }}</td>
                                     <td class="text-center">
-                                        {% if allow_item_row_mutation %}
+                                        {% if allow_item_row_mutation|default:True %}
                                         <button type="button" class="btn btn-outline-danger btn-sm formset-remove" title="Hapus Baris">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -336,7 +336,7 @@
                         </table>
                     </div>
 
-                    {% if allow_item_row_mutation %}
+                    {% if allow_item_row_mutation|default:True %}
                     <template id="distribution-items-empty">
                         <tr class="formset-row">
                             <td>{{ formset.empty_form.item }}</td>
