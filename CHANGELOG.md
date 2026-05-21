@@ -1,6 +1,3 @@
-## Unreleased
-
-- Added Expired Audit Report in the `expired` module with combined `OUT` and `Destroy` rows, filter modal, CSV export, and print-friendly preview for browser PDF save.
 # Changelog
 <!-- markdownlint-disable MD024 -->
 
@@ -9,6 +6,37 @@ All notable changes to this project are documented in this file.
 The format is based on Keep a Changelog and follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
 ## [Unreleased]
+
+## [1.24.0] - 2026-05-21
+
+### Added
+
+- Expired module: new expired audit report and print-friendly output, including filtered reporting, CSV export, and browser-print/PDF save support.
+- LPLPO workflow: current-year sequential document creation enforcement so each facility must create the earliest missing month first.
+- LPLPO workflow: explicit January bootstrap guidance on create and edit screens, clarifying manual opening-stock entry for `stock_awal`.
+- LPLPO workflow: January `penerimaan` now stays manually entered and is no longer auto-filled from distribution records.
+- User management: stronger account-management UX with password strength meter, password generator/reset actions, keyboard shortcuts, responsive mobile cards, CSV export, and a richer tabbed form layout.
+- Documentation: new internal code wiki pages covering architecture, app map, conventions, and workflow/stock behavior.
+
+### Changed
+
+- LPLPO workflow is now `DRAFT -> SUBMITTED -> PIC_VERIFIED -> REVIEWED -> APPROVED -> CLOSED`, with dedicated rejection loops and header-level audit fields for verification, review, and approval checkpoints.
+- LPLPO item handling now includes procurement-source support and updated quantity/computed-field behavior across create, review, detail, and print flows.
+- LPLPO distribution handoff and numbering behavior were reworked to tighten generated-document uniqueness and downstream distribution coordination.
+- Dashboard stock summaries now consistently use available stock semantics, and the near-expiry KPI excludes already expired batches.
+- Stock card and transfer views now present clearer transfer semantics in both on-screen and print outputs.
+- Distribution and allocation workflow gates were aligned so generated downstream documents follow the intended approval/delivery checkpoints.
+
+### Fixed
+
+- LPLPO: super admin can manage all Puskesmas LPLPO records as intended, while facility isolation for operator-scoped actions remains intact.
+- LPLPO: carry-over logic now reads from the immediately previous valid month without waiting for that document to reach `CLOSED`.
+- LPLPO: January bootstrap period stability, create-flow carry-over behavior, and finalize-time status revalidation under lock were corrected.
+- Users/UAC: hardened privileged-account management paths and closed a scope-escalation gap caused by mismatched direct-permission and module-scope checks.
+- Stock opname: rejected non-finite quantities, preserved location-filter state, and clarified empty-category/missing-category display states.
+- Expired alerts page now enforces the correct access restrictions.
+- Dashboard transaction helper text/count handling and available-stock KPI calculation were corrected.
+- Security hardening: client-side DOM text handling was tightened to address CodeQL-reported unsafe rendering patterns.
 
 ## [1.23.2] - 2026-05-07
 
