@@ -143,11 +143,11 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 
 		response = self.client.post(
 			reverse("lplpo:lplpo_create"),
-			{"bulan": "2", "tahun": "2026", "notes": "Draft awal"},
+			{"bulan": "1", "tahun": "2026", "notes": "Draft awal"},
 		)
 
 		self.assertEqual(response.status_code, 302)
-		lplpo = LPLPO.objects.get(facility=self.facility, bulan=2, tahun=2026)
+		lplpo = LPLPO.objects.get(facility=self.facility, bulan=1, tahun=2026)
 		items = list(lplpo.items.order_by("item__nama_barang"))
 
 		self.assertEqual(len(items), 2)
@@ -157,6 +157,68 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		)
 		self.assertTrue(all(item.item.is_active for item in items))
 		self.assertTrue(all(item.pemberian_jumlah is None for item in items))
+
+	def test_create_form_only_offers_next_required_month_for_operator(self):
+		self.client.force_login(self.puskesmas_user)
+
+		response = self.client.get(reverse("lplpo:lplpo_create"))
+
+		self.assertEqual(response.status_code, 200)
+		form = response.context["form"]
+		self.assertEqual(list(form.fields["bulan"].choices), [("1", "January")])
+		self.assertEqual(form.fields["tahun"].initial, 2026)
+		self.assertContains(
+			response,
+			"Periode berikutnya yang wajib dibuat: January 2026.",
+		)
+
+	def test_create_rejects_skipped_month_when_earlier_month_missing(self):
+		self.client.force_login(self.puskesmas_user)
+
+		response = self.client.post(
+			reverse("lplpo:lplpo_create"),
+			{"bulan": "3", "tahun": "2026", "notes": "Mencoba lompat periode"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(
+			response,
+			"Periode berikutnya yang wajib dibuat adalah January 2026.",
+		)
+		self.assertFalse(LPLPO.objects.filter(facility=self.facility, tahun=2026).exists())
+
+	def test_create_allows_next_month_once_previous_month_exists(self):
+		self.client.force_login(self.puskesmas_user)
+
+		first_response = self.client.post(
+			reverse("lplpo:lplpo_create"),
+			{"bulan": "1", "tahun": "2026"},
+		)
+		self.assertEqual(first_response.status_code, 302)
+
+		second_response = self.client.post(
+			reverse("lplpo:lplpo_create"),
+			{"bulan": "2", "tahun": "2026"},
+		)
+
+		self.assertEqual(second_response.status_code, 302)
+		self.assertTrue(LPLPO.objects.filter(facility=self.facility, bulan=1, tahun=2026).exists())
+		self.assertTrue(LPLPO.objects.filter(facility=self.facility, bulan=2, tahun=2026).exists())
+
+	def test_create_rejects_non_active_server_year(self):
+		self.client.force_login(self.puskesmas_user)
+
+		response = self.client.post(
+			reverse("lplpo:lplpo_create"),
+			{"bulan": "1", "tahun": "2025"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(
+			response,
+			"LPLPO baru hanya dapat dibuat untuk tahun server aktif 2026.",
+		)
+		self.assertFalse(LPLPO.objects.filter(facility=self.facility, tahun=2025).exists())
 
 	def test_instalasi_farmasi_cannot_create_lplpo(self):
 		self.client.force_login(self.gudang_user)
@@ -231,7 +293,7 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 	def test_penerimaan_auto_fill(self):
 		self.create_distribution(
 			facility=self.facility,
-			distributed_date=date(2026, 2, 10),
+			distributed_date=date(2026, 1, 10),
 			item_quantities=[
 				(self.item_a, Decimal("7.00")),
 				(self.item_b, Decimal("2.00")),
@@ -239,21 +301,21 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		)
 		special = self.create_distribution(
 			facility=self.facility,
-			distributed_date=date(2026, 2, 20),
+			distributed_date=date(2026, 1, 20),
 			item_quantities=[(self.item_a, Decimal("3.00"))],
 		)
 		special.distribution_type = Distribution.DistributionType.SPECIAL_REQUEST
 		special.save(update_fields=["distribution_type", "updated_at"])
 		self.create_distribution(
 			facility=self.other_facility,
-			distributed_date=date(2026, 2, 25),
+			distributed_date=date(2026, 1, 25),
 			item_quantities=[(self.item_a, Decimal("99.00"))],
 		)
 
 		self.client.force_login(self.puskesmas_user)
-		self.client.post(reverse("lplpo:lplpo_create"), {"bulan": "2", "tahun": "2026"})
+		self.client.post(reverse("lplpo:lplpo_create"), {"bulan": "1", "tahun": "2026"})
 
-		lplpo = LPLPO.objects.get(facility=self.facility, bulan=2, tahun=2026)
+		lplpo = LPLPO.objects.get(facility=self.facility, bulan=1, tahun=2026)
 		item_a_line = lplpo.items.get(item=self.item_a)
 		item_b_line = lplpo.items.get(item=self.item_b)
 
@@ -599,7 +661,7 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		response = self.client.post(
 			reverse("lplpo:lplpo_create"),
 			{
-				"bulan": "2",
+				"bulan": "1",
 				"tahun": "2026",
 				"facility": str(self.other_facility.pk),
 				"notes": " Dibuat admin pusat ",
@@ -607,7 +669,7 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		)
 
 		self.assertEqual(response.status_code, 302)
-		lplpo = LPLPO.objects.get(facility=self.other_facility, bulan=2, tahun=2026)
+		lplpo = LPLPO.objects.get(facility=self.other_facility, bulan=1, tahun=2026)
 		self.assertEqual(lplpo.created_by, self.superuser)
 		self.assertEqual(lplpo.notes, "Dibuat admin pusat")
 
