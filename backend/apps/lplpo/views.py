@@ -305,10 +305,14 @@ def lplpo_create(request):
                     for pi in prev_lplpo.items.only("item_id", "stock_keseluruhan").all():
                         prev_stock[pi.item_id] = pi.stock_keseluruhan
 
-                # Auto-fill penerimaan from distributions
-                penerimaan_data = get_penerimaan_for_facility_period(
-                    facility, bulan, tahun
-                )
+                # January bootstrap must keep penerimaan manual instead of
+                # trusting distribution autofill.
+                if is_january_bootstrap_period(bulan, tahun, server_date=server_date):
+                    penerimaan_data = {}
+                else:
+                    penerimaan_data = get_penerimaan_for_facility_period(
+                        facility, bulan, tahun
+                    )
 
                 # Generate one LPLPOItem per active Item
                 active_items = Item.objects.filter(is_active=True).order_by(
@@ -394,7 +398,10 @@ def api_prefill_penerimaan(request):
     if bulan < 1 or bulan > 12:
         return JsonResponse({"detail": "Bulan harus antara 1 dan 12."}, status=400)
 
-    data = get_penerimaan_for_facility_period(facility, bulan, tahun)
+    if is_january_bootstrap_period(bulan, tahun):
+        data = {}
+    else:
+        data = get_penerimaan_for_facility_period(facility, bulan, tahun)
     return JsonResponse(
         {
             "facility_id": facility.pk,

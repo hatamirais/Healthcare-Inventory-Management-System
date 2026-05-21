@@ -20,7 +20,7 @@ LPLPO is a monthly document submitted by each Puskesmas to Instalasi Farmasi. It
 
 - LPLPO for **Bulan X** is submitted in **Bulan X+1**
 - Example: LPLPO for January is filled and submitted in February
-- This means when a Puskesmas opens their January LPLPO, the January Distribution records from Instalasi Farmasi already exist and can be used to pre-fill Penerimaan
+- Historically January distributions might already exist, but the live bootstrap rule still requires January `penerimaan` to be entered manually instead of trusting system autofill
 - In the live system, creation is locked to the active server calendar year and must be filled contiguously from **Januari**. Even if a facility starts using the app mid-year, it must backfill `Januari -> Februari -> ...` in order for that same server year before later months can be created.
 
 ### 1.3 Workflow (Sequential)
@@ -30,7 +30,8 @@ LPLPO is a monthly document submitted by each Puskesmas to Instalasi Farmasi. It
 1. Opens new LPLPO for a given bulan/tahun
 2. System auto-generates one line per active Item (controlled by Instalasi Farmasi)
 3. System auto-fills Penerimaan from all LPLPO-type and SPECIAL_REQUEST Distributions
-   sent to that Puskesmas in that bulan/tahun
+   sent to that Puskesmas in that bulan/tahun, except for the active-year January
+   bootstrap which keeps `penerimaan` manual
 4. Puskesmas fills: Stock Awal (month 1 only), Pemakaian, Stock Gudang Puskesmas,
    Waktu Kosong, Permintaan Jumlah, Permintaan Alasan
 5. All computed fields are calculated automatically (see formulas)
@@ -395,7 +396,7 @@ App namespace: `lplpo`
   3. Create LPLPO header
   4. Auto-generate one `LPLPOItem` per active `Item` in the system
   5. Auto-fill `stock_awal` from previous month's `stock_keseluruhan` if available
-  6. Auto-fill `penerimaan` from Distribution records (set `penerimaan_auto_filled=True`)
+  6. Auto-fill `penerimaan` from Distribution records (set `penerimaan_auto_filled=True`), except for the active-year January bootstrap which keeps `penerimaan` manual
   7. Keep `pemberian_jumlah` empty until Instalasi Farmasi review
   8. Redirect to detail view
 
@@ -404,7 +405,7 @@ App namespace: `lplpo`
 - Only DRAFT status allowed
 - Puskesmas can edit: `stock_awal` (only if no previous LPLPO), `pemakaian`, `stock_gudang_puskesmas`, `waktu_kosong`, `permintaan_jumlah`, `permintaan_alasan`
   - In the live system, the active year's January LPLPO is treated as a bootstrap/onboarding step: create/edit pages explain that `stock_awal` must be entered manually from opening stock records and becomes the year's baseline
-- Puskesmas can confirm/override `penerimaan` (even if auto-filled)
+- Puskesmas can confirm/override `penerimaan` (even if auto-filled), while January bootstrap starts with manual `penerimaan`
 - Computed fields recalculate on save
 - `pemberian_jumlah` suggestion is shown only in review form initial data and is not persisted before review
 
