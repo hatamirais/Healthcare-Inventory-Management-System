@@ -1015,6 +1015,18 @@ class DistributionWorkflowTest(TestCase):
         self.assertNotContains(response, "Distribution Type")
         self.assertNotContains(response, "Tipe Distribusi")
 
+    def test_special_request_create_keeps_item_row_mutation_enabled(self):
+        response = self.client.get(reverse("distribution:special_request_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["allow_item_row_mutation"])
+        self.assertContains(response, "Tambah Baris")
+        self.assertContains(response, "Hapus Semua")
+        self.assertNotContains(
+            response,
+            "Baris item berasal dari LPLPO sumber dan tidak dapat ditambah atau dihapus pada tahap ini.",
+        )
+
     def test_special_request_create_shows_editable_preview_document_number(self):
         response = self.client.get(reverse("distribution:special_request_create"))
 

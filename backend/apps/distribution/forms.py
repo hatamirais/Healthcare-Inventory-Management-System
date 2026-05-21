@@ -284,7 +284,7 @@ class DistributionItemForm(forms.ModelForm):
         return cleaned_data
 
 
-class LockedLPLPODistributionItemFormSet(BaseInlineFormSet):
+class LockedLPLPODistributionItemBaseFormSet(BaseInlineFormSet):
     structure_locked_error = (
         "Baris distribusi hasil LPLPO tidak dapat ditambah, dihapus, atau diganti "
         "pada tahap pemilihan batch."
@@ -318,7 +318,7 @@ LockedLPLPODistributionItemFormSet = inlineformset_factory(
     Distribution,
     DistributionItem,
     form=DistributionItemForm,
-    formset=LockedLPLPODistributionItemFormSet,
+    formset=LockedLPLPODistributionItemBaseFormSet,
     extra=0,
     can_delete=False,
 )

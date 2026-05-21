@@ -259,6 +259,7 @@ def _save_special_request(request):
             "form": form,
             "formset": formset,
             "is_edit": False,
+            "allow_item_row_mutation": True,
             **_build_distribution_form_context(
                 title="Buat Permintaan Khusus",
                 back_url_name="distribution:special_request_list",
