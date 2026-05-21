@@ -245,8 +245,11 @@ def lplpo_create(request):
             with transaction.atomic():
                 Facility.objects.select_for_update().get(pk=facility.pk)
 
-                active_year = get_active_lplpo_year()
-                expected_year, expected_month = get_next_required_lplpo_period(facility)
+                server_date = timezone.localdate()
+                active_year = get_active_lplpo_year(server_date)
+                expected_year, expected_month = get_next_required_lplpo_period(
+                    facility, server_date=server_date
+                )
                 if expected_month is None:
                     form.add_error(
                         None,

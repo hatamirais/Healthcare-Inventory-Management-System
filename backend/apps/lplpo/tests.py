@@ -13,7 +13,12 @@ from apps.distribution.models import Distribution, DistributionItem
 from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
 from apps.stock.models import Stock
 from apps.users.models import ModuleAccess, User
-from apps.lplpo.models import LPLPO, LPLPOItem
+from apps.lplpo.models import (
+	LPLPO,
+	LPLPOItem,
+	format_lplpo_period_label,
+	get_active_lplpo_year,
+)
 
 
 class LPLPOTestCase(TestCase):
@@ -140,14 +145,15 @@ class LPLPOTestCase(TestCase):
 class LPLPOWorkflowTests(LPLPOTestCase):
 	def test_auto_generate_items_on_create(self):
 		self.client.force_login(self.puskesmas_user)
+		active_year = get_active_lplpo_year()
 
 		response = self.client.post(
 			reverse("lplpo:lplpo_create"),
-			{"bulan": "1", "tahun": "2026", "notes": "Draft awal"},
+			{"bulan": "1", "tahun": str(active_year), "notes": "Draft awal"},
 		)
 
 		self.assertEqual(response.status_code, 302)
-		lplpo = LPLPO.objects.get(facility=self.facility, bulan=1, tahun=2026)
+		lplpo = LPLPO.objects.get(facility=self.facility, bulan=1, tahun=active_year)
 		items = list(lplpo.items.order_by("item__nama_barang"))
 
 		self.assertEqual(len(items), 2)
@@ -160,65 +166,79 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 
 	def test_create_form_only_offers_next_required_month_for_operator(self):
 		self.client.force_login(self.puskesmas_user)
+		active_year = get_active_lplpo_year()
 
 		response = self.client.get(reverse("lplpo:lplpo_create"))
 
 		self.assertEqual(response.status_code, 200)
 		form = response.context["form"]
 		self.assertEqual(list(form.fields["bulan"].choices), [("1", "January")])
-		self.assertEqual(form.fields["tahun"].initial, 2026)
+		self.assertEqual(form.fields["tahun"].initial, active_year)
 		self.assertContains(
 			response,
-			"Periode berikutnya yang wajib dibuat: January 2026.",
+			f"Periode berikutnya yang wajib dibuat: {format_lplpo_period_label(1, active_year)}.",
 		)
 
 	def test_create_rejects_skipped_month_when_earlier_month_missing(self):
 		self.client.force_login(self.puskesmas_user)
+		active_year = get_active_lplpo_year()
+		required_period = format_lplpo_period_label(1, active_year)
 
 		response = self.client.post(
 			reverse("lplpo:lplpo_create"),
-			{"bulan": "3", "tahun": "2026", "notes": "Mencoba lompat periode"},
+			{"bulan": "3", "tahun": str(active_year), "notes": "Mencoba lompat periode"},
 		)
 
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(
 			response,
-			"Periode berikutnya yang wajib dibuat adalah January 2026.",
+			f"Periode berikutnya yang wajib dibuat adalah {required_period}.",
 		)
-		self.assertFalse(LPLPO.objects.filter(facility=self.facility, tahun=2026).exists())
+		self.assertFalse(
+			LPLPO.objects.filter(facility=self.facility, tahun=active_year).exists()
+		)
 
 	def test_create_allows_next_month_once_previous_month_exists(self):
 		self.client.force_login(self.puskesmas_user)
+		active_year = get_active_lplpo_year()
 
 		first_response = self.client.post(
 			reverse("lplpo:lplpo_create"),
-			{"bulan": "1", "tahun": "2026"},
+			{"bulan": "1", "tahun": str(active_year)},
 		)
 		self.assertEqual(first_response.status_code, 302)
 
 		second_response = self.client.post(
 			reverse("lplpo:lplpo_create"),
-			{"bulan": "2", "tahun": "2026"},
+			{"bulan": "2", "tahun": str(active_year)},
 		)
 
 		self.assertEqual(second_response.status_code, 302)
-		self.assertTrue(LPLPO.objects.filter(facility=self.facility, bulan=1, tahun=2026).exists())
-		self.assertTrue(LPLPO.objects.filter(facility=self.facility, bulan=2, tahun=2026).exists())
+		self.assertTrue(
+			LPLPO.objects.filter(facility=self.facility, bulan=1, tahun=active_year).exists()
+		)
+		self.assertTrue(
+			LPLPO.objects.filter(facility=self.facility, bulan=2, tahun=active_year).exists()
+		)
 
 	def test_create_rejects_non_active_server_year(self):
 		self.client.force_login(self.puskesmas_user)
+		active_year = get_active_lplpo_year()
+		non_active_year = active_year - 1
 
 		response = self.client.post(
 			reverse("lplpo:lplpo_create"),
-			{"bulan": "1", "tahun": "2025"},
+			{"bulan": "1", "tahun": str(non_active_year)},
 		)
 
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(
 			response,
-			"LPLPO baru hanya dapat dibuat untuk tahun server aktif 2026.",
+			f"LPLPO baru hanya dapat dibuat untuk tahun server aktif {active_year}.",
 		)
-		self.assertFalse(LPLPO.objects.filter(facility=self.facility, tahun=2025).exists())
+		self.assertFalse(
+			LPLPO.objects.filter(facility=self.facility, tahun=non_active_year).exists()
+		)
 
 	def test_instalasi_farmasi_cannot_create_lplpo(self):
 		self.client.force_login(self.gudang_user)
