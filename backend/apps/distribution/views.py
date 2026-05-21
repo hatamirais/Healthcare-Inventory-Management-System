@@ -15,6 +15,7 @@ from apps.users.models import ModuleAccess, User
 from .forms import (
     DistributionForm,
     DistributionItemFormSet,
+    LockedLPLPODistributionItemFormSet,
 )
 from .models import Distribution, DistributionItem, DistributionStaffAssignment
 from .services import (
@@ -258,6 +259,7 @@ def _save_special_request(request):
             "form": form,
             "formset": formset,
             "is_edit": False,
+            "allow_item_row_mutation": True,
             **_build_distribution_form_context(
                 title="Buat Permintaan Khusus",
                 back_url_name="distribution:special_request_list",
@@ -286,9 +288,18 @@ def distribution_edit(request, pk):
         return redirect("distribution:distribution_detail", pk=dist.pk)
 
     is_special_request = _is_special_request(dist)
+    is_generated_lplpo_distribution = dist.is_generated_lplpo_distribution
     forced_distribution_type = (
         Distribution.DistributionType.SPECIAL_REQUEST if is_special_request else None
     )
+    formset_class = (
+        LockedLPLPODistributionItemFormSet
+        if is_generated_lplpo_distribution
+        else DistributionItemFormSet
+    )
+    formset_kwargs = {"prefix": "items"}
+    if is_generated_lplpo_distribution:
+        formset_kwargs["form_kwargs"] = {"lock_quantity_fields": True}
 
     if request.method == "POST":
         form = DistributionForm(
@@ -297,7 +308,7 @@ def distribution_edit(request, pk):
             user=request.user,
             forced_distribution_type=forced_distribution_type,
         )
-        formset = DistributionItemFormSet(request.POST, instance=dist, prefix="items")
+        formset = formset_class(request.POST, instance=dist, **formset_kwargs)
 
         if form.is_valid() and formset.is_valid():
             with transaction.atomic():
@@ -324,7 +335,7 @@ def distribution_edit(request, pk):
             user=request.user,
             forced_distribution_type=forced_distribution_type,
         )
-        formset = DistributionItemFormSet(instance=dist, prefix="items")
+        formset = formset_class(instance=dist, **formset_kwargs)
 
     return render(
         request,
@@ -334,6 +345,8 @@ def distribution_edit(request, pk):
             "formset": formset,
             "is_edit": True,
             "distribution": dist,
+            "is_generated_lplpo_distribution": is_generated_lplpo_distribution,
+            "allow_item_row_mutation": not is_generated_lplpo_distribution,
             **_build_distribution_form_context(
                 title=(
                     f"Edit Permintaan Khusus {dist.document_number}"
@@ -482,6 +495,7 @@ def distribution_detail(request, pk):
                 if _is_special_request(dist)
                 else "distribution_history"
             ),
+            "is_generated_lplpo_distribution": dist.is_generated_lplpo_distribution,
         },
     )
 
