@@ -14,6 +14,7 @@ from .models import (
     format_lplpo_period_label,
     get_active_lplpo_year,
     get_next_required_lplpo_period,
+    is_january_bootstrap_period,
 )
 
 
@@ -110,6 +111,14 @@ class LPLPOCreateForm(forms.Form):
         if self.selected_facility is None:
             return True
         return self.next_required_month is not None
+
+    @property
+    def is_january_bootstrap(self):
+        return (
+            self.selected_facility is not None
+            and self.next_required_month == 1
+            and is_january_bootstrap_period(1, self.active_year)
+        )
 
     def _resolve_selected_facility(self):
         if getattr(self.user, "role", None) == User.Role.PUSKESMAS:

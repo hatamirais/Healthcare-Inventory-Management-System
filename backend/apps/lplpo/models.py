@@ -48,6 +48,11 @@ def get_next_required_lplpo_period(facility, *, server_date=None):
     return active_year, None
 
 
+def is_january_bootstrap_period(bulan, tahun, *, server_date=None):
+    """Return True when the period is the active year's opening January LPLPO."""
+    return bulan == 1 and tahun == get_active_lplpo_year(server_date)
+
+
 class LPLPO(TimeStampedModel):
     """Header document for monthly Puskesmas stock report and request."""
 
@@ -152,6 +157,11 @@ class LPLPO(TimeStampedModel):
         import calendar
 
         return f"{calendar.month_name[self.bulan]} {self.tahun}"
+
+    @property
+    def is_january_bootstrap(self):
+        """True when this document is the active-year January opening baseline."""
+        return is_january_bootstrap_period(self.bulan, self.tahun)
 
     @property
     def is_rejected_for_puskesmas(self):

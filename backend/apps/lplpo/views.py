@@ -30,6 +30,7 @@ from .models import (
     get_next_required_lplpo_period,
     get_penerimaan_for_facility_period,
     get_previous_lplpo,
+    is_january_bootstrap_period,
 )
 
 logger = logging.getLogger(__name__)
@@ -483,11 +484,17 @@ def lplpo_edit(request, pk):
         "item", "item__satuan", "item__kategori"
     ).order_by("item__kategori__sort_order", "item__nama_barang")
 
-    # Check if previous LPLPO exists (to lock stock_awal)
+    # January of the active server year is the manual opening-balance bootstrap.
+    is_january_bootstrap = is_january_bootstrap_period(
+        lplpo_obj.bulan, lplpo_obj.tahun
+    )
+
+    # Check if previous LPLPO exists (to lock stock_awal after January bootstrap)
     prev_lplpo = get_previous_lplpo(
         lplpo_obj.facility, lplpo_obj.bulan, lplpo_obj.tahun
     )
     has_prev = prev_lplpo is not None
+    stock_awal_locked = has_prev and not is_january_bootstrap
     has_form_errors = False
 
     if request.method == "POST":
@@ -567,6 +574,8 @@ def lplpo_edit(request, pk):
             "lplpo": lplpo_obj,
             "grouped": grouped,
             "has_prev": has_prev,
+            "stock_awal_locked": stock_awal_locked,
+            "is_january_bootstrap": is_january_bootstrap,
             "has_form_errors": has_form_errors,
         },
     )

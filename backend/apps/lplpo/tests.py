@@ -18,6 +18,7 @@ from apps.lplpo.models import (
 	LPLPOItem,
 	format_lplpo_period_label,
 	get_active_lplpo_year,
+	is_january_bootstrap_period,
 )
 
 
@@ -178,6 +179,8 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 			response,
 			f"Periode berikutnya yang wajib dibuat: {format_lplpo_period_label(1, active_year)}.",
 		)
+		self.assertContains(response, "Bootstrap Januari Tahun Berjalan")
+		self.assertContains(response, "baseline stok awal tahunan")
 
 	def test_create_rejects_skipped_month_when_earlier_month_missing(self):
 		self.client.force_login(self.puskesmas_user)
@@ -419,6 +422,39 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		html = response.content.decode()
 		self.assertIn('type="number" value="10"', html)
 		self.assertNotIn('type="number" value="10.00"', html)
+
+	def test_january_bootstrap_edit_keeps_stock_awal_manual_even_with_previous_december(self):
+		previous_december = self.create_lplpo(bulan=12, tahun=2025, status=LPLPO.Status.CLOSED)
+		LPLPOItem.objects.create(
+			lplpo=previous_december,
+			item=self.item_a,
+			stock_awal=Decimal("7.00"),
+			penerimaan=Decimal("1.00"),
+			pemakaian=Decimal("2.00"),
+		)
+
+		january = self.create_lplpo(bulan=1, tahun=2026)
+		line = LPLPOItem.objects.create(
+			lplpo=january,
+			item=self.item_a,
+			stock_awal=Decimal("9.00"),
+			penerimaan=Decimal("0.00"),
+			pemakaian=Decimal("0.00"),
+		)
+
+		self.client.force_login(self.puskesmas_user)
+		response = self.client.get(reverse("lplpo:lplpo_edit", args=[january.pk]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTrue(is_january_bootstrap_period(january.bulan, january.tahun))
+		self.assertContains(response, "Dokumen Bootstrap Januari")
+		self.assertContains(response, "baseline stok awal tahunan")
+		self.assertContains(response, f'name="item_{line.pk}-stock_awal"')
+		self.assertNotContains(
+			response,
+			f'<input type="hidden" name="item_{line.pk}-stock_awal"',
+			html=False,
+		)
 
 	def test_computed_fields_correct(self):
 		lplpo = self.create_lplpo()
