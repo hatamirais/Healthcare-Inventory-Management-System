@@ -1,7 +1,6 @@
 import importlib
 from datetime import date, datetime
 from decimal import Decimal
-from functools import wraps
 from unittest.mock import Mock, patch
 
 from django.apps import apps as django_apps
@@ -10,6 +9,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.core.tests.mixins import SecureClientDefaultsMixin
 from apps.distribution.models import Distribution, DistributionItem
 from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
 from apps.stock.models import Stock
@@ -23,8 +23,7 @@ from apps.lplpo.models import (
 )
 
 
-class LPLPOTestCase(TestCase):
-	secure_test_host = "localhost"
+class LPLPOTestCase(SecureClientDefaultsMixin, TestCase):
 
 	@classmethod
 	def setUpTestData(cls):
@@ -146,43 +145,7 @@ class LPLPOTestCase(TestCase):
 		lplpo.save(update_fields=["submitted_at", "updated_at"])
 
 	def setUp(self):
-		self.client.get = self._secure_client_method(self.client.get)
-		self.client.post = self._secure_client_method(self.client.post)
-
-	def _secure_client_method(self, method):
-		@wraps(method)
-		def wrapped(path, *args, **kwargs):
-			headers = kwargs.pop("headers", {})
-			headers = {"host": self.secure_test_host, **headers}
-			kwargs["secure"] = True
-			kwargs["headers"] = headers
-			return method(path, *args, **kwargs)
-
-		return wrapped
-
-	def secure_get(self, path, data=None, follow=False, **extra):
-		headers = extra.pop("headers", {})
-		headers = {"host": self.secure_test_host, **headers}
-		return self.client.get(
-			path,
-			data=data,
-			follow=follow,
-			secure=True,
-			headers=headers,
-			**extra,
-		)
-
-	def secure_post(self, path, data=None, follow=False, **extra):
-		headers = extra.pop("headers", {})
-		headers = {"host": self.secure_test_host, **headers}
-		return self.client.post(
-			path,
-			data=data,
-			follow=follow,
-			secure=True,
-			headers=headers,
-			**extra,
-		)
+		super().setUp()
 
 
 class LPLPOWorkflowTests(LPLPOTestCase):

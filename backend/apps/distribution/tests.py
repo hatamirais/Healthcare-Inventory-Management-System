@@ -1,6 +1,5 @@
 from datetime import date
 from decimal import Decimal
-from functools import wraps
 from unittest.mock import patch
 
 from django.contrib.staticfiles import finders
@@ -9,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.distribution.forms import DistributionForm, DistributionItemForm
+from apps.core.tests.mixins import SecureClientDefaultsMixin
 from apps.distribution.models import Distribution, DistributionItem
 from apps.core.models import SystemSettings
 from apps.items.models import Category, Facility, FundingSource, Item, Location, Unit
@@ -18,10 +18,8 @@ from apps.users.access import ensure_default_module_access
 from apps.users.models import User
 
 
-class DistributionWorkflowTest(TestCase):
+class DistributionWorkflowTest(SecureClientDefaultsMixin, TestCase):
     """Tests for the distribution module workflow transitions and stock posting."""
-
-    secure_test_host = "localhost"
 
     @classmethod
     def setUpTestData(cls):
@@ -83,44 +81,8 @@ class DistributionWorkflowTest(TestCase):
         )
 
     def setUp(self):
-        self.client.get = self._secure_client_method(self.client.get)
-        self.client.post = self._secure_client_method(self.client.post)
+        super().setUp()
         self.client.force_login(self.user)
-
-    def _secure_client_method(self, method):
-        @wraps(method)
-        def wrapped(path, *args, **kwargs):
-            headers = kwargs.pop("headers", {})
-            headers = {"host": self.secure_test_host, **headers}
-            kwargs["secure"] = True
-            kwargs["headers"] = headers
-            return method(path, *args, **kwargs)
-
-        return wrapped
-
-    def secure_get(self, path, data=None, follow=False, **extra):
-        headers = extra.pop("headers", {})
-        headers = {"host": self.secure_test_host, **headers}
-        return self.client.get(
-            path,
-            data=data,
-            follow=follow,
-            secure=True,
-            headers=headers,
-            **extra,
-        )
-
-    def secure_post(self, path, data=None, follow=False, **extra):
-        headers = extra.pop("headers", {})
-        headers = {"host": self.secure_test_host, **headers}
-        return self.client.post(
-            path,
-            data=data,
-            follow=follow,
-            secure=True,
-            headers=headers,
-            **extra,
-        )
 
     def _create_distribution(
         self,
