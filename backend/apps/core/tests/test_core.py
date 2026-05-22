@@ -148,6 +148,7 @@ class SystemSettingsModelTests(TestCase):
         self.assertEqual(settings.special_request_distribution_number_template, "440/{seq}/KD.F/{year}")
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class DashboardViewTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -396,6 +397,161 @@ class DashboardViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["today_transaction_count"], 1)
         self.assertContains(response, "Semua jenis transaksi")
+
+    def test_global_dashboard_excludes_transfer_transactions_from_kpis(self):
+        viewer = User.objects.create_user(
+            username="dashboard-transfer-metrics",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        actor = User.objects.create_user(
+            username="dashboard-transfer-actor",
+            password="TestPassword123!",
+            role=User.Role.GUDANG,
+        )
+        self._set_scope(viewer, ModuleAccess.Module.STOCK, ModuleAccess.Scope.VIEW)
+        self._set_scope(viewer, ModuleAccess.Module.EXPIRED, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.ITEMS, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.USERS, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.ADMIN_PANEL, ModuleAccess.Scope.NONE)
+
+        unit = Unit.objects.create(code="TRM", name="Transfer Metric")
+        category = Category.objects.create(code="TRM", name="Transfer Metric")
+        funding_source = FundingSource.objects.create(code="TRM", name="Transfer Metric")
+        source_location = Location.objects.create(code="TRSRC", name="Gudang Karantina")
+        destination_location = Location.objects.create(code="TRDST", name="Gudang Sirup")
+        item = Item.objects.create(
+            nama_barang="Item Mutasi Dashboard",
+            satuan=unit,
+            kategori=category,
+        )
+
+        fixed_now = timezone.now().replace(hour=10, minute=0, second=0, microsecond=0)
+        inbound = Transaction.objects.create(
+            transaction_type=Transaction.TransactionType.IN,
+            item=item,
+            location=source_location,
+            batch_lot="IN-001",
+            quantity=Decimal("20"),
+            unit_price=Decimal("1000"),
+            sumber_dana=funding_source,
+            reference_type=Transaction.ReferenceType.RECEIVING,
+            reference_id=10,
+            user=actor,
+        )
+        transfer_out = Transaction.objects.create(
+            transaction_type=Transaction.TransactionType.OUT,
+            item=item,
+            location=source_location,
+            batch_lot="TRF-001",
+            quantity=Decimal("5"),
+            unit_price=Decimal("1000"),
+            sumber_dana=funding_source,
+            reference_type=Transaction.ReferenceType.TRANSFER,
+            reference_id=20,
+            user=actor,
+        )
+        transfer_in = Transaction.objects.create(
+            transaction_type=Transaction.TransactionType.IN,
+            item=item,
+            location=destination_location,
+            batch_lot="TRF-001",
+            quantity=Decimal("5"),
+            unit_price=Decimal("1000"),
+            sumber_dana=funding_source,
+            reference_type=Transaction.ReferenceType.TRANSFER,
+            reference_id=20,
+            user=actor,
+        )
+        outbound = Transaction.objects.create(
+            transaction_type=Transaction.TransactionType.OUT,
+            item=item,
+            location=destination_location,
+            batch_lot="OUT-001",
+            quantity=Decimal("7"),
+            unit_price=Decimal("1000"),
+            sumber_dana=funding_source,
+            reference_type=Transaction.ReferenceType.DISTRIBUTION,
+            reference_id=30,
+            user=actor,
+        )
+
+        for transaction in (inbound, transfer_out, transfer_in, outbound):
+            Transaction.objects.filter(pk=transaction.pk).update(created_at=fixed_now)
+
+        self.client.force_login(viewer)
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["today_transaction_count"], 2)
+        self.assertEqual(response.context["inbound_30_days"], Decimal("20"))
+        self.assertEqual(response.context["outbound_30_days"], Decimal("7"))
+
+    def test_global_dashboard_recent_transactions_excludes_transfer_rows(self):
+        viewer = User.objects.create_user(
+            username="dashboard-transfer-recent",
+            password="TestPassword123!",
+            role=User.Role.ADMIN_UMUM,
+        )
+        actor = User.objects.create_user(
+            username="dashboard-transfer-recent-actor",
+            password="TestPassword123!",
+            role=User.Role.GUDANG,
+        )
+        self._set_scope(viewer, ModuleAccess.Module.STOCK, ModuleAccess.Scope.VIEW)
+        self._set_scope(viewer, ModuleAccess.Module.EXPIRED, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.ITEMS, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.USERS, ModuleAccess.Scope.NONE)
+        self._set_scope(viewer, ModuleAccess.Module.ADMIN_PANEL, ModuleAccess.Scope.NONE)
+
+        unit = Unit.objects.create(code="TRR", name="Transfer Recent")
+        category = Category.objects.create(code="TRR", name="Transfer Recent")
+        funding_source = FundingSource.objects.create(code="TRR", name="Transfer Recent")
+        source_location = Location.objects.create(code="TRRSRC", name="Gudang A")
+        destination_location = Location.objects.create(code="TRRDST", name="Gudang B")
+        item = Item.objects.create(
+            nama_barang="Item Recent Dashboard",
+            satuan=unit,
+            kategori=category,
+        )
+
+        normal_tx = Transaction.objects.create(
+            transaction_type=Transaction.TransactionType.IN,
+            item=item,
+            location=source_location,
+            batch_lot="RCV-001",
+            quantity=Decimal("12"),
+            unit_price=Decimal("1000"),
+            sumber_dana=funding_source,
+            reference_type=Transaction.ReferenceType.RECEIVING,
+            reference_id=1,
+            user=actor,
+        )
+        transfer_tx = Transaction.objects.create(
+            transaction_type=Transaction.TransactionType.OUT,
+            item=item,
+            location=destination_location,
+            batch_lot="TRF-RECENT-001",
+            quantity=Decimal("4"),
+            unit_price=Decimal("1000"),
+            sumber_dana=funding_source,
+            reference_type=Transaction.ReferenceType.TRANSFER,
+            reference_id=2,
+            user=actor,
+        )
+        fixed_now = timezone.now().replace(hour=11, minute=0, second=0, microsecond=0)
+        Transaction.objects.filter(pk=normal_tx.pk).update(created_at=fixed_now)
+        Transaction.objects.filter(pk=transfer_tx.pk).update(
+            created_at=fixed_now + timedelta(minutes=1)
+        )
+
+        self.client.force_login(viewer)
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        recent_transactions = list(response.context["recent_transactions"])
+        self.assertEqual(len(recent_transactions), 1)
+        self.assertEqual(recent_transactions[0].reference_type, Transaction.ReferenceType.RECEIVING)
 
     def test_global_dashboard_expiring_soon_excludes_already_expired_batches(self):
         viewer = User.objects.create_user(

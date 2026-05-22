@@ -293,21 +293,26 @@ def dashboard(request):
         )[:10]
         expiring_soon_count = expiring_soon_queryset.count()
 
-    today_tx_filter = Q(created_at__date=today)
-    tx_last_30_days = Transaction.objects.filter(created_at__date__gte=thirty_days_ago)
+    non_transfer_filter = ~Q(reference_type=Transaction.ReferenceType.TRANSFER)
+    today_tx_filter = Q(created_at__date=today) & non_transfer_filter
+    tx_last_30_days = Transaction.objects.filter(
+        created_at__date__gte=thirty_days_ago
+    )
     tx_summary = tx_last_30_days.aggregate(
         today_transaction_count=Count("pk", filter=today_tx_filter),
         inbound_30_days=Coalesce(
             Sum(
                 "quantity",
-                filter=Q(transaction_type=Transaction.TransactionType.IN),
+                filter=Q(transaction_type=Transaction.TransactionType.IN)
+                & non_transfer_filter,
             ),
             zero_decimal,
         ),
         outbound_30_days=Coalesce(
             Sum(
                 "quantity",
-                filter=Q(transaction_type=Transaction.TransactionType.OUT),
+                filter=Q(transaction_type=Transaction.TransactionType.OUT)
+                & non_transfer_filter,
             ),
             zero_decimal,
         ),
@@ -324,7 +329,9 @@ def dashboard(request):
         outbound_percent_30_days = 0
 
     # Recent transactions
-    recent_transactions_queryset = Transaction.objects.select_related("item")
+    recent_transactions_queryset = Transaction.objects.exclude(
+        reference_type=Transaction.ReferenceType.TRANSFER
+    ).select_related("item")
     if can_view_transaction_user:
         recent_transactions_queryset = recent_transactions_queryset.select_related(
             "user"
