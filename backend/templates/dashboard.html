@@ -163,14 +163,24 @@
                     <span>Masuk {{ inbound_percent_30_days }}%</span>
                     <span>Keluar {{ outbound_percent_30_days }}%</span>
                 </div>
-                <progress
+                <div
                     class="dashboard-movement-progress"
-                    aria-label="Inbound outbound ratio"
-                    value="{{ inbound_percent_30_days }}"
-                    max="100"
+                    role="img"
+                    aria-label="Inbound outbound ratio: masuk {{ inbound_percent_30_days }} persen, keluar {{ outbound_percent_30_days }} persen"
                 >
-                    {{ inbound_percent_30_days }}
-                </progress>
+                    <svg
+                        class="dashboard-movement-progress-svg"
+                        width="100%"
+                        height="8"
+                        viewBox="0 0 100 8"
+                        preserveAspectRatio="none"
+                        aria-hidden="true"
+                        focusable="false"
+                    >
+                        <rect x="2" y="2" width="100" height="8" rx="4" ry="4" fill="#dc3545"></rect>
+                        <rect x="0" y="0" width="{{ inbound_percent_30_days }}" height="8" rx="4" ry="4" fill="#198754"></rect>
+                    </svg>
+                </div>
             </div>
         </div>
     </div>
