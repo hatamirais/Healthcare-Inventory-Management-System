@@ -1,4 +1,5 @@
 from decimal import Decimal
+import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -9,6 +10,8 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.core.decorators import module_scope_required, perm_required
+from apps.lplpo.forms import RejectLPLPOForm
+from apps.lplpo.models import LPLPO
 from apps.users.access import has_module_scope
 from apps.users.models import ModuleAccess, User
 
@@ -29,6 +32,8 @@ from .services import (
     execute_stock_distribution,
     get_distribution_step_back_target,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _redirect_distribution_detail(pk):
@@ -58,6 +63,18 @@ def _can_manage_distribution_preparation(user, distribution):
             ModuleAccess.Scope.APPROVE,
         )
     return False
+
+
+def _can_return_generated_lplpo_to_puskesmas(user, distribution):
+    return (
+        distribution.is_generated_lplpo_distribution
+        and distribution.status != Distribution.Status.DISTRIBUTED
+        and has_module_scope(
+            user,
+            ModuleAccess.Module.LPLPO,
+            ModuleAccess.Scope.APPROVE,
+        )
+    )
 
 
 def _render_distribution_list(
@@ -456,6 +473,9 @@ def distribution_detail(request, pk):
             ModuleAccess.Scope.APPROVE,
         )
     )
+    can_return_lplpo_to_puskesmas = _can_return_generated_lplpo_to_puskesmas(
+        request.user, dist
+    )
 
     return render(
         request,
@@ -490,6 +510,7 @@ def distribution_detail(request, pk):
             "can_verify_distribution": can_verify_distribution,
             "can_reject_distribution": can_reject_distribution,
             "can_distribute_distribution": can_distribute_distribution,
+            "can_return_lplpo_to_puskesmas": can_return_lplpo_to_puskesmas,
             "active_pengeluaran_submenu": (
                 "special_request"
                 if _is_special_request(dist)
@@ -730,3 +751,75 @@ def distribution_delete(request, pk):
     dist.delete()
     messages.success(request, f"Distribusi {document_number} berhasil dihapus.")
     return redirect(redirect_url_name)
+
+
+@login_required
+@perm_required("distribution.change_distribution")
+@module_scope_required(ModuleAccess.Module.LPLPO, ModuleAccess.Scope.APPROVE)
+def distribution_return_lplpo_to_puskesmas(request, pk):
+    if request.method != "POST":
+        return _redirect_distribution_detail(pk)
+
+    form = RejectLPLPOForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Alasan penolakan wajib diisi.")
+        return _redirect_distribution_detail(pk)
+
+    with transaction.atomic():
+        dist = get_object_or_404(Distribution.objects.select_for_update(), pk=pk)
+
+        if not _can_return_generated_lplpo_to_puskesmas(request.user, dist):
+            raise PermissionDenied(
+                "Distribusi ini tidak dapat dikembalikan ke Puskesmas."
+            )
+
+        lplpo_obj = (
+            LPLPO.objects.select_for_update()
+            .filter(
+                distribution_id=dist.pk,
+                status=LPLPO.Status.APPROVED,
+            )
+            .first()
+        )
+        if lplpo_obj is None:
+            messages.error(
+                request,
+                "Hanya distribusi LPLPO yang masih menunggu proses distribusi yang dapat dikembalikan ke Puskesmas.",
+            )
+            return _redirect_distribution_detail(pk)
+
+        distribution_document_number = dist.document_number
+
+        lplpo_obj.status = LPLPO.Status.REJECTED_PUSKESMAS
+        lplpo_obj.approved_by = None
+        lplpo_obj.approved_at = None
+        lplpo_obj.distribution = None
+        lplpo_obj.rejection_reason = form.cleaned_data["rejection_reason"]
+        lplpo_obj.save(
+            update_fields=[
+                "status",
+                "approved_by",
+                "approved_at",
+                "distribution",
+                "rejection_reason",
+                "updated_at",
+            ]
+        )
+        dist.delete()
+
+    logger.info(
+        "distribution_returned_lplpo_to_puskesmas",
+        extra={
+            "user_id": request.user.pk,
+            "distribution_id": pk,
+            "lplpo_id": lplpo_obj.pk,
+        },
+    )
+    messages.success(
+        request,
+        (
+            f"Distribusi {distribution_document_number} dibatalkan. "
+            f"LPLPO {lplpo_obj.document_number} dikembalikan ke Puskesmas."
+        ),
+    )
+    return redirect("lplpo:lplpo_detail", pk=lplpo_obj.pk)

@@ -37,5 +37,10 @@ urlpatterns = [
         views.distribution_distribute,
         name="distribution_distribute",
     ),
+    path(
+        "<int:pk>/return-lplpo-to-puskesmas/",
+        views.distribution_return_lplpo_to_puskesmas,
+        name="distribution_return_lplpo_to_puskesmas",
+    ),
     path("<int:pk>/reject/", views.distribution_reject, name="distribution_reject"),
 ]

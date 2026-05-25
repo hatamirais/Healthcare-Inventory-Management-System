@@ -836,6 +836,82 @@ class DistributionWorkflowTest(SecureClientDefaultsMixin, TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Distribution.objects.filter(pk=dist.pk).exists())
 
+    def test_generated_lplpo_distribution_can_be_returned_to_puskesmas(self):
+        dist = self._create_distribution(status=Distribution.Status.DRAFT)
+        lplpo = self._link_lplpo_source(dist, status=LPLPO.Status.APPROVED)
+        lplpo.approved_by = self.user
+        lplpo.approved_at = timezone.now()
+        lplpo.save(update_fields=["approved_by", "approved_at", "updated_at"])
+
+        response = self.client.post(
+            reverse(
+                "distribution:distribution_return_lplpo_to_puskesmas",
+                args=[dist.pk],
+            ),
+            {"rejection_reason": "Perbaiki data permintaan dan ajukan ulang."},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            reverse("lplpo:lplpo_detail", args=[lplpo.pk]),
+        )
+        self.assertFalse(Distribution.objects.filter(pk=dist.pk).exists())
+        lplpo.refresh_from_db()
+        self.assertEqual(lplpo.status, LPLPO.Status.REJECTED_PUSKESMAS)
+        self.assertIsNone(lplpo.distribution)
+        self.assertIsNone(lplpo.approved_by)
+        self.assertIsNone(lplpo.approved_at)
+        self.assertEqual(
+            lplpo.rejection_reason,
+            "Perbaiki data permintaan dan ajukan ulang.",
+        )
+
+    def test_return_to_puskesmas_blocked_for_non_lplpo_distribution(self):
+        dist = self._create_distribution(
+            status=Distribution.Status.DRAFT,
+            distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
+        )
+
+        response = self.client.post(
+            reverse(
+                "distribution:distribution_return_lplpo_to_puskesmas",
+                args=[dist.pk],
+            ),
+            {"rejection_reason": "Tidak relevan."},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Distribution.objects.filter(pk=dist.pk).exists())
+
+    def test_return_to_puskesmas_blocked_for_distributed_lplpo(self):
+        dist = self._create_distribution(status=Distribution.Status.DISTRIBUTED)
+        lplpo = self._link_lplpo_source(dist, status=LPLPO.Status.CLOSED)
+
+        response = self.client.post(
+            reverse(
+                "distribution:distribution_return_lplpo_to_puskesmas",
+                args=[dist.pk],
+            ),
+            {"rejection_reason": "Terlambat."},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Distribution.objects.filter(pk=dist.pk).exists())
+        lplpo.refresh_from_db()
+        self.assertEqual(lplpo.status, LPLPO.Status.CLOSED)
+
+    def test_distribution_detail_shows_return_to_puskesmas_button_for_generated_lplpo(self):
+        dist = self._create_distribution(status=Distribution.Status.DRAFT)
+        self._link_lplpo_source(dist, status=LPLPO.Status.APPROVED)
+
+        response = self.client.get(
+            reverse("distribution:distribution_detail", args=[dist.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="return-lplpo-btn"')
+
     # --- Edit access ---
 
     def test_edit_allowed_for_draft(self):
