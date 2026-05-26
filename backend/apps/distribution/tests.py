@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.contrib.messages import get_messages
 from django.contrib.staticfiles import finders
 from django.test import TestCase
 from django.urls import reverse
@@ -820,6 +821,27 @@ class DistributionWorkflowTest(SecureClientDefaultsMixin, TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Distribution.objects.filter(pk=dist.pk).exists())
 
+    def test_delete_blocked_for_generated_lplpo_distribution(self):
+        dist = self._create_distribution(status=Distribution.Status.DRAFT)
+        lplpo = self._link_lplpo_source(dist, status=LPLPO.Status.APPROVED)
+
+        response = self.client.post(
+            reverse("distribution:distribution_delete", args=[dist.pk]),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Distribution.objects.filter(pk=dist.pk).exists())
+        lplpo.refresh_from_db()
+        self.assertEqual(lplpo.distribution_id, dist.pk)
+        self.assertTrue(
+            any(
+                "Distribusi hasil generate LPLPO tidak dapat dihapus."
+                in message.message
+                for message in get_messages(response.wsgi_request)
+            )
+        )
+
     def test_delete_blocked_for_submitted(self):
         dist = self._create_distribution(status=Distribution.Status.SUBMITTED)
         response = self.client.post(
@@ -839,9 +861,23 @@ class DistributionWorkflowTest(SecureClientDefaultsMixin, TestCase):
     def test_generated_lplpo_distribution_can_be_returned_to_puskesmas(self):
         dist = self._create_distribution(status=Distribution.Status.DRAFT)
         lplpo = self._link_lplpo_source(dist, status=LPLPO.Status.APPROVED)
+        lplpo.verified_by = self.preparer_user
+        lplpo.verified_at = timezone.now()
+        lplpo.reviewed_by = self.kepala_user
+        lplpo.reviewed_at = timezone.now()
         lplpo.approved_by = self.user
         lplpo.approved_at = timezone.now()
-        lplpo.save(update_fields=["approved_by", "approved_at", "updated_at"])
+        lplpo.save(
+            update_fields=[
+                "verified_by",
+                "verified_at",
+                "reviewed_by",
+                "reviewed_at",
+                "approved_by",
+                "approved_at",
+                "updated_at",
+            ]
+        )
 
         response = self.client.post(
             reverse(
@@ -860,11 +896,39 @@ class DistributionWorkflowTest(SecureClientDefaultsMixin, TestCase):
         lplpo.refresh_from_db()
         self.assertEqual(lplpo.status, LPLPO.Status.REJECTED_PUSKESMAS)
         self.assertIsNone(lplpo.distribution)
+        self.assertIsNone(lplpo.verified_by)
+        self.assertIsNone(lplpo.verified_at)
+        self.assertIsNone(lplpo.reviewed_by)
+        self.assertIsNone(lplpo.reviewed_at)
         self.assertIsNone(lplpo.approved_by)
         self.assertIsNone(lplpo.approved_at)
         self.assertEqual(
             lplpo.rejection_reason,
             "Perbaiki data permintaan dan ajukan ulang.",
+        )
+
+    def test_return_to_puskesmas_requires_rejection_reason(self):
+        dist = self._create_distribution(status=Distribution.Status.DRAFT)
+        lplpo = self._link_lplpo_source(dist, status=LPLPO.Status.APPROVED)
+
+        response = self.client.post(
+            reverse(
+                "distribution:distribution_return_lplpo_to_puskesmas",
+                args=[dist.pk],
+            ),
+            {"rejection_reason": "   "},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Distribution.objects.filter(pk=dist.pk).exists())
+        lplpo.refresh_from_db()
+        self.assertEqual(lplpo.status, LPLPO.Status.APPROVED)
+        self.assertEqual(lplpo.distribution_id, dist.pk)
+        self.assertEqual(lplpo.rejection_reason, "")
+        self.assertIn(
+            "Alasan penolakan wajib diisi.",
+            [message.message for message in get_messages(response.wsgi_request)],
         )
 
     def test_return_to_puskesmas_blocked_for_non_lplpo_distribution(self):

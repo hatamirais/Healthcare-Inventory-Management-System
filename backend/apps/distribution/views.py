@@ -730,6 +730,16 @@ def distribution_delete(request, pk):
     if request.method != "POST":
         return _redirect_distribution_detail(pk)
 
+    if dist.is_generated_lplpo_distribution:
+        messages.error(
+            request,
+            (
+                "Distribusi hasil generate LPLPO tidak dapat dihapus. "
+                "Gunakan aksi 'Batalkan & Kembalikan ke Puskesmas'."
+            ),
+        )
+        return _redirect_distribution_detail(pk)
+
     deletable_statuses = {
         Distribution.Status.DRAFT,
         Distribution.Status.REJECTED,
@@ -791,6 +801,10 @@ def distribution_return_lplpo_to_puskesmas(request, pk):
         distribution_document_number = dist.document_number
 
         lplpo_obj.status = LPLPO.Status.REJECTED_PUSKESMAS
+        lplpo_obj.verified_by = None
+        lplpo_obj.verified_at = None
+        lplpo_obj.reviewed_by = None
+        lplpo_obj.reviewed_at = None
         lplpo_obj.approved_by = None
         lplpo_obj.approved_at = None
         lplpo_obj.distribution = None
@@ -798,6 +812,10 @@ def distribution_return_lplpo_to_puskesmas(request, pk):
         lplpo_obj.save(
             update_fields=[
                 "status",
+                "verified_by",
+                "verified_at",
+                "reviewed_by",
+                "reviewed_at",
                 "approved_by",
                 "approved_at",
                 "distribution",
