@@ -1,4 +1,3 @@
-import calendar
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.conf import settings
@@ -6,6 +5,22 @@ from django.db import models
 from django.utils import timezone
 
 from apps.core.models import TimeStampedModel
+
+
+INDONESIAN_MONTH_NAMES = {
+    1: "Januari",
+    2: "Februari",
+    3: "Maret",
+    4: "April",
+    5: "Mei",
+    6: "Juni",
+    7: "Juli",
+    8: "Agustus",
+    9: "September",
+    10: "Oktober",
+    11: "November",
+    12: "Desember",
+}
 
 
 def normalize_whole_number(value):
@@ -22,9 +37,14 @@ def get_active_lplpo_year(server_date=None):
     return (server_date or timezone.localdate()).year
 
 
+def get_indonesian_month_name(month):
+    """Return the Indonesian month label for 1-12."""
+    return INDONESIAN_MONTH_NAMES[month]
+
+
 def format_lplpo_period_label(bulan, tahun):
     """Return a human-friendly period label for messages and help text."""
-    return f"{calendar.month_name[bulan]} {tahun}"
+    return f"{get_indonesian_month_name(bulan)} {tahun}"
 
 
 def get_next_required_lplpo_period(facility, *, server_date=None):
@@ -159,9 +179,7 @@ class LPLPO(TimeStampedModel):
     @property
     def period_display(self):
         """Human-friendly period label, e.g. 'Januari 2026'."""
-        import calendar
-
-        return f"{calendar.month_name[self.bulan]} {self.tahun}"
+        return f"{get_indonesian_month_name(self.bulan)} {self.tahun}"
 
     @property
     def is_january_bootstrap(self):

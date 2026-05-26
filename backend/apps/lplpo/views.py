@@ -99,7 +99,10 @@ def _check_puskesmas_draft_action_access(request):
 
 
 def _get_submission_month_choices():
-    return [(str(month), calendar.month_name[month]) for month in range(1, 13)]
+    return [
+        (str(month), format_lplpo_period_label(month, "").strip())
+        for month in range(1, 13)
+    ]
 
 
 def _resolve_lplpo_create_facility(form, user):

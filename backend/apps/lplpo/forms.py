@@ -1,4 +1,3 @@
-import calendar
 import unicodedata
 from decimal import ROUND_HALF_UP
 
@@ -13,6 +12,7 @@ from .models import (
     LPLPOItem,
     format_lplpo_period_label,
     get_active_lplpo_year,
+    get_indonesian_month_name,
     get_next_required_lplpo_period,
     is_january_bootstrap_period,
 )
@@ -36,7 +36,7 @@ class LPLPOCreateForm(forms.Form):
     """Period selector form for creating a new LPLPO."""
 
     bulan = forms.ChoiceField(
-        choices=[(i, calendar.month_name[i]) for i in range(1, 13)],
+        choices=[(i, get_indonesian_month_name(i)) for i in range(1, 13)],
         widget=forms.Select(attrs={"class": "form-select"}),
         label="Bulan",
     )
@@ -175,7 +175,7 @@ class LPLPOCreateForm(forms.Form):
             return
 
         self.fields["bulan"].choices = [
-            (str(next_month), calendar.month_name[next_month]),
+            (str(next_month), get_indonesian_month_name(next_month)),
         ]
         self.fields["bulan"].error_messages["invalid_choice"] = (
             "Periode berikutnya yang wajib dibuat adalah "

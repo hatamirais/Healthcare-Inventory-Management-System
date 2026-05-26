@@ -179,7 +179,7 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 
 		self.assertEqual(response.status_code, 200)
 		form = response.context["form"]
-		self.assertEqual(list(form.fields["bulan"].choices), [("1", "January")])
+		self.assertEqual(list(form.fields["bulan"].choices), [("1", "Januari")])
 		self.assertEqual(form.fields["tahun"].initial, active_year)
 		self.assertContains(
 			response,
