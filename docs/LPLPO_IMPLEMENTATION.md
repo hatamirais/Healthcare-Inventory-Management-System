@@ -46,24 +46,27 @@ LPLPO is a monthly document submitted by each Puskesmas to Instalasi Farmasi. It
 11. System suggests Pemberian Jumlah = Jumlah Kebutuhan per item
 12. PIC adjusts Pemberian Jumlah based on actual warehouse stock
 13. PIC fills Pemberian Alasan where adjusted
-14. PIC submits reviewed LPLPO upward → status: REVIEWED
-15. Kepala Instalasi can reject reviewed LPLPO back to PIC with a required rejection reason
-    → status: REJECTED_PIC
-16. Kepala Instalasi approves/finalizes reviewed LPLPO → status: APPROVED
-17. System auto-generates a linked draft Distribution document (type: LPLPO)
-18. LPLPO status → CLOSED after the linked Distribution reaches DISTRIBUTED
+14. PIC submits reviewed LPLPO → system records review audit fields, sets status `APPROVED`,
+        and auto-generates a linked draft Distribution document (type: LPLPO)
+15. LPLPO status → CLOSED after the linked Distribution reaches DISTRIBUTED
+
+Legacy compatibility:
+- Older documents may still exist in `REVIEWED` or `REJECTED_PIC` from the previous
+    Kepala approval workflow.
+- The legacy finalize/reject actions remain only so those documents can be completed,
+    but new documents should not enter those statuses.
 
 [Distribution Preparation]
-19. Assigned staff prepare the linked Distribution from `DRAFT` or `REJECTED`
+16. Assigned staff prepare the linked Distribution from `DRAFT` or `REJECTED`
     → status: PREPARED
     - For LPLPO-generated draft distributions, item rows plus `quantity_requested`/`quantity_approved`
       remain locked during edit so staff only choose stock batches, add notes, and adjust staff/header data
-20. Assigned staff submit the prepared Distribution → status: SUBMITTED
-21. Kepala Instalasi verifies or rejects the submission
-22. Verified Distribution is distributed and stock leaves the system
+17. Assigned staff submit the prepared Distribution → status: SUBMITTED
+18. Kepala Instalasi verifies or rejects the submission
+19. Verified Distribution is distributed and stock leaves the system
 
 [Next Month Auto-fill]
-14. When Puskesmas opens next month's LPLPO:
+20. When Puskesmas opens next month's LPLPO:
     - Stock Awal = previous month's Stock Keseluruhan (auto-filled)
     - Penerimaan = sum of all Distributions sent that month (auto-filled, confirmable)
 ```

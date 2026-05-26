@@ -3,6 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from unittest.mock import Mock, patch
 
+from django.contrib.messages import get_messages
 from django.apps import apps as django_apps
 from django.db import IntegrityError
 from django.test import TestCase
@@ -611,6 +612,76 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		line.refresh_from_db()
 		self.assertIsNone(line.pemberian_jumlah)
 
+	def test_review_creates_distribution_immediately(self):
+		lplpo = self.create_lplpo(status=LPLPO.Status.PIC_VERIFIED, created_by=self.puskesmas_user)
+		line = LPLPOItem.objects.create(
+			lplpo=lplpo,
+			item=self.item_a,
+			permintaan_jumlah=Decimal("12.00"),
+		)
+
+		self.client.force_login(self.gudang_user)
+		response = self.client.post(
+			reverse("lplpo:lplpo_review", args=[lplpo.pk]),
+			{
+				f"review_{line.pk}-pemberian_jumlah": "9",
+				f"review_{line.pk}-pemberian_alasan": "Disesuaikan dengan stok gudang.",
+			},
+		)
+
+		lplpo.refresh_from_db()
+		distribution = lplpo.distribution
+
+		self.assertEqual(response.status_code, 302)
+		self.assertRedirects(
+			response,
+			reverse("distribution:distribution_detail", args=[distribution.pk]),
+		)
+		self.assertEqual(lplpo.status, LPLPO.Status.APPROVED)
+		self.assertEqual(lplpo.reviewed_by, self.gudang_user)
+		self.assertEqual(lplpo.approved_by, self.gudang_user)
+		self.assertEqual(distribution.status, Distribution.Status.DRAFT)
+		self.assertTrue(distribution.staff_assignments.filter(user=self.gudang_user).exists())
+		self.assertEqual(distribution.items.count(), 1)
+		dist_line = distribution.items.get()
+		self.assertEqual(dist_line.item, self.item_a)
+		self.assertEqual(dist_line.quantity_requested, Decimal("12.00"))
+		self.assertEqual(dist_line.quantity_approved, Decimal("9.00"))
+
+	def test_review_integrity_error_shows_generic_message(self):
+		lplpo = self.create_lplpo(status=LPLPO.Status.PIC_VERIFIED, created_by=self.puskesmas_user)
+		line = LPLPOItem.objects.create(
+			lplpo=lplpo,
+			item=self.item_a,
+			permintaan_jumlah=Decimal("12.00"),
+		)
+
+		self.client.force_login(self.gudang_user)
+		with patch(
+			"apps.lplpo.views._create_lplpo_distribution",
+			side_effect=IntegrityError("duplicate key value violates constraint lplpo_unique"),
+		), patch("apps.lplpo.views.logger.exception") as mock_logger:
+			response = self.client.post(
+				reverse("lplpo:lplpo_review", args=[lplpo.pk]),
+				{
+					f"review_{line.pk}-pemberian_jumlah": "9",
+					f"review_{line.pk}-pemberian_alasan": "Disesuaikan dengan stok gudang.",
+				},
+				follow=True,
+			)
+
+		self.assertRedirects(response, reverse("lplpo:lplpo_detail", args=[lplpo.pk]))
+		self.assertEqual(
+			[str(message) for message in get_messages(response.wsgi_request)],
+			["Terjadi kesalahan saat memproses LPLPO. Silakan coba lagi."],
+		)
+		mock_logger.assert_called_once_with("LPLPO distribution creation failed")
+		lplpo.refresh_from_db()
+		self.assertIsNone(lplpo.distribution)
+		self.assertEqual(lplpo.status, LPLPO.Status.PIC_VERIFIED)
+		self.assertIsNone(lplpo.reviewed_by)
+		self.assertIsNone(lplpo.reviewed_at)
+
 	def test_edit_persists_form_and_computed_fields_with_bulk_update(self):
 		lplpo = self.create_lplpo()
 		line = LPLPOItem.objects.create(
@@ -912,7 +983,7 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.client.force_login(self.puskesmas_user)
 		response = self.client.get(reverse("lplpo:lplpo_detail", args=[lplpo.pk]))
 
-		self.assertContains(response, "Disetujui / Menunggu Proses Distribusi")
+		self.assertContains(response, "Siap Distribusi")
 		self.assertNotContains(response, "<strong>Disetujui Kepala</strong>", html=True)
 
 	def test_operate_scope_user_can_verify_submitted_lplpo(self):
@@ -1126,6 +1197,37 @@ class LPLPOWorkflowTests(LPLPOTestCase):
 		self.assertEqual(line.item, self.item_a)
 		self.assertEqual(line.quantity_requested, Decimal("12.00"))
 		self.assertEqual(line.quantity_approved, Decimal("9.00"))
+
+	def test_finalize_integrity_error_shows_generic_message(self):
+		lplpo = self.create_lplpo(status=LPLPO.Status.REVIEWED, created_by=self.staff_user)
+		LPLPOItem.objects.create(
+			lplpo=lplpo,
+			item=self.item_a,
+			permintaan_jumlah=Decimal("12.00"),
+			pemberian_jumlah=Decimal("9.00"),
+		)
+
+		self.client.force_login(self.superuser)
+		with patch(
+			"apps.lplpo.views._create_lplpo_distribution",
+			side_effect=IntegrityError("duplicate key value violates constraint lplpo_unique"),
+		), patch("apps.lplpo.views.logger.exception") as mock_logger:
+			response = self.client.post(
+				reverse("lplpo:lplpo_finalize", args=[lplpo.pk]),
+				follow=True,
+			)
+
+		self.assertRedirects(response, reverse("lplpo:lplpo_detail", args=[lplpo.pk]))
+		self.assertEqual(
+			[str(message) for message in get_messages(response.wsgi_request)],
+			["Terjadi kesalahan saat memproses LPLPO. Silakan coba lagi."],
+		)
+		mock_logger.assert_called_once_with("LPLPO distribution creation failed")
+		lplpo.refresh_from_db()
+		self.assertIsNone(lplpo.distribution)
+		self.assertEqual(lplpo.status, LPLPO.Status.REVIEWED)
+		self.assertIsNone(lplpo.approved_by)
+		self.assertIsNone(lplpo.approved_at)
 
 	def test_finalize_reuses_existing_distribution(self):
 		distribution = Distribution.objects.create(
