@@ -233,6 +233,13 @@
                                 <a href="{% url 'distribution:distribution_edit' distribution.pk %}" class="btn btn-outline-secondary btn-sm">
                                     <i class="bi bi-pencil me-1"></i>Ubah
                                 </a>
+                                {% endif %}
+                                {% if can_return_lplpo_to_puskesmas %}
+                                <button type="button" class="btn btn-outline-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#returnLplpoModal" id="return-lplpo-btn">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Batalkan & Kembalikan ke Puskesmas
+                                </button>
+                                {% endif %}
+                                {% if can_edit_distribution %}
                                 <form method="post" action="{% url 'distribution:distribution_delete' distribution.pk %}" data-confirm-submit="Hapus distribusi ini? Tindakan ini tidak dapat dibatalkan.">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-outline-danger btn-sm w-100">
@@ -390,6 +397,33 @@
                     <button type="submit" class="btn btn-success btn-sm">
                         <i class="bi bi-truck me-1"></i>Ya, Distribusikan
                     </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if can_return_lplpo_to_puskesmas %}
+<div class="modal fade" id="returnLplpoModal" tabindex="-1" aria-labelledby="returnLplpoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'distribution:distribution_return_lplpo_to_puskesmas' distribution.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="returnLplpoModalLabel">Kembalikan LPLPO ke Puskesmas</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">
+                        Tindakan ini akan membatalkan dokumen distribusi hasil LPLPO dan mengembalikan LPLPO ke Puskesmas untuk diperbaiki lalu diajukan ulang.
+                    </p>
+                    <label for="return_rejection_reason" class="form-label">Alasan Penolakan</label>
+                    <textarea class="form-control" id="return_rejection_reason" name="rejection_reason" rows="4" required></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger">Batalkan Distribusi</button>
                 </div>
             </form>
         </div>

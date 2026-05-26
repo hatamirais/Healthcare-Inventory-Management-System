@@ -315,6 +315,7 @@ This section reflects model code in `backend/apps/*/models.py`.
   - Constraints/Indexes: `uq_lplpo_facility_period` unique on `(facility, bulan, tahun)`, `idx_lplpo_facility_period` on `(facility, tahun, bulan)`, `idx_lplpo_status` on `(status)`
   - Workflow is `DRAFT -> SUBMITTED -> PIC_VERIFIED -> REVIEWED -> APPROVED -> CLOSED`
   - Rejection loops are `SUBMITTED -> REJECTED_PUSKESMAS` and `REVIEWED -> REJECTED_PIC`
+  - While the generated distribution is still pending fulfillment, an approved LPLPO may also be returned to `REJECTED_PUSKESMAS` by cancelling its generated distribution with a required rejection reason
 
 - `lplpo.LPLPOItem` (`lplpo_items`):
   - FKs: `lplpo`, `item`
