@@ -194,8 +194,79 @@ def distribution_list(request):
         empty_state_text="Belum ada riwayat pengeluaran",
         active_pengeluaran_submenu="distribution_history",
         show_type_filter=True,
-        report_url_name="reports:pengeluaran",
+        report_url_name="distribution:distribution_report",
         report_button_label="Laporan Pengeluaran",
+    )
+
+
+@login_required
+@perm_required("reports.view_reports")
+def distribution_report(request):
+    from apps.reports.views import render_pengeluaran_report
+
+    return render_pengeluaran_report(
+        request,
+        base_report_url_name="distribution:distribution_report",
+        tab_url_names={
+            "": "distribution:distribution_report",
+            Distribution.DistributionType.SPECIAL_REQUEST: "distribution:distribution_report_special_request",
+            Distribution.DistributionType.ALLOCATION: "distribution:distribution_report_allocation",
+            Distribution.DistributionType.LPLPO: "distribution:distribution_report_lplpo",
+        },
+    )
+
+
+@login_required
+@perm_required("reports.view_reports")
+def distribution_report_special_request(request):
+    from apps.reports.views import render_pengeluaran_report
+
+    return render_pengeluaran_report(
+        request,
+        forced_distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
+        base_report_url_name="distribution:distribution_report",
+        tab_url_names={
+            "": "distribution:distribution_report",
+            Distribution.DistributionType.SPECIAL_REQUEST: "distribution:distribution_report_special_request",
+            Distribution.DistributionType.ALLOCATION: "distribution:distribution_report_allocation",
+            Distribution.DistributionType.LPLPO: "distribution:distribution_report_lplpo",
+        },
+    )
+
+
+@login_required
+@perm_required("reports.view_reports")
+def distribution_report_allocation(request):
+    from apps.reports.views import render_pengeluaran_report
+
+    return render_pengeluaran_report(
+        request,
+        forced_distribution_type=Distribution.DistributionType.ALLOCATION,
+        base_report_url_name="distribution:distribution_report",
+        tab_url_names={
+            "": "distribution:distribution_report",
+            Distribution.DistributionType.SPECIAL_REQUEST: "distribution:distribution_report_special_request",
+            Distribution.DistributionType.ALLOCATION: "distribution:distribution_report_allocation",
+            Distribution.DistributionType.LPLPO: "distribution:distribution_report_lplpo",
+        },
+    )
+
+
+@login_required
+@perm_required("reports.view_reports")
+def distribution_report_lplpo(request):
+    from apps.reports.views import render_pengeluaran_report
+
+    return render_pengeluaran_report(
+        request,
+        forced_distribution_type=Distribution.DistributionType.LPLPO,
+        base_report_url_name="distribution:distribution_report",
+        tab_url_names={
+            "": "distribution:distribution_report",
+            Distribution.DistributionType.SPECIAL_REQUEST: "distribution:distribution_report_special_request",
+            Distribution.DistributionType.ALLOCATION: "distribution:distribution_report_allocation",
+            Distribution.DistributionType.LPLPO: "distribution:distribution_report_lplpo",
+        },
     )
 
 

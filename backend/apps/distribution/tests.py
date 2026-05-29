@@ -1278,8 +1278,48 @@ class DistributionWorkflowTest(SecureClientDefaultsMixin, TestCase):
         response = self.client.get(reverse("distribution:distribution_list"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, reverse("reports:pengeluaran"))
+        self.assertContains(response, reverse("distribution:distribution_report"))
         self.assertNotContains(response, "Buat Distribusi")
+
+    def test_distribution_report_endpoint_renders_outbound_report(self):
+        response = self.client.get(reverse("distribution:distribution_report"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Laporan Pengeluaran / Distribusi")
+        self.assertContains(response, "Semua Distribusi")
+
+    def test_distribution_report_special_request_endpoint_filters_to_special_request(self):
+        special_request = self._create_distribution(
+            status=Distribution.Status.DISTRIBUTED,
+            distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
+            with_items=True,
+        )
+        lplpo = self._create_distribution(
+            status=Distribution.Status.DISTRIBUTED,
+            distribution_type=Distribution.DistributionType.LPLPO,
+            with_items=True,
+        )
+
+        response = self.client.get(
+            reverse("distribution:distribution_report_special_request"),
+            {
+                "start_date": "2026-03-01",
+                "end_date": "2026-03-31",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, special_request.document_number)
+        self.assertNotContains(response, lplpo.document_number)
+
+    def test_distribution_report_tabs_use_dedicated_distribution_urls(self):
+        response = self.client.get(reverse("distribution:distribution_report"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("distribution:distribution_report"))
+        self.assertContains(response, reverse("distribution:distribution_report_special_request"))
+        self.assertContains(response, reverse("distribution:distribution_report_allocation"))
+        self.assertContains(response, reverse("distribution:distribution_report_lplpo"))
 
     def test_distribution_list_requires_view_permission(self):
         restricted_user = User.objects.create_user(
