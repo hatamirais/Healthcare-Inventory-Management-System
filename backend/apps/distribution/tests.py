@@ -1321,6 +1321,23 @@ class DistributionWorkflowTest(SecureClientDefaultsMixin, TestCase):
         self.assertContains(response, reverse("distribution:distribution_report_allocation"))
         self.assertContains(response, reverse("distribution:distribution_report_lplpo"))
 
+    def test_distribution_report_endpoints_require_reports_permission(self):
+        restricted_user = User.objects.create_user(
+            username="puskesmas_no_reports_view",
+            role=User.Role.PUSKESMAS,
+        )
+        self.client.force_login(restricted_user)
+
+        for url_name in (
+            "distribution:distribution_report",
+            "distribution:distribution_report_special_request",
+            "distribution:distribution_report_allocation",
+            "distribution:distribution_report_lplpo",
+        ):
+            with self.subTest(url_name=url_name):
+                response = self.client.get(reverse(url_name))
+                self.assertEqual(response.status_code, 403)
+
     def test_distribution_list_requires_view_permission(self):
         restricted_user = User.objects.create_user(
             username="puskesmas_no_distribution_view",

@@ -36,6 +36,14 @@ from .services import (
 logger = logging.getLogger(__name__)
 
 
+_DISTRIBUTION_REPORT_TAB_URL_NAMES = {
+    "": "distribution:distribution_report",
+    Distribution.DistributionType.SPECIAL_REQUEST: "distribution:distribution_report_special_request",
+    Distribution.DistributionType.ALLOCATION: "distribution:distribution_report_allocation",
+    Distribution.DistributionType.LPLPO: "distribution:distribution_report_lplpo",
+}
+
+
 def _redirect_distribution_detail(pk):
     return redirect("distribution:distribution_detail", pk=pk)
 
@@ -207,12 +215,7 @@ def distribution_report(request):
     return render_pengeluaran_report(
         request,
         base_report_url_name="distribution:distribution_report",
-        tab_url_names={
-            "": "distribution:distribution_report",
-            Distribution.DistributionType.SPECIAL_REQUEST: "distribution:distribution_report_special_request",
-            Distribution.DistributionType.ALLOCATION: "distribution:distribution_report_allocation",
-            Distribution.DistributionType.LPLPO: "distribution:distribution_report_lplpo",
-        },
+        tab_url_names=_DISTRIBUTION_REPORT_TAB_URL_NAMES,
     )
 
 
@@ -225,12 +228,7 @@ def distribution_report_special_request(request):
         request,
         forced_distribution_type=Distribution.DistributionType.SPECIAL_REQUEST,
         base_report_url_name="distribution:distribution_report",
-        tab_url_names={
-            "": "distribution:distribution_report",
-            Distribution.DistributionType.SPECIAL_REQUEST: "distribution:distribution_report_special_request",
-            Distribution.DistributionType.ALLOCATION: "distribution:distribution_report_allocation",
-            Distribution.DistributionType.LPLPO: "distribution:distribution_report_lplpo",
-        },
+        tab_url_names=_DISTRIBUTION_REPORT_TAB_URL_NAMES,
     )
 
 
@@ -243,12 +241,7 @@ def distribution_report_allocation(request):
         request,
         forced_distribution_type=Distribution.DistributionType.ALLOCATION,
         base_report_url_name="distribution:distribution_report",
-        tab_url_names={
-            "": "distribution:distribution_report",
-            Distribution.DistributionType.SPECIAL_REQUEST: "distribution:distribution_report_special_request",
-            Distribution.DistributionType.ALLOCATION: "distribution:distribution_report_allocation",
-            Distribution.DistributionType.LPLPO: "distribution:distribution_report_lplpo",
-        },
+        tab_url_names=_DISTRIBUTION_REPORT_TAB_URL_NAMES,
     )
 
 
@@ -261,12 +254,7 @@ def distribution_report_lplpo(request):
         request,
         forced_distribution_type=Distribution.DistributionType.LPLPO,
         base_report_url_name="distribution:distribution_report",
-        tab_url_names={
-            "": "distribution:distribution_report",
-            Distribution.DistributionType.SPECIAL_REQUEST: "distribution:distribution_report_special_request",
-            Distribution.DistributionType.ALLOCATION: "distribution:distribution_report_allocation",
-            Distribution.DistributionType.LPLPO: "distribution:distribution_report_lplpo",
-        },
+        tab_url_names=_DISTRIBUTION_REPORT_TAB_URL_NAMES,
     )
 
 
