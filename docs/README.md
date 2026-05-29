@@ -19,6 +19,7 @@ This folder contains implementation notes, developer guidance, ERD references, t
 ## Working Docs
 
 - [Staged Testing Plan](staged-testing-plan/README.md)
+- [Issue Drafts](issue-drafts/README.md)
 - `work-report/`: historical work reports
 
 ## Data Files
