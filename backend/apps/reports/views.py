@@ -591,12 +591,14 @@ def render_pengeluaran_report(
     selected_distribution_type_label = dict(
         PengeluaranReportFilterForm.base_fields['distribution_type'].choices
     ).get(active_distribution_type, 'Semua Distribusi')
+    selected_facility_name = 'Semua Fasilitas'
 
     if form.is_valid():
         start_date = form.cleaned_data.get('start_date')
         end_date = form.cleaned_data.get('end_date')
         distribution_type = forced_distribution_type or form.cleaned_data.get('distribution_type')
         facility = form.cleaned_data.get('facility')
+        selected_facility_name = facility.name if facility else 'Semua Fasilitas'
         active_distribution_type = distribution_type or ''
         selected_distribution_type_label = dict(form.fields['distribution_type'].choices).get(
             active_distribution_type,
@@ -637,7 +639,6 @@ def render_pengeluaran_report(
             })
 
         if request.GET.get('format') == 'excel' and report_data:
-            selected_facility_name = facility.name if facility else 'Semua Fasilitas'
             return export_pengeluaran_excel(
                 report_data,
                 start_date,
@@ -661,6 +662,8 @@ def render_pengeluaran_report(
     tabs = []
     for value, label in tab_choices:
         tab_params = tab_base_params.copy()
+        if value:
+            tab_params['distribution_type'] = value
         tab_url = reverse(tab_url_names.get(value, base_report_url_name))
         encoded_params = tab_params.urlencode()
         if encoded_params:
@@ -685,6 +688,7 @@ def render_pengeluaran_report(
         'tabs': tabs,
         'active_distribution_type': active_distribution_type,
         'selected_distribution_type_label': selected_distribution_type_label,
+        'selected_facility_name': selected_facility_name,
         'base_report_url_name': base_report_url_name,
     }
     return render(request, 'reports/pengeluaran.html', context)

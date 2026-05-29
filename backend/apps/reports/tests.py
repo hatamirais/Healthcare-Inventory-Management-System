@@ -285,3 +285,24 @@ class PengeluaranReportTests(TestCase):
 			'Laporan_Pengeluaran_Alokasi_2026-04-01_2026-04-30.xlsx',
 			response['Content-Disposition'],
 		)
+
+	def test_pengeluaran_report_tabs_include_distribution_type_query(self):
+		response = self.client.get(
+			reverse('reports:pengeluaran'),
+			{
+				'start_date': '2026-04-01',
+				'end_date': '2026-04-30',
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		tabs = response.context['tabs']
+		self.assertTrue(any(tab['value'] == '' for tab in tabs))
+		self.assertTrue(any(tab['value'] == Distribution.DistributionType.ALLOCATION for tab in tabs))
+
+		allocation_tab = next(
+			tab for tab in tabs if tab['value'] == Distribution.DistributionType.ALLOCATION
+		)
+		self.assertIn('distribution_type=ALLOCATION', allocation_tab['url'])
+		self.assertIn('start_date=2026-04-01', allocation_tab['url'])
+		self.assertIn('end_date=2026-04-30', allocation_tab['url'])

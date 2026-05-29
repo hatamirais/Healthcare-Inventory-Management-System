@@ -131,8 +131,8 @@
         LAPORAN PENGELUARAN / DISTRIBUSI<br>
         JENIS DISTRIBUSI: {{ selected_distribution_type_label }}<br>
         PERIODE: {{ form.start_date.value|default:"-" }} s/d {{ form.end_date.value|default:"-" }}
-        {% if form.facility.value %}
-        <br>FASILITAS: {{ form.facility.value }}
+        {% if selected_facility_name and selected_facility_name != "Semua Fasilitas" %}
+        <br>FASILITAS: {{ selected_facility_name }}
         {% endif %}
     </div>
 </div>
