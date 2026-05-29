@@ -16,7 +16,7 @@ from apps.items.models import Category, Facility, FundingSource, Item, Location,
 from apps.lplpo.models import LPLPO
 from apps.stock.models import Stock, Transaction
 from apps.users.access import ensure_default_module_access
-from apps.users.models import User
+from apps.users.models import ModuleAccess, User
 
 
 class DistributionWorkflowTest(SecureClientDefaultsMixin, TestCase):
@@ -1349,6 +1349,27 @@ class DistributionWorkflowTest(SecureClientDefaultsMixin, TestCase):
         response = self.client.get(reverse("distribution:distribution_list"))
 
         self.assertEqual(response.status_code, 403)
+
+    def test_distribution_list_hides_report_button_without_reports_permission(self):
+        restricted_user = User.objects.create_user(
+            username="gudang_without_reports_access",
+            password="secret12345",
+            role=User.Role.GUDANG,
+        )
+        ensure_default_module_access(restricted_user, overwrite=True)
+        ModuleAccess.objects.filter(
+            user=restricted_user,
+            module=ModuleAccess.Module.REPORTS,
+        ).update(scope=ModuleAccess.Scope.NONE)
+        self.client.force_login(restricted_user)
+
+        response = self.client.get(reverse("distribution:distribution_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response,
+            reverse("distribution:distribution_report"),
+        )
 
     def test_special_request_list_filters_special_request_records(self):
         special_request = self._create_distribution(

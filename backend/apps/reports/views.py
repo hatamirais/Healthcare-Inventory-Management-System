@@ -15,6 +15,15 @@ from .exports import (
 from apps.stock.models import Transaction, Stock
 from apps.distribution.models import Distribution
 
+
+_PENGELUARAN_REPORT_TAB_URL_NAMES = {
+    '': 'reports:pengeluaran',
+    Distribution.DistributionType.SPECIAL_REQUEST: 'reports:pengeluaran',
+    Distribution.DistributionType.ALLOCATION: 'reports:pengeluaran',
+    Distribution.DistributionType.LPLPO: 'reports:pengeluaran',
+}
+
+
 @login_required
 @perm_required('reports.view_reports')
 def reports_index(request):
@@ -648,12 +657,7 @@ def render_pengeluaran_report(
             )
 
     if tab_url_names is None:
-        tab_url_names = {
-            '': 'reports:pengeluaran',
-            'SPECIAL_REQUEST': 'reports:pengeluaran',
-            'ALLOCATION': 'reports:pengeluaran',
-            'LPLPO': 'reports:pengeluaran',
-        }
+        tab_url_names = _PENGELUARAN_REPORT_TAB_URL_NAMES
 
     tab_choices = PengeluaranReportFilterForm.base_fields['distribution_type'].choices
     tab_base_params = effective_querydict.copy()
