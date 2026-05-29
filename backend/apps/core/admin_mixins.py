@@ -1,5 +1,7 @@
 """Mixin for ImportExportModelAdmin that adds CSV column reference guide."""
 
+from import_export.formats import base_formats
+
 from apps.core.csv_exports import SanitizedCSV
 
 
@@ -22,8 +24,7 @@ class ImportGuideMixin:
             if file_format is SanitizedCSV:
                 sanitized_formats.append(file_format)
                 continue
-            extension_getter = getattr(file_format(), "get_extension", None)
-            if callable(extension_getter) and extension_getter() == "csv":
+            if issubclass(file_format, base_formats.CSV):
                 sanitized_formats.append(SanitizedCSV)
                 continue
             sanitized_formats.append(file_format)

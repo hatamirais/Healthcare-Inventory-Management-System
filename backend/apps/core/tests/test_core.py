@@ -4,6 +4,7 @@ from tempfile import TemporaryDirectory
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
+from import_export.formats import base_formats
 from tablib import Dataset
 
 from django.contrib.auth.models import AnonymousUser
@@ -18,6 +19,7 @@ from django.template import Context, Template
 from django.urls import resolve, reverse
 from django.utils import timezone
 
+from apps.core.admin_mixins import ImportGuideMixin
 from apps.core.context_processors import nav_notifications
 from apps.core.csv_exports import SanitizedCSV, escape_csv_formula
 from apps.core.forms import SystemSettingsForm
@@ -128,6 +130,23 @@ class CsvExportSecurityTests(SimpleTestCase):
 
         self.assertIn("Name,Notes", csv_output)
         self.assertIn("'\t=HYPERLINK", csv_output)
+
+    def test_import_guide_mixin_replaces_csv_subclasses_without_instantiating_them(self):
+        class NoInitCsvFormat(base_formats.CSV):
+            def __init__(self, *args, **kwargs):
+                raise AssertionError("CSV format subclasses should not be instantiated here")
+
+        class NonCsvFormat:
+            pass
+
+        class ExportFormatsBase:
+            def get_export_formats(self):
+                return [NoInitCsvFormat, NonCsvFormat]
+
+        class TestAdmin(ImportGuideMixin, ExportFormatsBase):
+            pass
+
+        self.assertEqual(TestAdmin().get_export_formats(), [SanitizedCSV, NonCsvFormat])
 
 
 class SystemSettingsFormTests(SimpleTestCase):
